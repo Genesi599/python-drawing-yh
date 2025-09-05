@@ -5,7 +5,7 @@ import math
 from adjustText import adjust_text
 from pathlib import Path
 
-path = Path(r"C:\Users\yh109\OneDrive\桌面\FC.csv")
+path = Path(r"C:\Users\yh109\Nutstore\1\Institute of Zoology\protein\FC.csv")
 listpath = Path(r"C:\Users\yh109\Documents\GitHub\enrichment_analysis-yh\data\annolist.txt")
 with open(listpath, 'r', encoding='utf-8') as f:
     loaded = [line.rstrip('\n') for line in f]
@@ -66,7 +66,7 @@ fig = plt.figure(figsize=plt.figaspect(9 / 9))  # 确定fig比例（h/w）
 ax = fig.add_subplot()
 ax.set(xlim=(xmin, xmax), ylim=(ymin, ymax), title='')
 ax.scatter(result['x'], result['y'], s=5, c=result['group'])
-ax.set_ylabel(r'log$_{10}$(Abundance)', fontweight='bold', fontsize=12)
+ax.set_ylabel(r'log$_\boldsymbol{10}$(Abundance)', fontweight='bold', fontsize=12)
 ax.set_xlabel('rank', fontweight='bold', fontsize=12)
 ax.spines['right'].set_visible(False)  # 去掉右边框
 ax.spines['top'].set_visible(False)  # 去掉上边框
