@@ -777,7 +777,7 @@ if __name__ == '__main__':
          groups_list=['Y','M','O'],
          output_dir='/dellstorage09/quj_lab/yanghang/leukocyte_single_cell/Human/human-B_cell/figure/gene_celltype_comparison_plots',
          normalize_method='upsample_to_max',
-         remove_zero_cells=None,  # ⭐ 是否删除表达量为0的细胞
+         remove_zero_cells=False,  # ⭐ 是否删除表达量为0的细胞
          enable_resample=False,  # ⭐ 是否进行重采样
          fontsize_title=20,
          fontsize_label=14,
