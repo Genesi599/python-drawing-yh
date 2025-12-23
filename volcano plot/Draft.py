@@ -1,34 +1,30 @@
-import matplotlib.pyplot as plt
-import numpy as np
+# batch_volcano.py
+from pathlib import Path
+from math import log10
+from volcano import create_volcano_plot   # 确保 volcano.py 在同一目录或在 PYTHONPATH
 
-# Example data
-x = np.linspace(-10, 10, 50)  # 50 points from -10 to 10 on the x-axis
-y = np.random.normal(0, 5, 50)  # Random y values centered around 0
+# ========== 唯一需要手动改的地方 ==========
+root_dir = Path(r"D:\Projects\Neutrophil_Aging\NET_bulk\Ctrl_vs_NETs_vs_NETs_DNase_I")   # 根目录
+# =========================================
 
-# Create the plot with a larger size for better visibility
-plt.figure(figsize=(10, 6))
+def main():
+    # 递归找所有 *all.csv
+    csv_files = root_dir.rglob('*all.csv')
+    for csv_path in csv_files:
+        print(f'Processing: {csv_path}')
+        out_name = csv_path.with_suffix('').name + '_volcano.png'  # xxx_volcano.png
+        out_path = csv_path.parent / out_name                     # 同目录
 
-# Add background color for y > 0 area
-plt.axhspan(0, max(y) + 1, facecolor='red', alpha=0.2)
+        create_volcano_plot(
+            input_file=str(csv_path),
+            output_file=str(out_path),
+            x_threshold=0.5,
+            y_threshold=-log10(0.05),
+            lfc_col='log2FoldChange',
+            p_col='padj',
+            id_col='GeneName'
+        )
+        print(f'  -> saved: {out_path}\n')
 
-# Add background color for y < 0 area
-plt.axhspan(min(y) - 1, 0, facecolor='blue', alpha=0.2)
-
-# Plot several layers of points with decreasing opacity
-sizes = [120, 180, 240]  # Sizes for different layers
-alphas = [0.3, 0.15, 0.05]  # Decreasing alpha for gradient effect
-
-# Plot from greater to smaller for layering
-for s, alpha in zip(sizes, alphas):
-    plt.scatter(x, y, color='none', edgecolors='white', linewidths=20, s=s, alpha=alpha, zorder=3)
-
-# Main scatter plot
-plt.scatter(x, y, color='black', edgecolors='white', linewidths=3, s=100, zorder=5)
-
-# Add a label and show the plot
-plt.title('Scatter Plot with Gradient-like Transition')
-plt.xlabel('X-axis')
-plt.ylabel('Y-axis')
-plt.grid(True)
-
-plt.show()
+if __name__ == '__main__':
+    main()

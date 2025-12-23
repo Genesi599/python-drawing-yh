@@ -1,97 +1,121 @@
-import os
-import gseapy as gp
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+# enrichment_combo.py
+import os, gseapy as gp, numpy as np, matplotlib.pyplot as plt
+from tenacity import retry, stop_after_attempt, wait_fixed
 
-# 假设您提供的基因列表
-gene_list = [
-    "AHCY", "AHSA1", "ALDH16A1", "ANXA5", "ARF3", "BCL2L1",
-    "BID", "BLVRA", "CD2AP", "CLDN5", "DBN1", "DPP3",
-    "DTYMK", "EEF1D", "ENO2", "FHL2", "FHOD1", "FKBP5",
-    "FN3KRP", "GRAP2", "GYG1", "HADH", "KHSRP", "MOB1B",
-    "MPP1", "NANS", "NCK2", "NUDT5", "PAICS", "PARVB",
-    "PCBP1", "PCYT2", "PDIA4", "PGD", "PGM2L1", "PGP",
-    "PPI1", "PTK2B", "PTP4A2", "PYGB", "RBM38", "RGS10",
-    "SDC4", "SERPINB9", "SGTA", "SHMT1", "SNTB1", "STIM1",
-    "STMN1", "SUS1", "TBC1D10B", "TKT", "UCHL3", "VAT1",
-    "VPS26B", "YKT6"
-]
+# ---------- 重试 ----------
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
+def _enrich_with_retry(gene_list, gene_set):
+    return gp.enrichr(gene_list=gene_list,
+                      gene_sets=gene_set,
+                      organism='Human',
+                      outdir=None)
 
-# 确保目录存在
-output_directory = 'data'
-if not os.path.exists(output_directory):
-    os.makedirs(output_directory)
+# ---------- 单幅富集图 ----------
+def _single_enrich(gene_list, analysis_type, gene_fontcolor,
+                   bar_color, n_term=8):
+    """返回画好的 fig, ax, df（仅供内部组合）"""
+    if analysis_type == 'GO':
+        gene_set = 'GO_Biological_Process_2025'
+        title_prefix = 'GO Biological Process'
+    elif analysis_type == 'KEGG':
+        gene_set = 'KEGG_2021_Human'
+        title_prefix = 'KEGG Pathway'
+    else:
+        raise ValueError("analysis_type must be 'GO' or 'KEGG'")
 
-figure_directory = 'figure'
-if not os.path.exists(figure_directory):
-    os.makedirs(figure_directory)
+    res = _enrich_with_retry(gene_list, gene_set)
+    df = res.results
+    df['neg_log10_p'] = -np.log10(df['P-value'])
+    df = df.sort_values('neg_log10_p').tail(n_term)  # 前 8
 
-# GO 富集分析
-go_enr = gp.enrichr(
-    gene_list=gene_list,
-    gene_sets='GO_Biological_Process_2025',
-    organism='Human',
-    outdir=None
-)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    y_pos = np.arange(len(df))
+    ax.barh(y_pos, df['neg_log10_p'],
+            color=bar_color, height=0.6, alpha=0.75)
 
-go_df = go_enr.results  # pandas.DataFrame
+    # 标注
+    for idx, (term, genes, x) in enumerate(
+            zip(df['Term'], df['Genes'], df['neg_log10_p'])):
+        ax.text(0.1, idx, term,
+                va='center', ha='left',
+                color='black', fontsize=11, fontweight='bold')
 
-# 保存 GO 结果
-go_df.to_csv(os.path.join(output_directory, 'GO_result.csv'), index=True, encoding='utf-8')
+        gene_txt = ', '.join(genes.split(';')[:6])
+        ax.text(0.1, idx - 0.3, f'({gene_txt})',
+                va='top', ha='left',
+                fontsize=11, color=gene_fontcolor,
+                fontweight='bold', fontstyle='italic')
 
-# 计算 -log10(p-value) 并排序 GO
-go_df['neg_log10_p'] = -np.log10(go_df['P-value'])
-go_df = go_df.sort_values('neg_log10_p', ascending=True).tail(10)
+    ax.set_xlabel('-Log10(p-value)', fontsize=13, fontweight='bold')
+    ax.set_title(title_prefix, pad=10, loc='left', fontsize=15, fontweight='bold')
+    ax.spines.top.set_visible(False)
+    ax.spines.right.set_visible(False)
+    return fig, ax, df
 
-# 绘制 GO 图
-plt.figure(figsize=(8, 5))
-y_pos_go = np.arange(len(go_df))
-plt.barh(y_pos_go, go_df['neg_log10_p'], color='#e07c44', height=0.6)
 
-# 添加基因名标注
-for idx, (term, genes, x) in enumerate(zip(go_df['Term'], go_df['Genes'], go_df['neg_log10_p'])):
-    plt.text(0.1, idx, term, va='center', ha='left', color='black', fontsize=10, fontweight='bold')
-    gene_txt = ', '.join(genes.split(';')[:6])  # 只取前6个基因
-    plt.text(0.1, idx - 0.3, f'({gene_txt})', va='top', ha='left', fontsize=10, color='black', fontstyle='italic')
+# ---------- 四合一主函数 ----------
+def enrichment_combo(up_genes, down_genes,
+                     gene_fontcolor_up='red',
+                     gene_fontcolor_down='blue',
+                     combo_path='enrich.png'):
+    """
+    输入 up/down 基因 list，直接保存 2×2 四宫格
+    """
+    color_map = {
+        ('GO',  'up'): '#FFB38A',
+        ('KEGG','up'): '#FF8E72',
+        ('GO',  'dn'): '#81C7F4',
+        ('KEGG','dn'): '#69d4d4',
+    }
+    jobs = [
+        (up_genes,   'GO',  'up',  gene_fontcolor_up,  color_map[('GO',  'up')]),
+        (up_genes,   'KEGG','up',  gene_fontcolor_up,  color_map[('KEGG','up')]),
+        (down_genes, 'GO',  'dn',  gene_fontcolor_down,color_map[('GO',  'dn')]),
+        (down_genes, 'KEGG','dn',  gene_fontcolor_down,color_map[('KEGG','dn')]),
+    ]
 
-plt.xlabel('-Log10(p-value)', fontsize=16)
-plt.title('GO Terms and Pathways', pad=20, loc='left', fontsize=18)
-plt.tight_layout()
-plt.savefig(os.path.join(figure_directory, 'GO_BP_bar_with_genes.png'), dpi=600)
-plt.show()
+    axes_data = []
+    for genes, atype, ud, gfont, bcol in jobs:
+        if not genes:
+            genes = ['DUMMY']          # 空列表占位
+        fig, ax, _ = _single_enrich(genes, atype, gfont, bcol)
+        axes_data.append((ax, atype, ud))
+        plt.close(fig)
 
-# KEGG 富集分析
-kegg_enr = gp.enrichr(
-    gene_list=gene_list,
-    gene_sets='KEGG_2021_Human',  # 请确认使用有效的基因集
-    organism='Human',
-    outdir=None
-)
+    # 拼 2×2
+    combo_fig, axes = plt.subplots(2, 2, figsize=(16, 9))
+    pos_map  = {('up', 'GO'): (0, 0), ('up', 'KEGG'): (0, 1),
+                ('dn', 'GO'): (1, 0), ('dn', 'KEGG'): (1, 1)}
+    title_map= {('up', 'GO'): 'Up-regulated GO',
+                ('up', 'KEGG'): 'Up-regulated KEGG',
+                ('dn', 'GO'): 'Down-regulated GO',
+                ('dn', 'KEGG'): 'Down-regulated KEGG'}
 
-kegg_df = kegg_enr.results  # pandas.DataFrame
+    for (ax_src, atype, ud), (_, _, _, gfont, _) in zip(axes_data, jobs):
+        row, col = pos_map[(ud, atype)]
+        ax = axes[row, col]
 
-# 保存 KEGG 结果
-kegg_df.to_csv(os.path.join(output_directory, 'KEGG_result.csv'), index=True, encoding='utf-8')
+        # bar
+        for patch in ax_src.patches:
+            ax.barh(patch.get_y() + patch.get_height()/2,
+                    patch.get_width(), height=patch.get_height(),
+                    color=patch.get_facecolor(), alpha=patch.get_alpha())
+        # text 统一字号
+        TERM_FS, GENE_FS = 12, 11
+        for txt in ax_src.texts:
+            t = txt.get_text()
+            fs = GENE_FS if t.startswith('(') else TERM_FS
+            ax.text(txt.get_position()[0], txt.get_position()[1], t,
+                    fontsize=fs, color=txt.get_color(), fontweight='bold',
+                    fontstyle='italic' if t.startswith('(') else 'normal',
+                    va=txt.get_va(), ha=txt.get_ha())
 
-# 计算 -log10(p-value) 并排序 KEGG
-kegg_df['neg_log10_p'] = -np.log10(kegg_df['P-value'])
-kegg_df = kegg_df.sort_values('neg_log10_p', ascending=True).tail(10)
+        ax.set_xlabel('-Log10(p-value)', fontsize=13, fontweight='bold')
+        ax.set_title(title_map[(ud, atype)], pad=10, loc='left',
+                     fontsize=15, fontweight='bold')
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.tick_params(left=False, labelleft=False)
 
-# 绘制 KEGG 图
-plt.figure(figsize=(8, 5))
-y_pos_kegg = np.arange(len(kegg_df))
-plt.barh(y_pos_kegg, kegg_df['neg_log10_p'], color='#6b5b95', height=0.6)
-
-# 添加基因名标注
-for idx, (term, genes, x) in enumerate(zip(kegg_df['Term'], kegg_df['Genes'], kegg_df['neg_log10_p'])):
-    plt.text(0.1, idx, term, va='center', ha='left', color='black', fontsize=10, fontweight='bold')
-    gene_txt = ', '.join(genes.split(';')[:6])  # 只取前6个基因
-    plt.text(0.1, idx - 0.3, f'({gene_txt})', va='top', ha='left', fontsize=10, color='black', fontstyle='italic')
-
-plt.xlabel('-Log10(p-value)', fontsize=16)
-plt.title('KEGG Pathways', pad=20, loc='left', fontsize=18)
-plt.tight_layout()
-plt.savefig(os.path.join(figure_directory, 'KEGG_BP_bar_with_genes.png'), dpi=600)
-plt.show()
+    combo_fig.tight_layout()
+    combo_fig.savefig(combo_path, dpi=600, bbox_inches='tight')
+    plt.close(combo_fig)
