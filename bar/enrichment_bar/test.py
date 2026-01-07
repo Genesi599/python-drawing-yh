@@ -1,27 +1,75 @@
-import json, csv, pathlib
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+只需改下面两行
+"""
+CSV_PATH = r"C:\Users\yh109\OneDrive\桌面\bulk_go.csv"   # 原始结果
+# ------------------------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+import sys
 
-in_file  = pathlib.Path(r'C:\Users\yh109\OneDrive\桌面\讨论\gene_annotation_simple.json')
-out_file = in_file.with_name('gene_annotation_simple_wide.csv')
+def main(csv_file=CSV_PATH):
+    # 1. 读入
+    df = pd.read_csv(csv_file, sep=None, engine='python', encoding='gbk')
 
-data = json.loads(in_file.read_text(encoding='utf-8'))
+    # 2. 确保 neg_log10_p
+    if 'neg_log10_p' not in df.columns:
+        df['neg_log10_p'] = -np.log10(df['Adjusted P-value'].clip(1e-300))
 
-# 先算最大文件数，决定列宽
-max_files = max(len(info['files']) for info in data.values())
-header    = ['gene'] + [f'{tag}{i}' for i in range(1, max_files+1) for tag in ('file','tissue','contrast','direction')] + ['geneSets']
+    # 3. 四个筛选条件（按最后两列）
+    masks = {
+        'NET up'            : (df['change'] == 'up')   & (df['class'] == 'NET'),
+        'NET up (reversible by DNaseI)'  : (df['change'] == 'down')   & (df['class'] == 'NETaes rescue'),
+        'NET down'          : (df['change'] == 'down') & (df['class'] == 'NET'),
+        'NET down (reversible by DNaseI)': (df['change'] == 'up') & (df['class'] == 'NETaes rescue'),
+    }
 
-rows = []
-for gene, info in data.items():
-    row = {'gene': gene, 'geneSets': '|'.join(info['geneSets'])}
-    for idx, (tissue, contrast, direction) in enumerate(info['files'], 1):
-        row[f'file{idx}']      = f'{tissue}|{contrast}|{direction}'
-        row[f'tissue{idx}']    = tissue
-        row[f'contrast{idx}']  = contrast
-        row[f'direction{idx}'] = direction
-    rows.append(row)
+    # 4. 画图函数
+    def _draw(mask, title, color):
+        sub = (df[mask]
+               .sort_values('neg_log10_p', ascending=False)
+               .head(8)
+               .iloc[::-1])          # ← 倒序，让最显著的在上
+        fig, ax = plt.subplots(figsize=(7, 4))
+        y_pos = np.arange(len(sub))
+        ax.barh(y_pos, sub['neg_log10_p'], color=color, height=0.6, alpha=0.75)
+        for idx, (term, genes, x) in enumerate(zip(sub['Term'], sub['Genes'], sub['neg_log10_p'])):
+            ax.text(0.1, idx, term, va='center', ha='left', fontsize=11, fontweight='bold')
+            gene_txt = ', '.join(genes.split(';')[:6])
+            ax.text(0.1, idx-0.3, f'({gene_txt})', va='top', ha='left', fontsize=11,
+                    color='red' if 'up' in title.lower() else 'blue', fontweight='bold', fontstyle='italic')
+        ax.set_xlabel('-Log10(p-value)', fontsize=13, fontweight='bold')
+        ax.set_title(title, pad=10, loc='left', fontsize=15, fontweight='bold')
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.tick_params(left=False, labelleft=False)
+        return fig
 
-with out_file.open('w', newline='', encoding='utf-8') as f:
-    writer = csv.DictWriter(f, fieldnames=header)
-    writer.writeheader()
-    writer.writerows(rows)
+    # 5. 逐个保存为 PDF
+    order = [
+        ('NET up',            masks['NET up'],            '#FFB38A'),
+        ('NET up (reversible by DNaseI)',  masks['NET up (reversible by DNaseI)'],  '#FF8E72'),
+        ('NET down',          masks['NET down'],          '#81C7F4'),
+        ('NET down (reversible by DNaseI)',masks['NET down (reversible by DNaseI)'],'#69D4D4'),
+    ]
+    pdf_names = ['NET_up.pdf', 'NETaes_rescue_up.pdf', 'NET_down.pdf', 'NETaes_rescue_down.pdf']
+    png_names = ['NET_up.png', 'NETaes_rescue_up.png', 'NET_down.png', 'NETaes_rescue_down.png']
 
-print('✅ 宽表已生成：', out_file)
+    for (title, mask, color), pdf, png in zip(order, pdf_names, png_names):
+        fig = _draw(mask, title, color)
+
+        # 保存为 PDF
+        fig.savefig(pdf, format='pdf', bbox_inches='tight')
+
+        # 保存为 PNG
+        fig.savefig(png, format='png', bbox_inches='tight')
+
+        plt.close(fig)
+        print(f'saved -> {os.path.abspath(pdf)}')
+        print(f'saved -> {os.path.abspath(png)}')
+
+if __name__ == '__main__':
+    cmd_csv = sys.argv[1] if len(sys.argv) > 1 else CSV_PATH
+    main(cmd_csv)

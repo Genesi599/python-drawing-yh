@@ -83,7 +83,7 @@ def enrichment_combo(up_genes, down_genes,
         plt.close(fig)
 
     # 拼 2×2
-    combo_fig, axes = plt.subplots(2, 2, figsize=(16, 9))
+    combo_fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     pos_map  = {('up', 'GO'): (0, 0), ('up', 'KEGG'): (0, 1),
                 ('dn', 'GO'): (1, 0), ('dn', 'KEGG'): (1, 1)}
     title_map= {('up', 'GO'): 'Up-regulated GO',
@@ -118,4 +118,6 @@ def enrichment_combo(up_genes, down_genes,
 
     combo_fig.tight_layout()
     combo_fig.savefig(combo_path, dpi=600, bbox_inches='tight')
+    combo_fig.savefig(combo_path.replace('.png', '.pdf'),
+                      dpi=600, bbox_inches='tight')
     plt.close(combo_fig)

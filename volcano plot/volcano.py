@@ -8,9 +8,14 @@ from adjustText import adjust_text
 
 def create_volcano_plot(
         input_file, output_file='Volcano_plot.png',
-        x_threshold=0.5, y_threshold=-np.log10(0.05),   # 注意用 np.log10
+        x_threshold=0.5, y_threshold=-np.log10(0.05),
         lfc_col='log2FoldChange', p_col='padj',
         id_col='GeneName'):
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from adjustText import adjust_text
 
     # 读数据
     df = pd.read_csv(input_file)
@@ -53,17 +58,23 @@ def create_volcano_plot(
              for _, r in dn_sig.iterrows()]
     adjust_text(texts, arrowprops=dict(arrowstyle='->', lw=0.5, color='green'))
 
-    dn_sig = vol[up_mask].head(10)
+    # 给显著上调基因加文字（取前 10 个）
+    up_sig = vol[up_mask].head(10)
     texts = [ax.text(r[lfc_col]-0.05, r['y'], r[id_col],
                      fontsize=10, style='italic', weight='bold')
-             for _, r in dn_sig.iterrows()]
+             for _, r in up_sig.iterrows()]
     adjust_text(texts, arrowprops=dict(arrowstyle='->', lw=0.5, color='green'))
 
     ax.set_xlabel('Log2 Fold Change', fontweight='bold', fontsize=12)
     ax.set_ylabel('-Log10(adj. p-value)', fontweight='bold', fontsize=12)
 
     fig.tight_layout()
+
+    # 保存 PNG
     fig.savefig(output_file, dpi=300)
+    # 额外保存 PDF
+    fig.savefig(output_file.replace('.png', '.pdf'), dpi=300, bbox_inches='tight')
+
     plt.close()
 
 # # 示例使用
