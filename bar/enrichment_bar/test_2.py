@@ -143,13 +143,11 @@ def plot_from_excel(excel_path,
         ax = axes[row, col]
         bar_color = color_map.get((atype, ud), '#888888')
         y_pos = np.arange(len(df))[::-1]
+
+        # bar
         ax.barh(y_pos, df['neg_log10_p'], color=bar_color, height=0.6, alpha=0.75)
 
-        # 让纵轴显示 df 的 Term 顺序作为标签
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(df['Term'], fontsize=9)
-
-        # 文字（保持原有文本绘制逻辑）
+        # 文字
         TERM_FS, GENE_FS = 12, 11
         for idx, (term, genes, x) in enumerate(
                 zip(df['Term'], df['Genes'], df['neg_log10_p'])):
@@ -180,19 +178,48 @@ def plot_from_excel(excel_path,
 
 # ---------- 主流程 ----------
 def main(input_csv_path):
-    # # 1) 输入文件所在目录，作为输出目录
-    # input_dir = os.path.dirname(os.path.abspath(input_csv_path))
-    #
-    # # 2) 从输入表中提取上调/下调基因
-    # up_genes, down_genes = load_genes_from_table(input_csv_path, logfc_col='logfoldchanges', gene_col='names')
-    #
-    # # 3) 富集分析，输出一个 Excel 文件，包含四个 sheet
-    # enrich_excel_path = enrichment_to_excel(up_genes, down_genes, base_out_dir=input_dir, max_term=50, excel_filename='enrich_results.xlsx')
+    # 1) 输入文件所在目录，作为输出目录
+    input_dir = os.path.dirname(os.path.abspath(input_csv_path))
 
-    # 4) 从该 Excel 文件绘制 2x2 图
-    excel_path = r"C:\Users\yh599\Desktop\enrich_results.xlsx"
-    combo_path = r"C:\Users\yh599\Desktop\enrich.png"
-    plot_from_excel(excel_path, top_n=8, combo_path=combo_path)
+    # 2) 从输入表中读取 tissue 列的唯一值
+    df0 = pd.read_csv(input_csv_path, sep=',')
+    if 'tissue' in df0.columns:
+        tissue_col = 'tissue'
+    elif 'Tissue' in df0.columns:
+        tissue_col = 'Tissue'
+    else:
+        raise ValueError("输入 CSV 中未找到 tissue 列，请确认列名为 tissue/Tissue。")
+
+    tissues = sorted(df0[tissue_col].dropna().unique().tolist())
+
+    results = {}
+    for t in tissues:
+        # 2a) 过滤当前 tissue 的基因
+        df_t = df0[df0[tissue_col] == t]
+        if df_t.empty:
+            continue
+
+        up_genes = df_t.loc[df_t['logfoldchanges'] > 0, 'names'].dropna().astype(str).tolist()
+        down_genes = df_t.loc[df_t['logfoldchanges'] < 0, 'names'].dropna().astype(str).tolist()
+
+        # 2b) 为当前 tissue 富集分析，输出到单独的 Excel（四个 sheet）
+        enrich_excel_path = enrichment_to_excel(
+            up_genes, down_genes,
+            base_out_dir=input_dir,
+            max_term=50,
+            excel_filename=f'enrich_results_{t}.xlsx'
+        )
+
+        # 2c) 生成该 tissue 的图像
+        combo_path = os.path.join(input_dir, f'enrich_{t}.png')
+        plot_from_excel(enrich_excel_path, top_n=8, combo_path=combo_path)
+
+        results[t] = {
+            'enrich_excel': enrich_excel_path,
+            'plot_png': combo_path
+        }
+
+    return results
 
 
 
