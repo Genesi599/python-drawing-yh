@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-单张 z-score + age 排序 + overall_trend 顺序（Up→Down→Mixed）纵向排布
+无聚版：行方向 z-score + age 排序 + overall_trend 顺序 + 最小 3 行高
 """
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
-from scipy.cluster.hierarchy import linkage, leaves_list
-from scipy.spatial.distance import pdist
 from matplotlib.patches import Rectangle
+from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import zscore
 
 EXPR_CSV    = r"D:\Projects\Bone_Marrow_Aging\proteomics\analysis\data\abundance_sample_x_protein.csv"
@@ -24,9 +23,9 @@ TOP_ANNOT   = 20
 BLANK_ROWS  = 2
 FIG_W, FIG_H = 9, 16
 
-custom_seismic = sns.color_palette("coolwarm", as_cmap=True)
-custom_seismic.set_under("#EFFFF2")
-custom_seismic.set_over("#ff0008")
+colors = ["#0042ae", "#f7f7f7", "#fd1a41"]   # 蓝→白→红
+custom_seismic = LinearSegmentedColormap.from_list("custom_seismic", colors, N=256)
+# custom_seismic = sns.color_palette("coolwarm", as_cmap=True)
 
 
 def main():
@@ -39,7 +38,7 @@ def main():
     expr_df.columns = expr_df.columns.str.replace(r'-\d+$', '', regex=True)
     df_pat = df_pat[df_pat['pattern'] != 'Non-significant']
 
-    # ******* 正确构造 pattern → overall_trend 字典 *******
+    # 按 overall_trend 排序：Up→Down→Mixed
     trend_dict = df_pat.groupby('pattern')['overall_trend'].first().to_dict()
     def sort_key(p):
         return {'Up': 0, 'Down': 1, 'Mixed': 2}.get(trend_dict.get(p, 'Mixed'), 3), p
@@ -59,7 +58,7 @@ def main():
                               errors="coerce").reindex(expr_df.index)
         print(f"{pat:30s} {logfc.notna().sum()}")
 
-    # 拼大矩阵 & z-score
+    # 拼大矩阵 & z-score（无聚类）
     big_blocks, y_ticks, y_labels = [], [], []
     annotate_genes, annotate_y = [], []
     base = 0
@@ -78,13 +77,11 @@ def main():
             columns=mat_pat.columns
         )
 
-        # 排序 & 聚类
+        # ****** 只按 logFC 排序，不聚类 ******
         up_genes   = logfc[logfc >  FC_CUT].sort_values(ascending=False).index
         down_genes = logfc[logfc < -FC_CUT].sort_values(ascending=True).index
         order = up_genes.tolist() + down_genes.tolist() if len(up_genes) + len(down_genes) > 0 else genes_pat.tolist()
         mat_pat = mat_pat.loc[order]
-        leaves = mat_pat.index[leaves_list(linkage(pdist(mat_pat, metric='euclidean'), method='ward'))]
-        mat_pat = mat_pat.loc[leaves]
 
         # 右侧标注
         top_up   = logfc[logfc >  FC_CUT].nlargest(TOP_ANNOT).index
@@ -122,7 +119,7 @@ def main():
     lut = {"Young": "#1f77b4", "Middle": "#ff7f0e", "Old": "#d62728"}
     sample_colors = sample_order.map(condition_map.map(lut))
 
-    # 画 clustermap
+    # 画 clustermap（无聚类）
     vmin = float(np.nanmin(big_mat.values))
     vmax = float(np.nanmax(big_mat.values))
     norm = plt.Normalize(vmin=vmin, vmax=vmax)
@@ -131,7 +128,7 @@ def main():
         big_mat,
         method='ward',
         metric='euclidean',
-        row_cluster=False,
+        row_cluster=False,   # 关键：不再聚类
         col_cluster=False,
         cmap=custom_seismic,
         norm=norm,
@@ -139,7 +136,8 @@ def main():
         yticklabels=False,
         figsize=(FIG_W, FIG_H),
         cbar_pos=None,
-        dendrogram_ratio=(0.15, 0.15)
+        dendrogram_ratio=(0.15, 0.15),
+        linewidths=0,     # ← 关键：把网格线宽度设为 0
     )
 
     # 样本颜色条
@@ -150,9 +148,6 @@ def main():
                                          transform=g.ax_heatmap.get_xaxis_transform(),
                                          clip_on=False))
 
-    # 空白分隔线
-    for y_mid in y_ticks[:-1]:
-        g.ax_heatmap.axhline(y=y_mid + BLANK_ROWS / 2, color='white', lw=6, clip_on=False)
 
     # 右侧标注
     if annotate_genes:
@@ -189,7 +184,7 @@ def main():
     plt.savefig(out_file, dpi=600, bbox_inches='tight')
     plt.savefig(out_file.with_suffix('.pdf'), bbox_inches='tight')
     plt.close()
-    print("✅ 单张 z-score + age 排序 + overall_trend 顺序 大热图完成：", out_file)
+    print("✅ 无聚类版 z-score + age 排序 + overall_trend 顺序 完成：", out_file)
 
 
 if __name__ == "__main__":
