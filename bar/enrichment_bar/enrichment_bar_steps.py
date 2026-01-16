@@ -83,7 +83,7 @@ def plot_from_tables(table_dir='enrich_tables',
         row, col = pos_map[(ud, atype)]
         ax = axes[row, col]
         bar_color = color_map[(atype, ud)]
-        y_pos = np.arange(len(df))
+        y_pos = np.arange(len(df))[::-1]
 
         # bar
         ax.barh(y_pos, df['neg_log10_p'],
