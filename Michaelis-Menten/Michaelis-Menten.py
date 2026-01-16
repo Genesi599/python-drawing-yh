@@ -2,10 +2,12 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.stats import sem
 import pandas as pd
+from pathlib import Path
 
 # 读取Excel文件
-file_path = 'data.xlsx'  # 替换为你的Excel文件路径
+file_path = Path(r"tolbutamide.xlsx")  # 替换为你的Excel文件路径
 df = pd.read_excel(file_path)
+print(df)
 
 # 将数据转换为字典，其中键是列名，值是对应的NumPy数组
 data_dict = {}
