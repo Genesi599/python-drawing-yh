@@ -1,0 +1,3 @@
+import neurodatahub
+
+neurodatahub --list
