@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-@File    : test.py
+@File    : B_cell_linear_fit.py
 @Date    : 2026/1/25 16:03
 @Author  : yh109
 """
