@@ -8,15 +8,20 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
-import matplotlib as mpl
 import os
+import matplotlib as mpl
 
 
-
+# 1. 让 matplotlib 别把字体子集化
+mpl.rcParams['pdf.fonttype'] = 42          # 已经写了，保留
+mpl.rcParams['ps.fonttype'] = 42
+# 关键：关闭子集化（>=3.6 有效）
+mpl.rcParams['pdf.use14corefonts'] = False   # 不用 14 种核心字体
+# 2. 指定一个系统里肯定有的字体，避免 mpl 走自带字体
+mpl.rcParams['font.family'] = 'Arial'      # 或 'DejaVu Sans', 'SimHei' 等
 
 def plot_correlation_heatmap(input_file, output_dir, geneset_order=None, pvalue_col='pvalue',
-                            font_scale=3.0, cell_size=1.0, cbar_label='Correlation'):
+                             font_scale=3.0, cell_size=1.0, cbar_label='Correlation'):
     df = pd.read_csv(input_file)
 
     mpl.rcParams['pdf.fonttype'] = 42
@@ -36,6 +41,15 @@ def plot_correlation_heatmap(input_file, output_dir, geneset_order=None, pvalue_
             "Neutrophil_chemotaxis",
             "Neutrophil_migration"
         ]
+
+    # 读取对应的tissue文件用于筛选
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    tissue_file = os.path.join(output_dir, f"{base_name}_tissues.txt")
+
+    if os.path.exists(tissue_file):
+        with open(tissue_file, 'r') as f:
+            tissue_filter = set(line.strip() for line in f if line.strip())
+        df = df[df['tissue_category'].isin(tissue_filter)]
 
     df['sig_label'] = ''
     df.loc[df[pvalue_col] < 0.001, 'sig_label'] = '***'
@@ -91,7 +105,6 @@ def plot_correlation_heatmap(input_file, output_dir, geneset_order=None, pvalue_
     new_x0 = pos.x1 + gap_relative
     cbar.ax.set_position([new_x0, pos.y0, cbar_pos.width, pos.height])
 
-    base_name = os.path.splitext(os.path.basename(input_file))[0]
     output_pdf = os.path.join(output_dir, f"{base_name}_heatmap.pdf")
     output_png = os.path.join(output_dir, f"{base_name}_heatmap.png")
 
@@ -99,17 +112,36 @@ def plot_correlation_heatmap(input_file, output_dir, geneset_order=None, pvalue_
 
     plt.savefig(output_pdf, dpi=300, pad_inches=0.1, bbox_inches='tight',
                 metadata={'Creator': None, 'Producer': None})
-    plt.savefig(output_png, dpi=300, pad_inches=0.1, bbox_inches='tight',)
+    plt.savefig(output_png, dpi=300, pad_inches=0.1, bbox_inches='tight')
     plt.close()
 
 
-if __name__ == '__main__':
-    input_file = "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/human_age_correlation_by_tissue.csv"
-    output_dir = "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/figure"
-    plot_correlation_heatmap(input_file, output_dir)
-    input_file = "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/monkey_age_correlation_by_tissue.csv"
-    plot_correlation_heatmap(input_file, output_dir)
-    input_file = "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/mouse_age_correlation_by_tissue.csv"
-    plot_correlation_heatmap(input_file, output_dir)
+def export_tissues_to_txt(input_file, output_dir):
+    """Extract tissues from single CSV file and save to txt"""
+    df = pd.read_csv(input_file)
+    tissues = sorted(df['tissue_category'].unique())
 
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    output_file = os.path.join(output_dir, f"{base_name}_tissues.txt")
+
+    with open(output_file, 'w') as f:
+        for tissue in tissues:
+            f.write(tissue + '\n')
+
+    print(f"导出 {len(tissues)} 个器官到: {output_file}")
+
+
+if __name__ == '__main__':
+    input_files = [
+        "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/human_age_correlation_by_tissue.csv",
+        "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/monkey_age_correlation_by_tissue.csv",
+        "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/mouse_age_correlation_by_tissue.csv",
+    ]
+    output_dir = "D:/Projects/Neutrophil_Aging/neutrophil_geneset_score/figure"
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for input_file in input_files:
+        # export_tissues_to_txt(input_file, output_dir)
+        plot_correlation_heatmap(input_file, output_dir)
 

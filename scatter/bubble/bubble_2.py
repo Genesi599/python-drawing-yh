@@ -109,10 +109,6 @@ all_compounds.to_csv(r'D:\Projects\Bone_Marrow_Aging\metabonomics\analysis\data\
 # 开始绘图
 datasets_list = [('all', 'All'), ('F', 'Female'), ('M', 'Male')]
 
-# 开始绘图
-
-datasets_list = [('all', 'All'), ('F', 'Female'), ('M', 'Male')]
-
 norm = Normalize(vmin=-1, vmax=1)
 cmap = plt.cm.RdBu_r
 font_scale = 1.5
