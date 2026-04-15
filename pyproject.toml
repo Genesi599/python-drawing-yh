@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drawing-yh"
+version = "0.1.0"
+description = "Python 科研作图工具包"
+requires-python = ">=3.8"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib-venn",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["drawing_yh*"]

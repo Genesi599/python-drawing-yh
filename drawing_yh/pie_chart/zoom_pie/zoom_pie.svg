@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="419.527756pt" height="224.54225pt" viewBox="0 0 419.527756 224.54225" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-04-09T10:56:09.913244</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.6, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 224.54225 
+L 419.527756 224.54225 
+L 419.527756 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="patch_2">
+   <path d="M 169.401754 164.71362 
+L 170.108019 163.705387 
+L 170.798403 162.686224 
+L 171.472735 161.65636 
+L 172.130849 160.616063 
+L 172.772583 159.565576 
+L 173.397776 158.505171 
+L 174.00628 157.435097 
+L 174.597948 156.355618 
+L 175.172627 155.267007 
+L 175.730181 154.169522 
+L 176.270468 153.063437 
+L 176.793363 151.949023 
+L 177.29873 150.826552 
+L 177.786452 149.696303 
+L 178.256402 148.55855 
+L 178.708473 147.413573 
+L 179.142547 146.261656 
+L 179.558517 145.103078 
+L 179.956289 143.938123 
+L 180.335755 142.767081 
+L 180.696827 141.590237 
+L 181.039421 140.407881 
+L 181.363446 139.220301 
+L 181.668824 138.027792 
+L 181.95548 136.830642 
+L 182.223348 135.62915 
+L 182.472353 134.423609 
+L 182.702443 133.214313 
+L 182.913559 132.001561 
+L 183.105648 130.785649 
+L 183.278658 129.566878 
+L 183.432553 128.345547 
+L 183.5673 127.121952 
+L 183.682851 125.8964 
+L 183.779192 124.669184 
+L 183.856292 123.440614 
+L 183.914131 122.210981 
+L 183.952704 120.980594 
+L 183.971988 119.749758 
+L 183.971988 118.518766 
+L 183.952704 117.28793 
+L 183.914135 116.057542 
+L 183.856292 114.82791 
+L 183.779192 113.59934 
+L 183.682855 112.372123 
+L 183.5673 111.146572 
+L 183.432558 109.922976 
+L 183.278663 108.701647 
+L 183.105648 107.482873 
+L 182.913564 106.266961 
+L 182.702448 105.054212 
+L 182.472357 103.844915 
+L 182.223352 102.639375 
+L 181.955489 101.437881 
+L 181.668829 100.24073 
+L 181.363451 99.048222 
+L 181.039425 97.860642 
+L 180.696837 96.678289 
+L 180.335765 95.501442 
+L 179.956293 94.330398 
+L 179.558526 93.165446 
+L 179.142551 92.006867 
+L 178.708482 90.854951 
+L 178.256411 89.709974 
+L 177.786461 88.572223 
+L 177.29874 87.441966 
+L 176.793373 86.319498 
+L 176.270478 85.205087 
+L 175.730195 84.099004 
+L 175.172637 83.001514 
+L 174.597958 81.912903 
+L 174.006299 80.833429 
+L 173.39779 79.763348 
+L 172.772597 78.702943 
+L 172.130863 77.65246 
+L 171.472744 76.612154 
+L 170.798417 75.582295 
+L 170.108037 74.563132 
+L 169.401773 73.554908 
+L 278.796802 50.938067 
+L 276.445739 51.466712 
+L 274.114375 52.076385 
+L 271.8055 52.766354 
+L 269.52188 53.535795 
+L 267.266249 54.383786 
+L 265.041308 55.309311 
+L 262.84972 56.311262 
+L 260.694112 57.388439 
+L 258.577063 58.539553 
+L 256.501108 59.763225 
+L 254.468734 61.05799 
+L 252.482374 62.422297 
+L 250.544407 63.854513 
+L 248.657153 65.352923 
+L 246.822871 66.915732 
+L 245.04376 68.54107 
+L 243.321948 70.226989 
+L 241.659498 71.971472 
+L 240.0584 73.772429 
+L 238.520572 75.627704 
+L 237.047854 77.535075 
+L 235.642011 79.492258 
+L 234.304726 81.49691 
+L 233.0376 83.54663 
+L 231.842151 85.638963 
+L 230.719809 87.771405 
+L 229.671919 89.941402 
+L 228.699736 92.146356 
+L 227.804423 94.383626 
+L 226.987054 96.650533 
+L 226.248606 98.944362 
+L 225.589963 101.262368 
+L 225.011915 103.601774 
+L 224.515154 105.959779 
+L 224.100274 108.33356 
+L 223.767773 110.720274 
+L 223.518048 113.117063 
+L 223.351399 115.521057 
+L 223.268024 117.929378 
+L 223.268024 120.339142 
+L 223.3514 122.747462 
+L 223.51805 125.151456 
+L 223.767775 127.548245 
+L 224.100277 129.934959 
+L 224.515158 132.30874 
+L 225.01192 134.666745 
+L 225.589968 137.006151 
+L 226.248611 139.324156 
+L 226.98706 141.617986 
+L 227.80443 143.884893 
+L 228.699743 146.122162 
+L 229.671927 148.327115 
+L 230.719818 150.497112 
+L 231.84216 152.629554 
+L 233.03761 154.721887 
+L 234.304737 156.771607 
+L 235.642022 158.776258 
+L 237.047866 160.733441 
+L 238.520584 162.640811 
+L 240.058413 164.496086 
+L 241.659511 166.297042 
+L 243.321962 168.041524 
+L 245.043774 169.727443 
+L 246.822886 171.35278 
+L 248.657168 172.915589 
+L 250.544422 174.413999 
+L 252.48239 175.846214 
+L 254.46875 177.210521 
+L 256.501125 178.505285 
+L 258.57708 179.728956 
+L 260.694129 180.88007 
+L 262.849738 181.957247 
+L 265.041326 182.959197 
+L 267.266267 183.884721 
+L 269.521899 184.732711 
+L 271.805519 185.502152 
+L 274.114394 186.192121 
+L 276.445758 186.801792 
+L 278.796821 187.330437 
+z
+" style="fill: #4c72b0; opacity: 0.18; stroke: #4c72b0; stroke-width: 0.8; stroke-linejoin: miter"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_3">
+    <path d="M 292.896 49.49585 
+C 276.535108 49.49585 260.6862 55.261608 248.149781 65.774315 
+C 235.613363 76.287021 227.174042 90.888723 224.323048 106.999298 
+C 221.472055 123.109873 224.387822 139.721019 232.555133 153.897542 
+C 240.722444 168.074066 253.630136 178.92871 268.99742 184.543459 
+L 292.896 119.13425 
+z
+" style="fill: #5c80bc; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 268.997407 184.543453 
+C 279.534295 188.393323 290.847074 189.640676 301.969618 188.17899 
+C 313.092163 186.717304 323.698541 182.589415 332.882965 176.14784 
+C 342.067391 169.706265 349.560738 161.139744 354.723033 151.179914 
+C 359.885327 141.220085 362.565315 130.15878 362.53413 118.940646 
+L 292.896 119.13425 
+z
+" style="fill: #6c8dc2; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 362.53413 118.940646 
+C 362.510741 110.52829 360.963221 102.189383 357.966695 94.328777 
+C 354.97017 86.468172 350.573925 79.215183 344.99144 72.922002 
+L 292.896 119.13425 
+z
+" style="fill: #7c9ac9; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 344.99144 72.922002 
+C 342.162946 69.733417 339.047667 66.811236 335.684857 64.192277 
+C 332.322046 61.573318 328.72588 59.268619 324.941656 57.307213 
+L 292.896 119.13425 
+z
+" style="fill: #8da6d0; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 324.941656 57.307213 
+C 321.50187 55.524332 317.919301 54.031623 314.231236 52.844622 
+C 310.543172 51.657622 306.762451 50.780468 302.928492 50.222306 
+L 292.896 119.13425 
+z
+" style="fill: #9db3d6; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 302.928492 50.222306 
+C 301.267896 49.980548 299.599104 49.798898 297.925385 49.677704 
+C 296.251665 49.556509 294.574111 49.49585 292.89601 49.49585 
+L 292.896 119.13425 
+z
+" style="fill: #d3dded; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 331.93842 104.250966 
+L 315.497285 106.06628 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 318.569314 86.169065 
+L 378.536506 89.992956 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 305.697142 79.360473 
+L 303.814862 75.652 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_4">
+    <path d="M 295.913651 77.46032 
+L 254.269873 75.529587 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="matplotlib.axis_1"/>
+   <g id="matplotlib.axis_2"/>
+   <g id="text_1">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(225.402227 109.585279)">Secreted</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(225.402227 118.163779)">44.4% (n=251)</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(290.538195 151.074392)">Surface film</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(290.538195 159.652892)">30.6% (n=173)</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(291.66666 103.79828)">ECM</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(291.66666 112.37678)">11.5% (n=65)</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(344.745256 87.724956)">Extracellular space</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(344.745256 96.303456)">5.8% (n=33)</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(281.913612 73.384)">Cell surface</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(281.913612 81.9625)">5.3% (n=30)</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(232.368623 73.261587)">Others</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(232.368623 81.840087)">2.3% (n=13)</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8px; font-family: 'Arial'; text-anchor: middle" x="292.896" y="24.08625" transform="rotate(-0 292.896 24.08625)">Secreted Proteins</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_9">
+    <path d="M 67.70021 50.20819 
+C 56.522321 56.323344 46.997971 65.06681 39.951237 75.682076 
+C 32.904503 86.297342 28.544656 98.469161 27.248923 111.144389 
+C 25.95319 123.819617 27.760051 136.621832 32.513171 148.443345 
+C 37.266291 160.264859 44.824513 170.754602 54.533879 179.004969 
+L 105.408 119.13425 
+z
+" style="fill: #937860; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 54.533879 179.004968 
+C 62.826622 186.051586 72.493677 191.299001 82.9207 194.413735 
+C 93.347724 197.528468 104.309058 198.443118 115.108095 197.099545 
+C 125.907132 195.755978 136.310169 192.183273 145.656079 186.608479 
+C 155.001988 181.033684 163.088519 173.577446 169.401754 164.71362 
+L 105.408 119.13425 
+z
+" style="fill: #dd8452; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 169.401754 164.71362 
+C 178.879128 151.407326 183.974395 135.470667 183.9744 119.134264 
+C 183.9744 102.797861 178.879137 86.861207 169.401773 73.554908 
+L 105.408 119.13425 
+z
+" style="fill: #4c72b0; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 169.401773 73.554908 
+C 164.146429 66.176359 157.654325 59.762011 150.212993 54.595951 
+C 142.771661 49.429892 134.492608 45.589526 125.742492 43.244936 
+L 105.408 119.13425 
+z
+" style="fill: #64b5cd; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 125.742492 43.244936 
+C 121.111767 42.004135 116.377175 41.189784 111.597999 40.812074 
+C 106.818821 40.434368 102.015088 40.494881 97.246942 40.992863 
+L 105.408 119.13425 
+z
+" style="fill: #c44e52; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 97.246942 40.992863 
+C 94.364488 41.293904 91.500891 41.754208 88.669297 42.37166 
+C 85.837702 42.989113 83.042445 43.762769 80.296335 44.689079 
+L 105.408 119.13425 
+z
+" style="fill: #55a868; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 80.296335 44.689079 
+C 78.121403 45.42272 75.979668 46.251321 73.877291 47.172499 
+C 71.774914 48.093676 69.713913 49.106545 67.700224 50.208184 
+L 105.408 119.13425 
+z
+" style="fill: #bbbbbb; stroke: #ffffff; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_5">
+    <path d="M 132.290995 80.41127 
+L 170.975172 84.483042 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_6">
+    <path d="M 109.121999 72.140941 
+L 72.638474 51.491485 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_7">
+    <path d="M 95.364778 73.076692 
+L 116.413 75.683329 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="line2d_8">
+    <path d="M 86.489574 75.957195 
+L 63.2407 89.928244 
+" style="fill: none; stroke-dasharray: 2.22,0.96; stroke-dashoffset: 0; stroke: #555555; stroke-opacity: 0.85; stroke-width: 0.6"/>
+   </g>
+   <g id="matplotlib.axis_3"/>
+   <g id="matplotlib.axis_4"/>
+   <g id="text_8">
+    <text style="font-size: 8px; font-family: 'Arial'; text-anchor: middle" x="105.408" y="12.92625" transform="rotate(-0 105.408 12.92625)">Proteome Subcellular Localization</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(32.162555 112.074205)">Cytoplasm</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(32.162555 120.746455)">30.8% (n=884)</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(82.995557 163.694177)">Cell_membrane</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(82.995557 172.272677)">26.4% (n=756)</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(126.197842 116.866259)">Secreted</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(126.197842 125.444759)">19.7% (n=565)</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(144.920172 82.215042)">Nucleus</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(144.920172 90.793542)">11.0% (n=315)</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(29.287849 49.17661)">Endomembrane_system</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(29.287849 57.84886)">5.8% (n=167)</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(90.623625 73.417204)">Cell_periphery</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(90.623625 82.089454)">3.5% (n=101)</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(41.33945 87.660244)">Others</text>
+    <text style="font-size: 8px; font-family: 'Arial'" transform="translate(41.33945 96.238744)">2.8% (n=80)</text>
+   </g>
+  </g>
+ </g>
+</svg>

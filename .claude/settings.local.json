@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\yh109\\\\Documents\\\\GitHub\\\\python-drawing-yh\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\yh109\\\\Documents\\\\GitHub\\\\python-drawing-yh\")",
+      "Bash(findstr /v \"__pycache__\")",
+      "Bash(findstr /v \".pyc\")"
+    ]
+  }
+}

@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+# coding: utf-8
+"""
+蛋白质组学 pattern 热力图 + GO 富集柱状图
+富集方法: Enrichr (GO_Biological_Process_2025)
+"""
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import gseapy as gp
+from tenacity import retry, stop_after_attempt, wait_fixed
+import os
+
+from drawing_yh.heatmap.heatmap_by_pattern.heatmap_by_pattern import draw_heatmap
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def _enrich_genes(gene_list):
+    if len(gene_list) < 5:
+        return None
+    return gp.enrichr(gene_list=list(gene_list),
+                      gene_sets='GO_Biological_Process_2025',
+                      organism='Human', outdir=None)
+
+
+base_path = Path(r"D:\Projects\Bone_Marrow_Aging\proteomics\analysis")
+EXPR_CSV = base_path / 'data/abundance_sample_x_protein.csv'
+META_CSV = base_path / 'data/sample_meta.csv'
+PATTERN_CSV = base_path / 'data/Pattern_Analysis/all_proteins_pattern.csv'
+ENRICH_OUT_DIR = base_path / 'data/Pattern_Analysis/enrich_results'
+
+feature_meta = pd.read_csv(base_path / 'data/feature_meta.csv')
+protein_to_gene = dict(zip(feature_meta['protein'], feature_meta['Gene name']))
+OUT_DIR = base_path / 'figure'
+OUT_DIR.mkdir(exist_ok=True)
+
+ENRICH_N_RESULTS = 20
+ENRICH_N_DISPLAY = 2
+
+FC_CUT = 0
+BLANK_ROWS = 2
+FIG_W, FIG_H = 10, 16
+BASE_FONTSIZE = 20
+
+
+def enrich_and_save(expr_df, df_pat, patterns, out_dir=ENRICH_OUT_DIR):
+    os.makedirs(out_dir, exist_ok=True)
+    enrich_dict = {}
+
+    for i, pat in enumerate(patterns, 1):
+        print(f"\n[{i}/{len(patterns)}] 处理 pattern: {pat}")
+
+        logfc = pd.to_numeric(df_pat.loc[df_pat['pattern'] == pat, "log2FC_Young_vs_Old"],
+                              errors="coerce").reindex(expr_df.index)
+        genes_pat = logfc.dropna().index
+        print(f"  ├─ 该pattern总蛋白数: {len(genes_pat)}")
+
+        if genes_pat.empty:
+            print(f"  └─ ❌ 跳过: 无匹配基因")
+            enrich_dict[pat] = []
+            continue
+
+        all_genes = expr_df.loc[genes_pat].index.tolist()
+        gene_names = [protein_to_gene.get(g, g) for g in all_genes]
+        print(f"  ├─ 转换后基因名: {gene_names}")
+
+        print(f"  ├─ 调用Enrichr API...")
+        try:
+            enrich_res = _enrich_genes(gene_names)
+            if enrich_res is None:
+                print(f"  ├─ ⚠ API返回None")
+                enrich_dict[pat] = []
+                continue
+
+            df_enrich = enrich_res.results
+            if df_enrich.empty:
+                print(f"  ├─ ⚠ 返回空结果")
+                enrich_dict[pat] = []
+                continue
+
+            df_enrich = df_enrich.sort_values('P-value').head(ENRICH_N_RESULTS)
+            df_enrich['neg_log10_p'] = -np.log10(df_enrich['P-value'])
+
+            print(f"  ├─ 取前2个显著项:")
+            for idx, row in df_enrich.iterrows():
+                print(f"     - {row['Term']} (p={row['P-value']:.2e})")
+
+            enrich_dict[pat] = df_enrich[['Term', 'P-value', 'Genes', 'neg_log10_p']].to_dict('records')
+
+            fpath = f"{out_dir}/{pat.replace(' ', '_')}_enrich.csv"
+            df_enrich.to_csv(fpath, index=False)
+            print(f"  └─ ✅ 已保存: {fpath}")
+
+        except Exception as e:
+            print(f"  ├─ ❌ 错误: {type(e).__name__}: {str(e)}")
+            enrich_dict[pat] = []
+
+    print(f"\n=== 富集分析完成 ===")
+    return enrich_dict
+
+
+def load_or_enrich(expr_df, df_pat, patterns, out_dir=ENRICH_OUT_DIR):
+    if os.path.exists(out_dir):
+        csv_files = [f for f in os.listdir(out_dir) if f.endswith('_enrich.csv')]
+        if len(csv_files) == len(patterns):
+            print("✅ 检测到现存富集结果，直接读取")
+            enrich_dict = {}
+            for pat in patterns:
+                fpath = os.path.join(out_dir, f"{pat.replace(' ', '_')}_enrich.csv")
+                if os.path.exists(fpath):
+                    df_enrich = pd.read_csv(fpath)
+                    enrich_dict[pat] = df_enrich[['Term', 'P-value', 'Genes', 'neg_log10_p']].to_dict('records')
+                else:
+                    enrich_dict[pat] = []
+            return enrich_dict
+
+    print("❌ 未检测到完整富集结果，执行新的富集分析")
+    return enrich_and_save(expr_df, df_pat, patterns, out_dir)
+
+
+def main():
+    expr_df = pd.read_csv(EXPR_CSV, index_col=0)
+    meta = pd.read_csv(META_CSV, index_col="sample")
+    df_pat = pd.read_csv(PATTERN_CSV)
+    if 'gene' in df_pat.columns:
+        df_pat = df_pat.set_index('gene')
+    df_pat.index = df_pat.index.str.replace(r'-\d+$', '', regex=True)
+    expr_df.columns = expr_df.columns.str.replace(r'-\d+$', '', regex=True)
+    df_pat = df_pat[df_pat['pattern'] != 'Non-significant']
+
+    trend_dict = df_pat.groupby('pattern')['overall_trend'].first().to_dict()
+
+    def sort_key(p):
+        return {'Up': 0, 'Down': 1, 'Mixed': 2}.get(trend_dict.get(p, 'Mixed'), 3), p
+
+    patterns = sorted(df_pat['pattern'].unique(), key=sort_key)
+
+    condition_map = meta["condition"].str.capitalize()
+    age_series = pd.to_numeric(meta["age"], errors="coerce")
+    common_smp = expr_df.index.intersection(condition_map.index)
+    expr_df = expr_df.loc[common_smp]
+    condition_map = condition_map.loc[common_smp]
+    age_series = age_series.reindex(common_smp)
+    expr_df = expr_df.T
+
+    print("=== 各 pattern 匹配蛋白数 ===")
+    for pat in patterns:
+        logfc = pd.to_numeric(df_pat.loc[df_pat['pattern'] == pat, "log2FC_Young_vs_Old"],
+                              errors="coerce").reindex(expr_df.index)
+        print(f"{pat:30s} {logfc.notna().sum()}")
+
+    print("\n=== 检查富集结果 ===")
+    enrich_dict = load_or_enrich(expr_df, df_pat, patterns)
+
+    print("\n=== 生成热力图 ===")
+    draw_heatmap(expr_df, df_pat, patterns, condition_map, age_series, enrich_dict,
+                 feature_meta, 'protein', 'Gene name', 'log2FC_Young_vs_Old',
+                 out_dir=OUT_DIR)
+
+
+if __name__ == "__main__":
+    main()
