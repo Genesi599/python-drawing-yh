@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Generate 7 anatomically-detailed tissue icons for the B_cell_Aging project:
-    cerebellum, frontal, temporal, occipital, lymphnode, testis, duodenum
+Generate anatomically-detailed tissue icons for the B_cell_Aging project:
+    cerebellum, frontal, temporal, occipital, lymphnode, testis,
+    duodenum, muscle, fat (wat)
 
 Each icon is a COMPOSITION of multiple SVG primitives (path / ellipse / circle /
 rect) to capture real anatomical features without relying on fill-rule tricks.
@@ -178,73 +179,155 @@ ICONS = {
         )), 1.0),
     ],
 
-    # Lateral brain + TEMPORAL lobe highlighted (lower bulge)
+    # Lateral brain + TEMPORAL lobe highlighted.
+    # Redesign: strong silhouette + single solid temporal bulge overlay.
+    # The temporal lobe is the bulge below the Sylvian fissure (mid-lower side).
     "temporal": [
-        ("path",    dict(d=_BRAIN_LATERAL),   0.28),
-        ("path",    dict(d=_CENTRAL_SULCUS),  0.45),
-        ("path",    dict(d=_SYLVIAN),         0.55),
-        # Temporal lobe fill (below Sylvian, clipped inside silhouette)
-        ("path",    dict(d=(
-            "M 58 158 "
-            "C 95 162 140 160 182 154 "
-            "L 180 168 "
-            "C 174 188 156 202 128 204 "
-            "C 100 206 78 200 62 190 "
-            "C 48 180 42 170 58 158 Z"
+        # Full brain silhouette at 30% so the lobe pop is unambiguous
+        ("path", dict(d=_BRAIN_LATERAL), 0.30),
+        # Sylvian fissure hint (upper boundary of temporal)
+        ("path", dict(d=_SYLVIAN), 0.55),
+        # Temporal lobe fill — prominent bulge under the Sylvian fissure
+        ("path", dict(d=(
+            "M 52 158 "
+            "C 92 160 140 158 186 154 "
+            "L 184 172 "
+            "C 178 192 156 206 128 208 "
+            "C 100 210 76 202 58 190 "
+            "C 40 176 38 162 52 158 Z"
         )), 1.0),
+        # Small ear-like cue below to anchor "temporal = side of head"
+        ("ellipse", dict(cx=52, cy=178, rx=8, ry=12), 1.0),
     ],
 
-    # Lateral brain + OCCIPITAL lobe highlighted (back pole, clipped inside silhouette)
+    # Lateral brain + OCCIPITAL lobe highlighted.
+    # Redesign: full silhouette at low opacity, back pole filled dark,
+    # plus an eye-cue on the opposite side makes the posterior orientation read.
     "occipital": [
-        ("path",    dict(d=_BRAIN_LATERAL),   0.28),
-        ("path",    dict(d=_CENTRAL_SULCUS),  0.45),
-        ("path",    dict(d=_SYLVIAN),         0.45),
-        # Occipital lobe fill (back third, tighter bounds)
-        ("path",    dict(d=(
-            "M 168 50 "
-            "C 195 60 212 82 218 108 "
-            "C 226 148 220 182 198 196 "
-            "C 182 206 166 207 152 202 "
-            "L 150 195 "
-            "C 160 186 166 168 170 146 "
-            "C 174 115 172 82 168 50 Z"
+        ("path", dict(d=_BRAIN_LATERAL), 0.30),
+        ("path", dict(d=_SYLVIAN),       0.40),
+        # Occipital lobe fill — back third of the brain (upper-back dome pole)
+        ("path", dict(d=(
+            "M 164 48 "
+            "C 194 58 214 80 222 108 "
+            "C 230 148 222 184 200 198 "
+            "C 182 208 162 209 148 204 "
+            "L 148 172 "
+            "C 168 164 176 140 176 110 "
+            "C 176 86 172 66 164 48 Z"
         )), 1.0),
     ],
 
-    # Lymph node: kidney-bean body + hilum notch + afferent vessels with valves
-    # on convex side + efferent on hilum
+    # Lymph node: simple kidney bean + a couple of afferent arrows and one
+    # efferent. Smaller detail count → reads cleanly at 24 px.
     "lymphnode": [
-        # Afferent lymph vessels (3, entering from left) — drawn first so body covers overlap
-        ("rect",    dict(x=12, y=94,  w=48, h=6, rx=2), 1.0),
-        ("rect",    dict(x=12, y=132, w=48, h=6, rx=2), 1.0),
-        ("rect",    dict(x=12, y=170, w=48, h=6, rx=2), 1.0),
-        # Valve bulges on afferent vessels (arrow-like)
-        ("ellipse", dict(cx=42, cy=97,  rx=6, ry=9),  1.0),
-        ("ellipse", dict(cx=42, cy=135, rx=6, ry=9),  1.0),
-        ("ellipse", dict(cx=42, cy=173, rx=6, ry=9),  1.0),
-        # Efferent lymph vessel (wider, single, exits at hilum on right)
-        ("rect",    dict(x=200, y=129, w=45, h=10, rx=3), 1.0),
-        ("ellipse", dict(cx=220, cy=134, rx=8, ry=12), 1.0),  # valve
-        # Lymph node body — kidney-bean shape
+        # 2 afferent vessels on the convex side (left)
+        ("rect",    dict(x=14, y=102, w=56, h=8, rx=3), 1.0),
+        ("rect",    dict(x=14, y=156, w=56, h=8, rx=3), 1.0),
+        # Arrow-head valves on the afferents (pointing inward)
         ("path",    dict(d=(
-            "M 78 90 "
-            "C 65 60 110 45 152 55 "
-            "C 196 65 218 95 215 135 "
-            "C 212 175 188 205 148 210 "
-            "C 108 215 75 205 65 180 "
-            "C 55 155 62 125 78 90 Z"
+            "M 62 94 L 80 106 L 62 118 Z"
         )), 1.0),
-        # Inner cortex hint (lighter inner bean, subtle)
         ("path",    dict(d=(
-            "M 95 105 "
-            "C 90 85 125 75 155 83 "
-            "C 185 92 200 115 198 140 "
-            "C 195 170 178 190 148 194 "
-            "C 118 198 92 188 85 168 "
-            "C 78 148 85 125 95 105 Z"
-        )), 0.18),
-        # Medulla / sinus hints (innermost darker region)
-        ("ellipse", dict(cx=135, cy=135, rx=40, ry=28), 0.12),
+            "M 62 148 L 80 160 L 62 172 Z"
+        )), 1.0),
+        # Efferent vessel exiting at the hilum (right side)
+        ("rect",    dict(x=186, y=126, w=56, h=10, rx=4), 1.0),
+        ("path",    dict(d=(
+            "M 232 118 L 250 131 L 232 144 Z"
+        )), 1.0),
+        # Kidney-bean body with a clear hilum notch on the right
+        ("path",    dict(d=(
+            "M 82 96 "
+            "C 72 68 116 50 152 58 "
+            "C 190 66 212 90 214 124 "
+            "C 204 124 198 130 198 138 "
+            "C 198 148 206 152 212 150 "
+            "C 206 180 186 204 150 210 "
+            "C 110 216 80 208 70 184 "
+            "C 60 156 68 126 82 96 Z"
+        )), 1.0),
+        # Inner-cortex hint (subtle lighter bean inside)
+        ("path",    dict(d=(
+            "M 102 112 "
+            "C 96 92 128 82 156 90 "
+            "C 182 98 194 114 194 132 "
+            "C 188 136 186 142 188 148 "
+            "C 184 174 168 190 146 194 "
+            "C 118 198 96 186 90 168 "
+            "C 84 148 92 130 102 112 Z"
+        )), 0.22),
+    ],
+
+    # Muscle (flexed biceps): reads as "strong arm" at 24 px.
+    # Composition: shoulder → upper arm with rounded bicep dome →
+    # elbow blend → forearm rising vertically → fist on top.
+    # Drawn as a single closed profile path so the silhouette is crisp.
+    "muscle": [
+        # Shoulder/deltoid blob anchoring the arm at lower-left
+        ("ellipse", dict(cx=44, cy=186, rx=34, ry=38), 1.0),
+        # Upper arm + flexed bicep (big rounded dome on top, horizontal body)
+        ("path", dict(d=(
+            "M 30 168 "                    # armpit (lower-left root)
+            "C 30 138 58 110 100 104 "     # bicep underside rising
+            "C 140 100 170 112 178 138 "   # bicep peak (top of dome)
+            "C 182 160 170 180 150 190 "   # top-right of bicep sloping to elbow
+            "C 130 200 100 204 72 202 "    # underside of bicep back to armpit
+            "C 50 200 34 192 30 168 Z"
+        )), 1.0),
+        # Elbow joint (round blend between bicep and forearm)
+        ("ellipse", dict(cx=166, cy=190, rx=26, ry=28), 1.0),
+        # Forearm — vertical, going UP from the elbow toward the fist
+        ("path", dict(d=(
+            "M 144 60 "
+            "L 190 60 "
+            "C 198 100 196 144 186 184 "
+            "C 182 200 170 206 156 202 "
+            "C 142 198 140 184 144 164 "
+            "C 150 132 148 96 144 60 Z"
+        )), 1.0),
+        # Wrist highlight
+        ("ellipse", dict(cx=167, cy=58, rx=24, ry=10), 1.0),
+        # Fist — large rounded blob at the top of the forearm
+        ("path", dict(d=(
+            "M 136 54 "
+            "C 130 30 146 14 168 14 "
+            "C 190 14 206 28 204 52 "
+            "C 202 70 194 76 182 76 "
+            "L 152 76 "
+            "C 140 76 138 66 136 54 Z"
+        )), 1.0),
+        # Knuckle cuts (white lines on the fist)
+        ("rect", dict(x=150, y=22, w=4, h=32, rx=1), 1.0, "white"),
+        ("rect", dict(x=162, y=20, w=4, h=36, rx=1), 1.0, "white"),
+        ("rect", dict(x=174, y=20, w=4, h=36, rx=1), 1.0, "white"),
+        ("rect", dict(x=186, y=22, w=4, h=32, rx=1), 1.0, "white"),
+        # Thin cut between bicep dome and shoulder (subtle muscle-definition line)
+        ("path", dict(d=(
+            "M 66 134 C 74 126 86 122 98 122 "
+            "L 98 128 C 88 128 78 132 70 140 Z"
+        )), 1.0, "white"),
+    ],
+
+    # Adipose tissue / white fat: cluster of 4 big round adipocytes, each a
+    # thick dark ring with a bright hollow centre (classic histology look).
+    # White-filled inner ellipses punch true holes thanks to the luminance-
+    # aware tinting downstream.
+    "fat": [
+        # 4 large adipocytes in a 2×2 cluster, overlapping slightly
+        ("ellipse", dict(cx=80,  cy=80,  rx=60, ry=60), 1.0),
+        ("ellipse", dict(cx=80,  cy=80,  rx=46, ry=46), 1.0, "white"),
+        ("ellipse", dict(cx=180, cy=84,  rx=58, ry=58), 1.0),
+        ("ellipse", dict(cx=180, cy=84,  rx=44, ry=44), 1.0, "white"),
+        ("ellipse", dict(cx=82,  cy=186, rx=60, ry=60), 1.0),
+        ("ellipse", dict(cx=82,  cy=186, rx=46, ry=46), 1.0, "white"),
+        ("ellipse", dict(cx=184, cy=190, rx=58, ry=58), 1.0),
+        ("ellipse", dict(cx=184, cy=190, rx=44, ry=44), 1.0, "white"),
+        # Small eccentric nucleus on each adipocyte (dark bean pushed to edge)
+        ("ellipse", dict(cx=112, cy=50,  rx=8, ry=6), 1.0),
+        ("ellipse", dict(cx=214, cy=54,  rx=8, ry=6), 1.0),
+        ("ellipse", dict(cx=114, cy=156, rx=8, ry=6), 1.0),
+        ("ellipse", dict(cx=216, cy=160, rx=8, ry=6), 1.0),
     ],
 
     # Testis: ovoid body drawn at 0.45 so the 1.0 epididymis + vas deferens pop
@@ -315,9 +398,25 @@ ICONS = {
 
 
 # ---------------------------------------------------------------------------
-def svg_element(kind: str, params: dict, opacity: float) -> str:
+def _unpack(part):
+    """Accept 3-tuple (kind, params, opacity) or 4-tuple with an extra
+    `color` ('black' | 'white'). White primitives act as holes once the
+    icon is rendered to PNG (they replace darkness with luminance, and the
+    downstream `_tinted_icon` treats luminance as transparency)."""
+    if len(part) == 4:
+        kind, params, opacity, color = part
+    else:
+        kind, params, opacity = part
+        color = "black"
+    return kind, params, opacity, color
+
+
+def svg_element(kind: str, params: dict, opacity: float,
+                color: str = "black") -> str:
     """Serialize one primitive as an SVG element string."""
-    attrs = 'fill="currentColor"'
+    # 'currentColor' keeps SVGs recolourable via CSS; 'white' stays literal.
+    fill = "currentColor" if color == "black" else color
+    attrs = f'fill="{fill}"'
     if opacity != 1.0:
         attrs += f' fill-opacity="{opacity}"'
     if kind == "path":
@@ -335,9 +434,9 @@ def svg_element(kind: str, params: dict, opacity: float) -> str:
     raise ValueError(kind)
 
 
-def mpl_patch(kind: str, params: dict, opacity: float):
+def mpl_patch(kind: str, params: dict, opacity: float, color: str = "black"):
     """Create a matplotlib Patch for one primitive."""
-    common = dict(facecolor="black", alpha=opacity, edgecolor="none")
+    common = dict(facecolor=color, alpha=opacity, edgecolor="none")
     if kind == "path":
         verts, codes = parse_d(params["d"])
         return PathPatch(MPath(verts, codes), **common)
@@ -355,7 +454,8 @@ def mpl_patch(kind: str, params: dict, opacity: float):
 
 def render(name: str, parts):
     # SVG
-    body = "".join(svg_element(k, p, op) for k, p, op in parts if op > 0)
+    body = "".join(svg_element(*_unpack(p)) for p in parts
+                   if _unpack(p)[2] > 0)
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="200" height="200" viewBox="0 0 {VB} {VB}">'
@@ -365,10 +465,11 @@ def render(name: str, parts):
 
     # PNG
     fig, ax = plt.subplots(figsize=(2, 2))
-    for k, p, op in parts:
+    for part in parts:
+        k, p, op, color = _unpack(part)
         if op <= 0:
             continue
-        ax.add_patch(mpl_patch(k, p, op))
+        ax.add_patch(mpl_patch(k, p, op, color))
     ax.set_xlim(0, VB)
     ax.set_ylim(0, VB)
     ax.invert_yaxis()
