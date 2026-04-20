@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from scatter.linear_fit.linear_fit import plot_all_tissues
+from linear_fit import plot_all_tissues
 import numpy as np
 
 
@@ -62,9 +62,12 @@ for csv_file in base_dir.glob("*_Bcell_sample_summary_with_counts.csv"):
     #     cell_count_col=None
     # )
 
-    filtered_cor = cor_df_plot[(cor_df_plot['p_value'] < 0.05) & (cor_df_plot['pearson_r'] > 0)].copy()
-    filtered_cor['score'] = np.sqrt(filtered_cor['spearman_r'] * (-np.log10(filtered_cor['p_value'])))
-    filtered_cor = filtered_cor.sort_values('score', ascending=False).head(4).drop(columns=['score'])
+    filtered_cor = cor_df_plot[cor_df_plot['spearman_r'] > 0].copy()
+    neg_log_p = -np.log10(filtered_cor['p_value'])
+    r_norm = filtered_cor['spearman_r'] / filtered_cor['spearman_r'].max()
+    p_norm = neg_log_p / neg_log_p.max()
+    filtered_cor['distance'] = np.sqrt(r_norm ** 2 + p_norm ** 2)
+    filtered_cor = filtered_cor.sort_values('distance', ascending=False).head(4).drop(columns=['distance'])
 
     if len(filtered_cor) > 0:
         top_tissues = filtered_cor['tissue_general'].tolist()
