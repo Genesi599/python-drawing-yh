@@ -62,7 +62,7 @@ for csv_file in base_dir.glob("*_Bcell_sample_summary_with_counts.csv"):
     #     cell_count_col=None
     # )
 
-    filtered_cor = cor_df_plot[cor_df_plot['spearman_r'] > 0].copy()
+    filtered_cor = cor_df_plot[(cor_df_plot['spearman_r'] > 0) & (cor_df_plot['Sample_count'] >= 20)].copy()
     neg_log_p = -np.log10(filtered_cor['p_value'])
     r_norm = filtered_cor['spearman_r'] / filtered_cor['spearman_r'].max()
     p_norm = neg_log_p / neg_log_p.max()

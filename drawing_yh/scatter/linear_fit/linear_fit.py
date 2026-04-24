@@ -53,7 +53,16 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
                      cell_ratio_col, age_col, age_unit, xlim_margin,
                      cell_type, output_path, exclude_zero=True,
                      organ_palette=None, tissues_to_plot=None,
-                     tissue_colors=None, font_scale=1.8):
+                     tissue_colors=None, font_scale=1.8,
+                     panel_size=5.0, save_svg=True, dpi=600,
+                     scatter_size=25, line_width=1.2, title_pad=2,
+                     # Explicit per-element font sizes. When None, fall back
+                     # to font_scale × legacy defaults (preserves old callers).
+                     title_size=None, tick_size=None, stats_size=None,
+                     # Axis-arrow geometry (inches).
+                     arrow_len_in=None, arrow_start_in=0.08,
+                     arrow_lw=0.8, arrow_head_scale=8,
+                     arrow_label_size=None, arrow_label_offset_in=0.14):
     if tissues_to_plot is not None:
         tissues = [t for t in tissues_to_plot if t in cor_df["tissue_general"].values]
         cor_df = cor_df[cor_df["tissue_general"].isin(tissues)]
@@ -77,8 +86,8 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
     else:
         palette = sns.color_palette("husl", n_tissues)
 
-    fig_width = n_cols * 5
-    fig_height = n_rows * 5
+    fig_width = n_cols * panel_size
+    fig_height = n_rows * panel_size
     fig, axes = plt.subplots(n_rows, n_cols,
                              figsize=(fig_width, fig_height))
     if n_tissues == 1:
@@ -102,39 +111,57 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
         color = palette[idx]
         sns.regplot(data=data, x=age_col, y=cell_ratio_col,
                     ax=ax, color=color,
-                    scatter_kws={"alpha": 0.5, "s": 130},
-                    line_kws={"linewidth": 4})
+                    scatter_kws={"alpha": 0.6, "s": scatter_size,
+                                 "edgecolor": "none"},
+                    line_kws={"linewidth": line_width})
         ax.set_xlim(x_min - xlim_margin, x_max + xlim_margin)
-        ax.set_title(f"{tissue}", fontsize=int(18 * font_scale), fontweight="bold",
-                     pad=10)
+        _title_size = title_size if title_size is not None else int(18 * font_scale)
+        _tick_size  = tick_size  if tick_size  is not None else int(15 * font_scale)
+        _stats_size = stats_size if stats_size is not None else int(13 * font_scale)
+        ax.set_title(f"{tissue}", fontsize=_title_size, fontweight="bold",
+                     pad=title_pad)
         ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=int(15 * font_scale))
+        ax.tick_params(labelsize=_tick_size)
         ax.set_xlabel("")
         ax.set_ylabel("")
         ax.yaxis.set_major_locator(plt.MaxNLocator(5))
         ax.set_aspect("auto")
         ax.text(0.05, 0.95, f"r = {rho:.3f}\np = {p_val:.3f}",
-                transform=ax.transAxes, fontsize=int(13 * font_scale),
+                transform=ax.transAxes, fontsize=_stats_size,
                 verticalalignment="top",
                 bbox=dict(boxstyle="round", facecolor="white",
-                          alpha=0.8, edgecolor="gray"))
+                          alpha=0.8, edgecolor="gray", linewidth=0.5))
 
     for idx in range(n_tissues, len(axes)):
         axes[idx].axis("off")
 
-    _add_axis_arrows(fig, fig_width, fig_height, age_unit, cell_type)
+    # Axis arrows: default length = 30% of shortest panel dim (0.3 in for
+    # panel_size=1.6), font falls back to legacy 30pt if unset.
+    _arrow_len = arrow_len_in if arrow_len_in is not None else max(0.3, panel_size * 0.3)
+    _arrow_font = arrow_label_size if arrow_label_size is not None else int(30 * font_scale)
+    _add_axis_arrows(fig, fig_width, fig_height, age_unit, cell_type,
+                     arrow_len_inch=_arrow_len,
+                     arrow_start_inch=arrow_start_in,
+                     line_width=arrow_lw,
+                     mutation_scale=arrow_head_scale,
+                     font_size=_arrow_font,
+                     label_offset_inch=arrow_label_offset_in)
 
-    plt.tight_layout(rect=[0.025, 0.025, 1, 1])
-    plt.savefig(f"{output_path}.png",
-                dpi=300,
-                bbox_inches='tight',
-                pad_inches=0.1,
-                metadata={'Creator': None, 'Producer': None})
-    plt.savefig(f"{output_path}.pdf",
-                dpi=300,
-                bbox_inches='tight',
-                pad_inches=0.1,
-                metadata={'Creator': None, 'Producer': None})
+    # Tighter rect — axis-arrow space at lower-left was 0.025, 0.01 suffices
+    # with the smaller panel_size; also bring panels closer together.
+    plt.tight_layout(rect=[0.01, 0.01, 1, 1], w_pad=0.2, h_pad=0.2)
+    # Each matplotlib backend only accepts a narrow metadata key set; passing
+    # a PDF-shaped dict to SVG raises. Dispatch per-format.
+    _common = dict(bbox_inches='tight', pad_inches=0.02)
+    plt.savefig(f"{output_path}.png", dpi=dpi,
+                metadata={'Software': None}, **_common)
+    plt.savefig(f"{output_path}.pdf", dpi=dpi,
+                metadata={'Creator': None, 'Producer': None}, **_common)
+    if save_svg:
+        # SVG must be 72 dpi so 1 pt of font renders as 1 px (so downstream
+        # vector editors get correct text metrics).
+        plt.savefig(f"{output_path}.svg", dpi=72,
+                    metadata={'Creator': None}, **_common)
     plt.close()
 
 
@@ -202,16 +229,12 @@ def plot_significant_tissues(sig_cor, donor_summary, cell_count_col,
     plt.close()
 
 
-def _add_axis_arrows(fig, fig_width, fig_height, age_unit,
-                     cell_type):
-    # 使用绝对尺寸（英寸），使坐标轴在不同大小图片中看起来一致
-    arrow_len_inch = 1.5  # 箭头长度（英寸）
-    arrow_start_inch = 0.2  # 箭头起始位置（英寸）
-    line_width = 4
-    mutation_scale = 35
-    font_size = 30
-
-    # 转换为相对坐标
+def _add_axis_arrows(fig, fig_width, fig_height, age_unit, cell_type,
+                     arrow_len_inch=1.5, arrow_start_inch=0.2,
+                     line_width=4, mutation_scale=35, font_size=30,
+                     label_offset_inch=0.3):
+    """Lower-left axis-arrow overlay. All geometry in absolute inches so
+    arrows look consistent regardless of ``figsize``."""
     arrow_len_x = arrow_len_inch / fig_width
     arrow_len_y = arrow_len_inch / fig_height
     arrow_x_start = arrow_start_inch / fig_width
@@ -232,21 +255,21 @@ def _add_axis_arrows(fig, fig_width, fig_height, age_unit,
     fig.add_artist(arrow_x)
     fig.add_artist(arrow_y)
 
-    # 横坐标标签（绝对距离）
-    x_label_offset_inch = 0.3
-    x_label_x = arrow_x_start + arrow_len_x * 0.8
-    x_label_y = arrow_y_start - x_label_offset_inch / fig_height
-
-    # 纵坐标标签（绝对距离）
-    y_label_offset_inch = 0.3
-    y_label_x = arrow_x_start - y_label_offset_inch / fig_width
-    y_label_y = arrow_y_start + arrow_len_y * 0.8
+    # Labels anchored away from the corner so their bboxes never intersect.
+    # X-label: left-aligned, starts slightly right of the y-arrow so the
+    # rotated y-label never sits on top of its first letter.
+    # Y-label: bottom-aligned, rises from slightly above the x-arrow so its
+    # first letter (read bottom-up) never touches "Age" below.
+    x_label_x = arrow_x_start + label_offset_inch / fig_width
+    x_label_y = arrow_y_start - label_offset_inch / fig_height
+    y_label_x = arrow_x_start - label_offset_inch / fig_width
+    y_label_y = arrow_y_start + label_offset_inch / fig_height
 
     fig.text(x_label_x, x_label_y,
-             f"Age ({age_unit})", ha="center", va="center",
+             f"Age ({age_unit})", ha="left", va="top",
              fontsize=font_size, fontweight="bold")
     fig.text(y_label_x, y_label_y,
-             f"{cell_type} Ratio", ha="center", va="center",
+             f"{cell_type} Ratio", ha="right", va="bottom",
              fontsize=font_size, fontweight="bold", rotation=90)
 
 # ---------- 新增：器官-物种配色器 ----------
