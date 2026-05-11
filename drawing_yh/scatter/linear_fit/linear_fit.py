@@ -62,7 +62,14 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
                      # Axis-arrow geometry (inches).
                      arrow_len_in=None, arrow_start_in=0.08,
                      arrow_lw=0.8, arrow_head_scale=8,
-                     arrow_label_size=None, arrow_label_offset_in=0.14):
+                     arrow_label_size=None, arrow_label_offset_in=0.14,
+                     # Which correlation coefficient column to print in the
+                     # per-panel text box, and what symbol to label it with.
+                     # Defaults preserve historical behavior (Pearson "r").
+                     # The seaborn regplot line is always OLS regardless —
+                     # the text simply reports whatever rank/linear stat
+                     # the caller computed upstream.
+                     r_column='pearson_r', r_label='r'):
     if tissues_to_plot is not None:
         tissues = [t for t in tissues_to_plot if t in cor_df["tissue_general"].values]
         cor_df = cor_df[cor_df["tissue_general"].isin(tissues)]
@@ -98,7 +105,7 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
     for idx, tissue in enumerate(tissues):
         ax = axes[idx]
         row = cor_df[cor_df["tissue_general"] == tissue].iloc[0]
-        rho = row["pearson_r"]
+        rho = row[r_column]
         p_val = row["p_value"]
 
         data = donor_summary[donor_summary["tissue_general"] == tissue]
@@ -126,7 +133,7 @@ def plot_all_tissues(cor_df, donor_summary, cell_count_col,
         ax.set_ylabel("")
         ax.yaxis.set_major_locator(plt.MaxNLocator(5))
         ax.set_aspect("auto")
-        ax.text(0.05, 0.95, f"r = {rho:.3f}\np = {p_val:.3f}",
+        ax.text(0.05, 0.95, f"{r_label} = {rho:.3f}\np = {p_val:.3f}",
                 transform=ax.transAxes, fontsize=_stats_size,
                 verticalalignment="top",
                 bbox=dict(boxstyle="round", facecolor="white",
