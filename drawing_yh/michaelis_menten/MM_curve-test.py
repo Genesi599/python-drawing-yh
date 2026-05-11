@@ -53,8 +53,12 @@ def generate_shapes(n):
 # 生成固定 8 种颜色，每次调用生成的颜色都一样
 
 
+rcParams['pdf.fonttype'] = 42
+rcParams['ps.fonttype'] = 42
+rcParams['svg.fonttype'] = 'none'           # SVG 文字保持文字对象,不转曲
+rcParams['pdf.use14corefonts'] = False
 rcParams['font.family'] = 'Arial'
-rcParams['font.weight'] = 'bold'  # 全局字体为粗体
+rcParams['font.weight'] = 'bold'            # 全局字体为粗体(本模块特别需求)
 
 
 def merge_duplicates(list1, list2):

@@ -6,6 +6,7 @@ from pathlib import Path
 mpl.rcParams['pdf.fonttype'] = 42       # 字体嵌入 PDF（Illustrator 可编辑）
 mpl.rcParams['ps.fonttype']  = 42
 mpl.rcParams['svg.fonttype'] = 'none'   # SVG 保留文字（Illustrator 可编辑）
+mpl.rcParams['pdf.use14corefonts'] = False
 mpl.rcParams['font.family']  = 'Arial'
 
 DEFAULT_COLORS = [

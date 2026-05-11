@@ -15,6 +15,7 @@ import matplotlib as mpl
 # 1. 让 matplotlib 别把字体子集化
 mpl.rcParams['pdf.fonttype'] = 42          # 已经写了，保留
 mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['svg.fonttype'] = 'none'        # SVG 文字保持文字对象,不转曲
 # 关键：关闭子集化（>=3.6 有效）
 mpl.rcParams['pdf.use14corefonts'] = False   # 不用 14 种核心字体
 # 2. 指定一个系统里肯定有的字体，避免 mpl 走自带字体
@@ -26,6 +27,7 @@ def plot_correlation_heatmap(input_file, output_dir, geneset_order=None, pvalue_
 
     mpl.rcParams['pdf.fonttype'] = 42
     mpl.rcParams['ps.fonttype'] = 42
+    mpl.rcParams['svg.fonttype'] = 'none'
     mpl.rcParams['pdf.use14corefonts'] = False
     mpl.rcParams['font.family'] = 'Arial'
 
