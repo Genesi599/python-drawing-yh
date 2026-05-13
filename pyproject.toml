@@ -13,6 +13,7 @@ dependencies = [
     "pandas",
     "scipy",
     "matplotlib-venn",
+    "pycirclize",
 ]
 
 [tool.setuptools.packages.find]
