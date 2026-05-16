@@ -60,6 +60,38 @@ save_fig(fig, 'out/fig1.pdf', also=('.png', '.svg'))   # 一次写三份,各自�
 - 高度公式默认 `per_item_h * n + base_h`,clip 到 `[min_h, max_h]`,
   来自 `scatter/dot_chart` 实战调出来的值
 
+## Autoshrink figsize(2026-05-16 起,所有图型推荐)
+
+"版面尽量紧凑,只要文字不重叠就好"是统一的出图原则。`autoshrink_figsize` 自动找最小 figsize,
+从初始大小开始缩,实测 label bbox 重叠就回退 / 放大。不需要手算 figsize。
+
+```python
+from drawing_yh import autoshrink_figsize
+
+def render(figsize):
+    fig, ax = plt.subplots(figsize=(figsize, figsize))
+    ax.bar(...)
+    ax.set_xticks(...); ax.set_xticklabels(labels, rotation=45)
+    return fig, ax
+
+fig, ax = autoshrink_figsize(
+    render,
+    initial=4.0, min_size=2.0,
+    get_texts=lambda ax: ax.get_xticklabels(),   # 跟图型相关:bar / scatter / heatmap 用 ticklabels;chord / network 用 ax.texts(default)
+    bbox_shrink=0.5,                              # bbox 收缩 50% 才算重叠(允许 labels 物理接近,matplotlib bbox 含 padding)
+)
+```
+
+**适用场景**:
+- chord diagram (`drawing_yh.chord.chord_diagram` 已用),sector label 重叠
+- bar chart 长 x 轴 label 容易重叠
+- heatmap 多行 / 多列 label
+- scatter 多 annotation
+- network node label
+
+**Why**:手动调 figsize 不准 — 同一 `figsize=4` 在 6 个 cell 跟 24 个 cell 上视觉完全不同。
+让代码实测 label bbox 决定最小可用 figsize。
+
 ## 文字防重叠
 
 不靠经验估,用 pixel bbox 测:
@@ -91,11 +123,110 @@ grayscale_distinct(my_palette)                   # bool,灰度下两两亮度差
 preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰度
 ```
 
+## HTML 报告(`drawing_yh.report`)
+
+Markdown 研究报告 → 标准 GitHub-flavored 单页 / 多页 HTML,
+样式规则统一,所有项目复用同一套 CSS。**底层仍走 pandoc**,本模块只
+封一层薄壳 + ship 一份默认 CSS。
+
+```python
+from drawing_yh import report
+
+# 1) 单页:REPORT.md → REPORT.html(同目录,自动复制 default.css)
+report.render('REPORT.md')
+
+# 2) 多页拆分 + 跨页 nav(适合长报告分发 / 截图)
+md = open('REPORT.md', encoding='utf-8').read()
+chunks = report.split_by_h2(md, [
+    ('00_summary',  ['摘要', '项目目标', 'Layer 1']),
+    ('01_findings', ['Finding A', 'Finding B', '数字总览']),
+    ('02_appendix', ['附录 A', '附录 B', '致谢']),
+])
+PAGES = [('00_summary','摘要'), ('01_findings','Findings'), ('02_appendix','附录')]
+for name, body in chunks.items():
+    report.render(body,
+                  out_html=f'pages/{name}.html',
+                  title=name,
+                  header_html=report.build_nav(PAGES, current=name))
+
+# 3) 仅取 CSS 路径(配合 Makefile / 手写 pandoc 命令)
+print(report.css_path())   # → /…/drawing_yh/report/templates/default.css
+```
+
+**约定**
+
+- 默认 CSS:`templates/default.css`(浅色)/ `templates/dark.css`(暗色 GitHub Dark)——
+  980 px 居中列、PingFang/YaHei 中文回退、含 `.report-nav` 顶部 sticky 导航 +
+  `aside.report-sidebar` 左侧 sidebar 样式(窄屏 ≤ 1180 折成 48 px 细栏 + hover 展开)
+- `render()` 默认 `copy_css=True`:把 CSS 复制到输出旁,链接走相对路径
+  —— 否则 `file://` 跨源会被浏览器挡(打开 HTML 全是裸文本)
+- `render()` 内部用 pandoc `--metadata pagetitle=` 而不是 `title=`,避免在正文重复渲染 `<h1 class="title">`
+- `split_by_h2()` 支持模糊匹配(`'Layer 1'` 命中 `'## Layer 1 · 蛋白 LR…'`),
+  默认把 H1 标题前置到每个分页(可关 `h1_passthrough=False`)
+- `build_nav` / `build_sidebar` 都接受 `(slug, label)` 或 `(slug, label, href)`,
+  以及 `('section', 'group_name')` 作 sidebar 分组头
+
+## Slide-style 多页报告(默认结果报告形式)
+
+3 个模板文件配套使用,从 `drawing_yh.report` 取:
+
+| Helper | 模板文件 | 用途 |
+|---|---|---|
+| `report.config_template_path()` | `_report_config_template.py` | **共享配置**(SLIDES / CATEGORIES / split_by_heading / load_chunks),纯 import 无副作用 |
+| `report.slide_template_path()` | `build_pages_template.py` | **HTML 渲染**(REPORT.md → 多页 dark 网页 + sticky nav + sidebar) |
+| `report.pptx_template_path()` | `md_to_pptx_template.py` | **PPTX 渲染**(REPORT.md → native PPTX,继承一份母版 .pptx 的 theme) |
+
+**典型工作流**:
+
+```bash
+# 1) 拷三份模板进项目
+cp $(python -c "from drawing_yh import report; print(report.config_template_path())") _report_config.py
+cp $(python -c "from drawing_yh import report; print(report.slide_template_path())")  build_pages.py
+cp $(python -c "from drawing_yh import report; print(report.pptx_template_path())")   md_to_pptx.py
+
+# 2) 改 _report_config.py 的 SLIDES + CATEGORIES;改 md_to_pptx.py 顶端 4 个常量
+#    (PROJECT_LABEL / TEMPLATE / OUT / 标题页文案)
+
+# 3) 跑
+python build_pages.py     # → pages/*.html(只跑 HTML)
+python md_to_pptx.py      # → REPORT.pptx(只跑 PPT,不连带刷 HTML)
+```
+
+**产物布局**:
+
+```
+analysis/<project>/
+├── REPORT.md             # H2 / H3 划章节
+├── _report_config.py     # SLIDES / CATEGORIES,两个脚本共用
+├── build_pages.py        # HTML 渲染入口
+├── md_to_pptx.py         # PPT 渲染入口
+├── index.html            # redirect → pages/index.html
+├── pages/
+│   ├── index.html        # landing
+│   ├── <slug>.html × N   # 每张 ≤ 一页 PPT 量
+│   └── dark.css          # 自动复制
+└── (D:/Projects/<project>/REPORT.pptx)   # PPT 落 D 盘(代码层不存图/数据)
+```
+
+**HTML 报告特征**:dark GitHub 风 / sticky 顶 4-tab(无前缀文字)/ 左 sidebar 按当前 cat 过滤
+(landing 例外)/ 窄屏 sidebar 折 48 px 细栏不挪顶 / 每页只一层标题(用 pandoc `pagetitle`)。
+
+**PPTX 特征**:继承母版 master / theme / 字体配色;每张 slide 顶部 = 项目标签 + 标题 + 橙色分隔线;
+有图 → 左大图 + 右 ➤ bullets(垂直居中);无图 → 全宽;表格列宽按内容长短分配;字号 14pt
+header / 11–14pt body 自动降级;**有图的 slide 不放表;表 + bullets 不共存**;放不下静默丢。
+
+详细约定见 `preferences.md` 的 "结果报告(slide-style HTML)的标准形式" 节。
+
+**前置依赖**
+
+- `pandoc` 必须在 PATH 上 —— Windows: `winget install JohnMacFarlane.Pandoc`,
+  macOS: `brew install pandoc`
+
 ## 复用性
 
 - 颜色列表、字号、figsize **变量集中管理**,不硬编码在多处
 - 代码里多处出现魔法数(字号、宽高、颜色字面量)就抽常量
-- **项目级共识应该沉淀进 `drawing_yh`**(rc / palettes / save_fig / layout),
+- **项目级共识应该沉淀进 `drawing_yh`**(rc / palettes / save_fig / layout / report),
   而不是每个项目脚本各写一遍
 
 ## 何时绕开标准
