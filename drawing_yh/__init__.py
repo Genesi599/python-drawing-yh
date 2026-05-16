@@ -90,8 +90,10 @@ from .palettes import (                                 # noqa: E402
 )
 from .layout import (                                   # noqa: E402
     compute_figsize, get_text_bboxes, find_overlaps, nudge_no_overlap_y,
+    autoshrink_figsize,
     TextBBox,
 )
+from . import report                                    # noqa: E402,F401
 
 __all__ = [
     # version
@@ -109,5 +111,7 @@ __all__ = [
     "to_grayscale", "grayscale_distinct", "preview_palette",
     # layout
     "compute_figsize", "get_text_bboxes", "find_overlaps",
-    "nudge_no_overlap_y", "TextBBox",
+    "nudge_no_overlap_y", "autoshrink_figsize", "TextBBox",
+    # subpackages
+    "report",
 ]

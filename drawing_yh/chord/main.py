@@ -147,25 +147,6 @@ def chord_diagram(
     # alpha floor:legacy production scripts 传 alpha=0.42/0.55 太浅,统一 floor 到 0.85
     eff_alpha = max(alpha, 0.85)
 
-    def _check_overlap(_ax, _fig):
-        """Tight overlap check:bbox 各收缩到中心 50% 才算重叠,允许 labels 物理接近"""
-        from matplotlib.transforms import Bbox as _Bbox
-        _fig.canvas.draw()
-        _t = list(_ax.texts)
-        if len(_t) < 2:
-            return False
-        _renderer = _fig.canvas.get_renderer()
-        def _shrunk(_b, _f=0.5):
-            cx, cy = (_b.x0 + _b.x1) / 2, (_b.y0 + _b.y1) / 2
-            hw, hh = _b.width * _f / 2, _b.height * _f / 2
-            return _Bbox.from_extents(cx - hw, cy - hh, cx + hw, cy + hh)
-        _bb = [_shrunk(t.get_window_extent(_renderer)) for t in _t]
-        for ii in range(len(_bb)):
-            for jj in range(ii + 1, len(_bb)):
-                if _bb[ii].overlaps(_bb[jj]):
-                    return True
-        return False
-
     def _render(_fig_sz):
         _fig, _ax = plt.subplots(figsize=(_fig_sz, _fig_sz))
         plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
@@ -185,35 +166,13 @@ def chord_diagram(
                    alpha=eff_alpha)
         return _fig, _ax
 
-    # Autoshrink figsize:从 figsize 开始往下缩到 labels 临界不重叠
-    # 下限 min_figsize:sectors 少时确保 chord 不被 labels 压扁(2.2 base + 每 5 sector +0.2)
+    # 通用 autoshrink — sectors 少时 min_size 大一点防 chord 被 labels 压扁
+    from drawing_yh.layout import autoshrink_figsize
     n_sec = len(all_nodes)
-    min_figsize = max(2.2, 2.2 + (n_sec - 6) * 0.04)
-    fig_sz = figsize[0]
-    fig, ax = _render(fig_sz)
-    last_good_sz = fig_sz
-    if not _check_overlap(ax, fig):
-        # 不 overlap,试更小(直到 min_figsize 或 overlap)
-        while fig_sz > min_figsize:
-            new_sz = max(fig_sz * 0.85, min_figsize)
-            plt.close(fig)
-            fig, ax = _render(new_sz)
-            if _check_overlap(ax, fig):
-                # 重叠了 → 回退用 last_good_sz
-                plt.close(fig)
-                fig, ax = _render(last_good_sz)
-                break
-            last_good_sz = fig_sz = new_sz
-            if fig_sz <= min_figsize:
-                break
-    else:
-        # 初始 figsize 就重叠 → 试更大
-        while fig_sz < 8.0:
-            new_sz = fig_sz * 1.15
-            plt.close(fig)
-            fig, ax = _render(new_sz)
-            if not _check_overlap(ax, fig):
-                break
-            fig_sz = new_sz
-
+    fig, ax = autoshrink_figsize(
+        _render,
+        initial=figsize[0],
+        min_size=max(2.2, 2.2 + (n_sec - 6) * 0.04),
+        bbox_shrink=0.5,
+    )
     return fig, ax

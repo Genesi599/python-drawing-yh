@@ -131,3 +131,106 @@ def nudge_no_overlap_y(fig, texts: Sequence, *,
             x, y = t.get_position()
             t.set_position((x, y + step))
     return max_iter
+
+
+def _shrunk_bbox(bb, factor: float):
+    """按中心收缩 bbox 到 factor 比例(0.5 = 缩到 50%)。"""
+    from matplotlib.transforms import Bbox
+    cx = (bb.x0 + bb.x1) / 2
+    cy = (bb.y0 + bb.y1) / 2
+    hw = bb.width * factor / 2
+    hh = bb.height * factor / 2
+    return Bbox.from_extents(cx - hw, cy - hh, cx + hw, cy + hh)
+
+
+def autoshrink_figsize(
+    render_fn,
+    initial: float = 2.5,
+    min_size: float = 1.8,
+    max_size: float = 8.0,
+    shrink: float = 0.85,
+    grow: float = 1.15,
+    bbox_shrink: float = 0.5,
+    get_texts=None,
+    max_iter: int = 30,
+):
+    """
+    自动找最小 figsize:用 render_fn 在不同 figsize 上 render,检测 label bbox 重叠。
+    不重叠就缩小,重叠就放大,直到收敛或触 min/max。
+
+    Why
+    ---
+    出图标准是"按字号 + 内容量动态算出尽可能小的 figsize"(见 preferences.md / STANDARDS.md)。
+    手动调 figsize 不准:sectors 多少、label 长短都影响。autoshrink 用实际 bbox overlap
+    决定,跨图型通用。
+
+    Parameters
+    ----------
+    render_fn : callable(figsize: float) -> (fig, ax)
+        每次给个正方形 figsize,返回 (fig, ax)。允许 close 旧 fig。
+    initial : float
+        起始 figsize(inch)。
+    min_size, max_size : float
+        figsize 上下限。
+    shrink, grow : float
+        每次缩 / 放比例。
+    bbox_shrink : float
+        bbox 收缩比 — `0.5` = 各 label bbox 缩到中心 50% 才检测重叠(允许 labels
+        物理接近,因为 matplotlib bbox 含 padding,实际 text 比 bbox 小)。
+    get_texts : callable(ax) -> list[Text], 可选
+        提取要检测的 text artists。默认 `ax.texts`(适合 chord-style sector labels;
+        bar/scatter 之类需要传 `lambda ax: ax.get_xticklabels() + ax.get_yticklabels()`)。
+    max_iter : int
+        最多迭代次数,防止死循环。
+
+    Returns
+    -------
+    (fig, ax)
+        最终选定 figsize 上的 (fig, ax)。
+    """
+    import matplotlib.pyplot as _plt
+    if get_texts is None:
+        get_texts = lambda ax: list(ax.texts)
+
+    def _has_overlap(_fig, _ax):
+        _fig.canvas.draw()
+        ts = get_texts(_ax)
+        if len(ts) < 2:
+            return False
+        renderer = _fig.canvas.get_renderer()
+        bbs = [_shrunk_bbox(t.get_window_extent(renderer), bbox_shrink) for t in ts]
+        for i in range(len(bbs)):
+            for j in range(i + 1, len(bbs)):
+                if bbs[i].overlaps(bbs[j]):
+                    return True
+        return False
+
+    fig_sz = initial
+    fig, ax = render_fn(fig_sz)
+    last_good = fig_sz
+    iters = 0
+    if not _has_overlap(fig, ax):
+        # 不重叠,试更小
+        while fig_sz > min_size and iters < max_iter:
+            iters += 1
+            new_sz = max(fig_sz * shrink, min_size)
+            _plt.close(fig)
+            fig, ax = render_fn(new_sz)
+            if _has_overlap(fig, ax):
+                _plt.close(fig)
+                fig, ax = render_fn(last_good)
+                break
+            last_good = fig_sz = new_sz
+            if fig_sz <= min_size:
+                break
+    else:
+        # 重叠,试更大
+        while fig_sz < max_size and iters < max_iter:
+            iters += 1
+            new_sz = fig_sz * grow
+            _plt.close(fig)
+            fig, ax = render_fn(new_sz)
+            if not _has_overlap(fig, ax):
+                break
+            fig_sz = new_sz
+    return fig, ax
