@@ -1,24 +1,29 @@
 """
-drawing_yh.chord — directional chord diagram(基于 pycirclize)
+drawing_yh.chord — directional chord diagram(基于 mpl_chord_diagram + patches)
 
 适用场景:细胞-细胞通讯网络(sender → receiver,值 = 通讯强度 / event 数)、
 任何 "from → to" 的有向加权图(基因调控、迁移流向、引文网络…)。
 
 核心函数 `chord_diagram(matrix, ...)`:
     - matrix: pandas DataFrame,index = sender(源),columns = receiver(目标),值 = 权重
-    - pycirclize 自动按 (行和 + 列和) 分配每个 node 的 sector 长度,ribbon 在 sector 上错开排布
-      (标准 circlize chordDiagram 行为 —— 同一 node 的进 / 出 ribbon 不会堆在一点)
-    - 返回 (fig, circos),fig 可直接交给 drawing_yh.save_fig 写出
+    - 自动按 (row + col 和) 分配每个 node 的 sector 大小
+    - 同 sender 内 chord 按 receiver 距离排序(避免交叉)
+    - chord 颜色 = sender 端深(sender_color) → receiver 端浅(lightened sender_color)
+    - 每条 chord 在 receiver 端 sector arc 内层加一段 sender_color stripe(标识来源)
+    - 返回 (fig, ax)
 
 附带 `HEMATOPOIETIC_LINEAGE_COLORS` —— 造血谱系细胞类型的成系配色 dict(BM 项目复用):
     HSPC/progenitor=teal,B/Plasma=blue,DC=purple,T/NK=olive,
     Neutrophil=red,Mono/Mac=orange,Mk=magenta,Erythroid=brown
 
-依赖:pycirclize(已加进 pyproject.toml)
+底层:vendored mpl_chord_diagram 0.4.1 in `_mpl_chord/`(已 patch 5 处:
+allow gradient+directed、cend=lighten(sender)、asize×3、intra_gap、receiver inner stripe)
 """
 from __future__ import annotations
 
 import matplotlib.colors as _mc
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 # 造血谱系成系配色(全彩色,不用灰/黑;teal=HSPC, blue=B, purple=DC, olive=T/NK,
@@ -60,18 +65,16 @@ def chord_diagram(
     matrix: pd.DataFrame,
     color_map: dict | None = None,
     *,
-    space: int = 3,
-    r_lim: tuple = (93, 100),
-    alpha: float = 0.42,
-    ec: str = "white",
-    lw: float = 0.15,
-    direction: int = 1,
-    label_size: int = 9,
-    label_orientation: str = "vertical",
-    figsize: tuple = (8, 8),
-    title: str | None = None,
-    title_size: int = 11,
+    figsize: tuple = (2.5, 2.5),    # 起始 figsize,autoshrink 会从这缩到 labels 刚好不重叠
+    fontsize: int = 9,              # 固定 fontsize(不自动缩,由 figsize 调整防重叠)
+    alpha: float = 1.0,             # chord 不透明,深
+    pad: float = 3.0,               # sector 间空隙(度)
+    chordwidth: float = 0.5,        # chord 弯曲度(0.3 直,0.5 适中,0.7 中段窄)
+    intra_gap: float = 1.5,         # 同 sender 内 chord 子区段空隙(度)
+    width: float = 0.1,             # sector arc 厚度(0-1)
     drop_zero_nodes: bool = True,
+    radial_labels: bool = True,     # node label 径向(垂直 sector arc),节省版面
+    **legacy_kwargs,                 # 静默吃掉所有旧 API 参数(title/title_size/space/lw/ec/direction/height_ratio/...)
 ):
     """画 directional chord diagram。
 
@@ -79,64 +82,54 @@ def chord_diagram(
     ------
     matrix
         pandas DataFrame,index = sender,columns = receiver,值 = 权重(>=0)。
-        非对称即有向(direction=1 时 row → col)。
+        非对称即有向(direction 默认 1,row → col)。
     color_map
         dict {node_name: color}。缺省按 HEMATOPOIETIC_LINEAGE_COLORS 找,
         找不到的 node 按 _FALLBACK_PALETTE 循环取色。
         显式传 {} 则全部用 fallback。
-    space
-        sector 之间的间隔角度。node 多时调小(如 2),少时可大(如 4)。
-    r_lim
-        sector 轨道的半径范围(0-100)。
-    alpha, ec, lw
-        ribbon 的透明度 / 边线颜色 / 边线宽度。
-    direction
-        1 = ribbon 带方向(sender 一端宽,receiver 一端窄;或反之,按 pycirclize 约定);
-        0 = 无方向。
-    label_size, label_orientation
-        node 标签字号 / 方向("vertical" / "horizontal")。
     figsize
-        figure 尺寸(英寸)。
-    title, title_size
-        总标题(可多行,用 \\n)及字号。
+        figure 尺寸(英寸)。默认 3.5×3.5(紧凑,单栏)。
+    fontsize
+        node label 字号。自动 overlap detection 重叠时缩小至最小 5pt。
+    alpha
+        chord 透明度。0.85 较深,0.5 较透。
+    pad
+        sector 之间空隙(度)。
+    chordwidth
+        chord 弯曲度。0.3 偏直,0.5 适中,0.7 中段窄。
+    intra_gap
+        同 sender 内多条 chord 子区段之间空隙(度)。
+    width
+        sector arc 在 figure radius 上的厚度。
     drop_zero_nodes
-        True 时去掉行和 + 列和都为 0 的 node(不参与通讯的细胞类型)。
+        True 时去掉行和 + 列和都为 0 的 node。
 
     Returns
     -------
-    (fig, circos)
-        matplotlib Figure 与 pycirclize Circos 对象。
-        写出建议 `from drawing_yh import save_fig; save_fig(fig, 'chord.pdf', also=('.png',))`。
+    (fig, ax)
+        matplotlib Figure + Axes。Title 不在图内,由 caller 加(如 fig.suptitle)。
+        写出用 `drawing_yh.save_fig(fig, 'chord.pdf', also=('.png', '.svg'))`。
 
     Example
     -------
         import pandas as pd
-        from drawing_yh.chord import chord_diagram, HEMATOPOIETIC_LINEAGE_COLORS
+        from drawing_yh.chord import chord_diagram
         from drawing_yh import save_fig
-
-        # mat: index=sender cell type, columns=receiver cell type, values=通讯强度
-        fig, _ = chord_diagram(mat, title='Urea-mediated mCCC')
-        save_fig(fig, 'out/chord_urea.pdf', also=('.png',))
+        fig, _ = chord_diagram(mat)
+        save_fig(fig, 'out/chord.pdf', also=('.png', '.svg'))
     """
-    try:
-        from pycirclize import Circos
-    except ImportError as e:  # 边界:外部依赖缺失,给清晰提示
-        raise ImportError(
-            "chord_diagram 需要 pycirclize:pip install pycirclize"
-        ) from e
-    import matplotlib.pyplot as plt
+    from ._mpl_chord.chord_diagram import chord_diagram as _mpl_chord
 
+    # 1. 对齐 + drop zero
     mat = matrix.copy()
-    # 对齐 index / columns 的并集(否则 pycirclize 报错)
     all_nodes = sorted(set(mat.index) | set(mat.columns))
     mat = mat.reindex(index=all_nodes, columns=all_nodes, fill_value=0.0)
-
     if drop_zero_nodes:
         keep = [n for n in all_nodes if mat.loc[n].sum() > 0 or mat[n].sum() > 0]
         mat = mat.loc[keep, keep]
         all_nodes = keep
 
-    # 颜色
+    # 2. 配色
     base_map = dict(HEMATOPOIETIC_LINEAGE_COLORS) if color_map is None else {}
     if color_map:
         base_map.update(color_map)
@@ -148,17 +141,79 @@ def chord_diagram(
         else:
             cmap[n] = _FALLBACK_PALETTE[fb_i % len(_FALLBACK_PALETTE)]
             fb_i += 1
+    colors = [cmap[n] for n in all_nodes]
 
-    circos = Circos.chord_diagram(
-        mat,
-        space=space,
-        cmap=cmap,
-        r_lim=r_lim,
-        ticks_interval=None,
-        label_kws=dict(size=label_size, orientation=label_orientation),
-        link_kws=dict(direction=direction, alpha=alpha, ec=ec, lw=lw),
-    )
-    fig = circos.plotfig(figsize=figsize)
-    if title:
-        fig.suptitle(title, fontsize=title_size, y=1.02)
-    return fig, circos
+    # 3. 画 chord(vendored mpl_chord_diagram with all patches)
+    # alpha floor:legacy production scripts 传 alpha=0.42/0.55 太浅,统一 floor 到 0.85
+    eff_alpha = max(alpha, 0.85)
+
+    def _check_overlap(_ax, _fig):
+        """Tight overlap check:bbox 各收缩到中心 50% 才算重叠,允许 labels 物理接近"""
+        from matplotlib.transforms import Bbox as _Bbox
+        _fig.canvas.draw()
+        _t = list(_ax.texts)
+        if len(_t) < 2:
+            return False
+        _renderer = _fig.canvas.get_renderer()
+        def _shrunk(_b, _f=0.5):
+            cx, cy = (_b.x0 + _b.x1) / 2, (_b.y0 + _b.y1) / 2
+            hw, hh = _b.width * _f / 2, _b.height * _f / 2
+            return _Bbox.from_extents(cx - hw, cy - hh, cx + hw, cy + hh)
+        _bb = [_shrunk(t.get_window_extent(_renderer)) for t in _t]
+        for ii in range(len(_bb)):
+            for jj in range(ii + 1, len(_bb)):
+                if _bb[ii].overlaps(_bb[jj]):
+                    return True
+        return False
+
+    def _render(_fig_sz):
+        _fig, _ax = plt.subplots(figsize=(_fig_sz, _fig_sz))
+        plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+        _mpl_chord(mat.values, names=all_nodes, colors=colors, ax=_ax,
+                   use_gradient=True,
+                   chord_colors=colors,
+                   directed=True,
+                   sort="distance",
+                   pad=pad,
+                   chordwidth=chordwidth,
+                   width=width,
+                   gap=0,
+                   intra_gap=intra_gap,
+                   rotate_names=radial_labels,
+                   show=False,
+                   fontsize=fontsize,
+                   alpha=eff_alpha)
+        return _fig, _ax
+
+    # Autoshrink figsize:从 figsize 开始往下缩到 labels 临界不重叠
+    # 下限 min_figsize:sectors 少时确保 chord 不被 labels 压扁(2.2 base + 每 5 sector +0.2)
+    n_sec = len(all_nodes)
+    min_figsize = max(2.2, 2.2 + (n_sec - 6) * 0.04)
+    fig_sz = figsize[0]
+    fig, ax = _render(fig_sz)
+    last_good_sz = fig_sz
+    if not _check_overlap(ax, fig):
+        # 不 overlap,试更小(直到 min_figsize 或 overlap)
+        while fig_sz > min_figsize:
+            new_sz = max(fig_sz * 0.85, min_figsize)
+            plt.close(fig)
+            fig, ax = _render(new_sz)
+            if _check_overlap(ax, fig):
+                # 重叠了 → 回退用 last_good_sz
+                plt.close(fig)
+                fig, ax = _render(last_good_sz)
+                break
+            last_good_sz = fig_sz = new_sz
+            if fig_sz <= min_figsize:
+                break
+    else:
+        # 初始 figsize 就重叠 → 试更大
+        while fig_sz < 8.0:
+            new_sz = fig_sz * 1.15
+            plt.close(fig)
+            fig, ax = _render(new_sz)
+            if not _check_overlap(ax, fig):
+                break
+            fig_sz = new_sz
+
+    return fig, ax
