@@ -265,7 +265,7 @@ def chord_diagram(mat, names=None, order=None, width=0.1, pad=2., gap=0.03,
             # 同色 chord 也能看出方向
             from matplotlib.colors import to_rgb
             _sender_rgb = to_rgb(chord_color)
-            _lighten_factor = 0.4   # PATCHED: 加深(chord ribbon receiver 端);0.5 偏淡, 0.4 较深
+            _lighten_factor = 0.3   # PATCHED: 加深(chord ribbon receiver 端)
             cend = tuple(c + (1 - c) * _lighten_factor for c in _sender_rgb)
 
             start1, end1, start2, end2 = pos[(i, j)]
@@ -284,9 +284,9 @@ def chord_diagram(mat, names=None, order=None, width=0.1, pad=2., gap=0.03,
                     from matplotlib.patches import PathPatch as _PP
                     from matplotlib.path import Path as _PA
                     from matplotlib.colors import to_rgb as _to_rgb
-                    # PATCHED: stripe 颜色 = lighten(sender, 0.4) — 跟 chord ribbon receiver 端 gradient 同步
+                    # PATCHED: stripe 颜色 = lighten(sender, 0.3) — 跟 chord ribbon receiver 端 gradient 同步
                     _s = _np.array(_to_rgb(chord_colors[i]))
-                    sender_clr = tuple(_s + (1 - _s) * 0.4)
+                    sender_clr = tuple(_s + (1 - _s) * 0.3)
                     # PATCHED: stripe 放在 sector arc 内层 — 细 + 不透明
                     stripe_thickness = width * 0.25   # sector arc 厚度的 25%(更细)
                     stripe_r_inner = 1 - width

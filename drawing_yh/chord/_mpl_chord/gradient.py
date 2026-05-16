@@ -32,19 +32,15 @@ def gradient(start, end, min_angle, color1, color2, meshgrid, mask, ax,
 
     X, Y = meshgrid
 
-    # get the distance to each point
+    # PATCHED: 用 distance ratio 替代 binary mask + gaussian filter,得真正 smooth gradient
+    # (原版 (d2end<d2start) 是 binary 0/1,gaussian filter sigma 很小 → Z 几乎 binary,
+    #  chord 大段相同色看着像两段。distance ratio = sqrt(d2start) / (sqrt(d2start)+sqrt(d2end))
+    #  是平滑距离比,sender 端 Z=0、receiver 端 Z=1、中间真线性过渡。)
     d2start = (X - xs)*(X - xs) + (Y - ys)*(Y - ys)
     d2end   = (X - xe)*(X - xe) + (Y - ye)*(Y - ye)
-
-    dmax = (xs - xe)*(xs - xe) + (ys - ye)*(ys - ye)
-
-    # blur
-    smin = 0.015*len(X)
-    smax = max(smin, 0.1*len(X)*min(min_angle/120, 1))
-
-    sigma = np.clip(dmax*len(X), smin, smax)
-
-    Z = gaussian_filter((d2end < d2start).astype(float), sigma=sigma)
+    ds = np.sqrt(d2start)
+    de = np.sqrt(d2end)
+    Z = ds / (ds + de + 1e-12)
 
     # generate the colormap
     n_bin = 100
