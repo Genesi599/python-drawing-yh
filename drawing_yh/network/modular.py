@@ -109,6 +109,7 @@ def plot_modular_network(
     edge_inter_mult: float = 0.35,
     edge_width_scale: float = 0.9,
     label_top_n: int = 60,
+    label_module_hub_n: int = 0,
 
     # ── 字号 / title ──
     font_family: str = "Arial",
@@ -142,6 +143,11 @@ def plot_modular_network(
     highlight_colors : (up_color, down_color)
     module_function_map : dict | None
         {module_id: str or list[str]} 模块功能短标签,显示在模块中心 ID 下方。
+    label_top_n : int
+        全局按 degree 取前 N 个节点标 label(0 = 关掉)。
+    label_module_hub_n : int
+        **每模块**按 degree 取前 N 个节点标 label(0 = 关掉)。
+        与 label_top_n / node_highlight 取并集,标注节点不重复。
 
     其它参数同原 net_Bokeh_modular.plot_modular_network。
 
@@ -271,6 +277,16 @@ def plot_modular_network(
     top_labeled = set(
         [n for n, _ in sorted(deg_map.items(), key=lambda kv: -kv[1])[:int(label_top_n)]]
     )
+    # 每模块按 global degree 取前 N 个作为 module hub,补到 top_labeled
+    if label_module_hub_n > 0:
+        _by_mod = defaultdict(list)
+        for _n, _m in module_id.items():
+            if _n in G:
+                _by_mod[_m].append(_n)
+        for _m, _nodes in _by_mod.items():
+            _sorted = sorted(_nodes, key=lambda x: -deg_map.get(x, 0))
+            for _n in _sorted[:int(label_module_hub_n)]:
+                top_labeled.add(_n)
 
     node_ids = list(G.nodes)
     n_x, n_y = [], []
