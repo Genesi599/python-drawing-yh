@@ -110,6 +110,7 @@ def plot_modular_network(
     edge_width_scale: float = 0.9,
     label_top_n: int = 60,
     label_module_hub_n: int = 0,
+    hub_ring_color: str = "#374151",
 
     # ── 字号 / title ──
     font_family: str = "Arial",
@@ -146,8 +147,10 @@ def plot_modular_network(
     label_top_n : int
         全局按 degree 取前 N 个节点标 label(0 = 关掉)。
     label_module_hub_n : int
-        **每模块**按 degree 取前 N 个节点标 label(0 = 关掉)。
-        与 label_top_n / node_highlight 取并集,标注节点不重复。
+        **每模块**按 degree 取前 N 个节点标 label(0 = 关掉);同时给这些 hub 节点
+        画一圈灰色环(`hub_ring_color`)。与 node_highlight 重叠时高亮色优先。
+    hub_ring_color : str
+        module hub 节点的环色(默认 `#374151` slate-700)。
 
     其它参数同原 net_Bokeh_modular.plot_modular_network。
 
@@ -277,7 +280,8 @@ def plot_modular_network(
     top_labeled = set(
         [n for n, _ in sorted(deg_map.items(), key=lambda kv: -kv[1])[:int(label_top_n)]]
     )
-    # 每模块按 global degree 取前 N 个作为 module hub,补到 top_labeled
+    # 每模块按 global degree 取前 N 个作为 module hub,既标 label 也画 ring
+    module_hubs: set = set()
     if label_module_hub_n > 0:
         _by_mod = defaultdict(list)
         for _n, _m in module_id.items():
@@ -286,6 +290,7 @@ def plot_modular_network(
         for _m, _nodes in _by_mod.items():
             _sorted = sorted(_nodes, key=lambda x: -deg_map.get(x, 0))
             for _n in _sorted[:int(label_module_hub_n)]:
+                module_hubs.add(_n)
                 top_labeled.add(_n)
 
     node_ids = list(G.nodes)
@@ -462,10 +467,13 @@ def plot_modular_network(
         glow_size = 0.0
         glow_color = fill
 
-        # 高亮节点:外面套一圈大环(颜色按方向)
+        # 环:高亮节点 = ±方向色;module hub = hub_ring_color;两者重叠以高亮色优先
         if age_dir != 0:
             ring_size = max(size * 1.95, size + 6.0)
             ring_color = UP_COLOR if age_dir > 0 else DOWN_COLOR
+        elif n in module_hubs:
+            ring_size = max(size * 1.95, size + 6.0)
+            ring_color = hub_ring_color
         else:
             ring_size = 0.0
             ring_color = fill
