@@ -93,6 +93,7 @@ from .layout import (                                   # noqa: E402
     autoshrink_figsize,
     TextBBox,
 )
+from .dumbbell import render_mean_dumbbell              # noqa: E402
 from . import report                                    # noqa: E402,F401
 
 __all__ = [
@@ -112,6 +113,8 @@ __all__ = [
     # layout
     "compute_figsize", "get_text_bboxes", "find_overlaps",
     "nudge_no_overlap_y", "autoshrink_figsize", "TextBBox",
+    # charts
+    "render_mean_dumbbell",
     # subpackages
     "report",
 ]
