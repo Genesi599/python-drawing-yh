@@ -12,7 +12,7 @@
   无论哪种,**每个区域 label 始终标真实计数**(0 区域留空)。
 - **figsize 不预先固定**:默认 ``autoshrink=True`` 用 ``autoshrink_figsize`` 按 label
   bbox 重叠实测,找不重叠的最小尺寸(符合"版面尽量紧凑"标准)。
-- **图内 title 自带关键编码**:第 2 行括号注明圆面积 / 数字含义(``encoding``,可覆盖)。
+- **图内 title 求简**:``title`` 直接画在图上,**保持简短**;图型前缀 + 视觉编码写进报告 figcaption,不塞进图(见 preferences 出图规范)。
 - ``show_members``:把全集交集成员列在图下方 + 箭头(成员可经 ``member_labels``
   映射成可读名,如 HMDB ID → 代谢物名)。需 ``ax=None`` 由本函数建图。
 - 返回 ``(fig, ax)``,出图由调用方 ``save_fig`` 写三格式(不内嵌 savefig)。
@@ -44,12 +44,6 @@ from ..palettes import OKABE_ITO
 _VENN3_IDS = ('100', '010', '110', '001', '101', '011', '111')
 _VENN2_IDS = ('10', '01', '11')
 
-_AREA_DESC = {
-    'proportional': 'circle area ~ set size',
-    'log': 'circle area ~ log(set size)',
-    'equal': 'equal circles (schematic)',
-}
-
 
 def _region_counts(sets: list[set]) -> dict[str, int]:
     """各区域的真实元素数,key 为 matplotlib_venn 的 subset id。"""
@@ -80,13 +74,9 @@ def _subset_arg(sets: list[set], mode: str):
     raise ValueError(f"mode must be 'proportional'|'log'|'equal', got {mode!r}")
 
 
-def _default_encoding(mode: str) -> str:
-    return f"{_AREA_DESC[mode]}; number = element count"
-
-
 def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
                  show_members=False, member_labels=None, member_title=None,
-                 members_per_line=3, title=None, encoding=None,
+                 members_per_line=3, title=None,
                  ax=None, figsize=None, autoshrink=True,
                  set_label_size=None, subset_label_size=None,
                  edgecolor='white', linewidth=0.6):
@@ -98,8 +88,7 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
     labels : list[str] —— 集合名(顺序与 sets 对应;通常自带 ``(size)``)。
     colors : 可选,默认 ``OKABE_ITO[:n]``。
     mode : ``'proportional'`` | ``'log'`` | ``'equal'``,见模块 docstring。
-    title : 图内标题(建议以 "Venn diagram — " 开头)。
-    encoding : 标题第 2 行的关键编码说明;``None`` 按 mode 自动生成,``''`` 关闭。
+    title : 图内标题,**保持简短**(图型前缀 + 视觉编码写进报告 figcaption,不塞进图)。
     autoshrink : ``True`` 自动找不重叠的最小 figsize(``figsize`` 给定时忽略)。
     show_members : 在图下方列全集交集成员(需 ``ax=None``)。
     member_labels : dict,把交集元素映射成可读名(如 {HMDB: 代谢物名})。
@@ -124,9 +113,7 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
     inter = set.intersection(*sets)
     want_members = show_members and ax is None and len(inter) > 0
 
-    if encoding is None:
-        encoding = _default_encoding(mode)
-    full_title = f"{title}\n({encoding})" if (title and encoding) else (title or None)
+    full_title = title
 
     draw = venn2 if n == 2 else venn3
     aspect = 1.2 if want_members else 1.0
