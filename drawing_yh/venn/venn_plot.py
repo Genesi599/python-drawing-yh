@@ -136,6 +136,10 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
             if p is not None:
                 p.set_edgecolor(edgecolor)
                 p.set_linewidth(linewidth)
+        if n == 3:
+            # 默认 2 上 1 下 → 翻转成 1 上 2 下:底部中间空出给箭头 / 成员列表,
+            # 单圆标题随之移到顶部,不再与向下箭头重叠(文字仍正立)
+            axv.invert_yaxis()
         if full_title:
             axv.set_title(full_title)
         return v
