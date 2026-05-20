@@ -10,6 +10,9 @@
     * ``'log'``          log 加权(集合大小悬殊时小圆不消失;面积示意、非真比例)
     * ``'equal'``        等大 schematic(所有圆等大,只靠数字标注)
   无论哪种,**每个区域 label 始终标真实计数**(0 区域留空)。
+- **figsize 不预先固定**:默认 ``autoshrink=True`` 用 ``autoshrink_figsize`` 按 label
+  bbox 重叠实测,找不重叠的最小尺寸(符合"版面尽量紧凑"标准)。
+- **图内 title 自带关键编码**:第 2 行括号注明圆面积 / 数字含义(``encoding``,可覆盖)。
 - ``show_members``:把全集交集成员列在图下方 + 箭头(成员可经 ``member_labels``
   映射成可读名,如 HMDB ID → 代谢物名)。需 ``ax=None`` 由本函数建图。
 - 返回 ``(fig, ax)``,出图由调用方 ``save_fig`` 写三格式(不内嵌 savefig)。
@@ -34,12 +37,18 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 
-from .. import ONE_HALF_COL_IN
+from ..layout import ONE_HALF_COL_IN, autoshrink_figsize
 from ..palettes import OKABE_ITO
 
 # matplotlib_venn 的 subset id 顺序
 _VENN3_IDS = ('100', '010', '110', '001', '101', '011', '111')
 _VENN2_IDS = ('10', '01', '11')
+
+_AREA_DESC = {
+    'proportional': 'circle area ~ set size',
+    'log': 'circle area ~ log(set size)',
+    'equal': 'equal circles (schematic)',
+}
 
 
 def _region_counts(sets: list[set]) -> dict[str, int]:
@@ -71,9 +80,14 @@ def _subset_arg(sets: list[set], mode: str):
     raise ValueError(f"mode must be 'proportional'|'log'|'equal', got {mode!r}")
 
 
+def _default_encoding(mode: str) -> str:
+    return f"{_AREA_DESC[mode]}; number = element count"
+
+
 def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
                  show_members=False, member_labels=None, member_title=None,
-                 members_per_line=3, title=None, ax=None, figsize=None,
+                 members_per_line=3, title=None, encoding=None,
+                 ax=None, figsize=None, autoshrink=True,
                  set_label_size=None, subset_label_size=None,
                  edgecolor='white', linewidth=0.6):
     """画一张 2 或 3 集合 Venn 图,返回 ``(fig, ax)``。
@@ -84,6 +98,9 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
     labels : list[str] —— 集合名(顺序与 sets 对应;通常自带 ``(size)``)。
     colors : 可选,默认 ``OKABE_ITO[:n]``。
     mode : ``'proportional'`` | ``'log'`` | ``'equal'``,见模块 docstring。
+    title : 图内标题(建议以 "Venn diagram — " 开头)。
+    encoding : 标题第 2 行的关键编码说明;``None`` 按 mode 自动生成,``''`` 关闭。
+    autoshrink : ``True`` 自动找不重叠的最小 figsize(``figsize`` 给定时忽略)。
     show_members : 在图下方列全集交集成员(需 ``ax=None``)。
     member_labels : dict,把交集元素映射成可读名(如 {HMDB: 代谢物名})。
     member_title : 成员块标题,默认 ``f"{n}-set intersection ({k})"``。
@@ -107,45 +124,37 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
     inter = set.intersection(*sets)
     want_members = show_members and ax is None and len(inter) > 0
 
-    # ── figure / axes ──
-    if ax is not None:
-        fig = ax.figure
-        ax_txt = None
-    elif want_members:
-        fig = plt.figure(figsize=figsize or (ONE_HALF_COL_IN, ONE_HALF_COL_IN * 1.35))
-        ax = fig.add_axes([0.04, 0.30, 0.92, 0.66])
-        ax_txt = fig.add_axes([0.04, 0.01, 0.92, 0.25])
-        ax_txt.axis('off')
-    else:
-        fig, ax = plt.subplots(figsize=figsize or (ONE_HALF_COL_IN, ONE_HALF_COL_IN))
-        ax_txt = None
+    if encoding is None:
+        encoding = _default_encoding(mode)
+    full_title = f"{title}\n({encoding})" if (title and encoding) else (title or None)
 
     draw = venn2 if n == 2 else venn3
-    v = draw(_subset_arg(sets, mode), set_labels=labels,
-             set_colors=tuple(colors), alpha=alpha, ax=ax)
+    aspect = 1.2 if want_members else 1.0
 
-    # 区域 label 一律覆盖成真实计数(0 区域留空)
-    for rid in ids:
-        lbl = v.get_label_by_id(rid)
-        if lbl is not None:
-            c = counts[rid]
-            lbl.set_text(str(c) if c else '')
-            lbl.set_fontsize(fs_sub)
-    # 集合名字号 + 区域描边
-    for t in v.set_labels:
-        if t is not None:
-            t.set_fontsize(fs_set)
-    for rid in ids:
-        p = v.get_patch_by_id(rid)
-        if p is not None:
-            p.set_edgecolor(edgecolor)
-            p.set_linewidth(linewidth)
+    def _draw(axv):
+        v = draw(_subset_arg(sets, mode), set_labels=labels,
+                 set_colors=tuple(colors), alpha=alpha, ax=axv)
+        # 区域 label 一律覆盖成真实计数(0 区域留空)
+        for rid in ids:
+            lbl = v.get_label_by_id(rid)
+            if lbl is not None:
+                c = counts[rid]
+                lbl.set_text(str(c) if c else '')
+                lbl.set_fontsize(fs_sub)
+        for t in v.set_labels:
+            if t is not None:
+                t.set_fontsize(fs_set)
+        for rid in ids:
+            p = v.get_patch_by_id(rid)
+            if p is not None:
+                p.set_edgecolor(edgecolor)
+                p.set_linewidth(linewidth)
+        if full_title:
+            axv.set_title(full_title)
+        return v
 
-    if title:
-        ax.set_title(title)
-
-    # 成员列表 + 箭头(原 tuned 特性)
-    if want_members:
+    def _add_members(fig, axv, v):
+        # 用 fig.text(非独立 axes)列成员,避免空 axes 被 tight bbox 计入留白
         names = sorted(str((member_labels or {}).get(x, x)) for x in inter)
         head = member_title or f"{n}-set intersection ({len(names)})"
         body = '\n'.join(', '.join(names[i:i + members_per_line])
@@ -154,14 +163,39 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
         if center is not None:
             verts = center.get_path().vertices
             cx, cy = verts[:, 0].mean(), verts[:, 1].mean()
-            y0 = ax.get_ylim()[0]
-            ax.add_patch(FancyArrowPatch(
-                (cx, cy), (cx, y0), arrowstyle='-|>', mutation_scale=7,
-                lw=0.7, color='0.35', connectionstyle='arc3,rad=0.08',
-                zorder=60, clip_on=False))
-        ax_txt.text(0.5, 0.95, head, ha='center', va='top', fontweight='bold',
-                    color='#1A5490', transform=ax_txt.transAxes, fontsize=fs_sub)
-        ax_txt.text(0.5, 0.60, body, ha='center', va='top',
-                    transform=ax_txt.transAxes, fontsize=fs_sub)
+            axv.add_patch(FancyArrowPatch(
+                (cx, cy), (cx, axv.get_ylim()[0]), arrowstyle='-|>',
+                mutation_scale=7, lw=0.7, color='0.35',
+                connectionstyle='arc3,rad=0.08', zorder=60, clip_on=False))
+        fig.text(0.5, 0.125, head, ha='center', va='top', fontweight='bold',
+                 color='#1A5490', fontsize=fs_sub)
+        fig.text(0.5, 0.075, body, ha='center', va='top', fontsize=fs_sub)
 
-    return fig, ax
+    # 调用方给了 ax:直接画进去(成员列表需自建图,这里跳过)
+    if ax is not None:
+        _draw(ax)
+        return ax.figure, ax
+
+    def _build(w, h):
+        fig = plt.figure(figsize=(w, h))
+        if want_members:
+            axv = fig.add_axes([0.04, 0.20, 0.92, 0.68])
+            v = _draw(axv)
+            _add_members(fig, axv, v)
+        else:
+            axv = fig.add_axes([0.03, 0.03, 0.94, 0.86])
+            _draw(axv)
+        return fig, axv
+
+    # figsize 显式给定 → 直接用;否则默认 autoshrink 找最小不重叠尺寸
+    if figsize is not None:
+        w, h = figsize if isinstance(figsize, (tuple, list)) else (figsize, figsize * aspect)
+        return _build(w, h)
+    if autoshrink:
+        return autoshrink_figsize(
+            lambda s: _build(s, s * aspect),
+            initial=4.5, min_size=3.0, max_size=7.5,
+            get_texts=lambda a: [t for t in (list(a.texts) + [a.title]) if t.get_text()],
+            bbox_shrink=0.6,
+        )
+    return _build(ONE_HALF_COL_IN, ONE_HALF_COL_IN * aspect)
