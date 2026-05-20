@@ -14,11 +14,12 @@ from scipy.stats import zscore
 from matplotlib.colors import to_rgb, to_hex
 from matplotlib.colors import LinearSegmentedColormap
 
+from drawing_yh import DEFAULT_FONT_SIZE, save_fig
 
 
 def draw_heatmap(expr_df, df_pat, patterns, condition_map, age_series, enrich_dict,
                  feature_meta_df, id_col, name_col, logfc_col,
-                 blank_rows=2, figsize=(10, 16), base_fontsize=20, fc_cut=0,
+                 blank_rows=2, figsize=(10, 16), base_fontsize=DEFAULT_FONT_SIZE, fc_cut=0,
                  split_up_down=False, out_dir=None, is_up_regulation=True,
                  enrich_show_n=2):
     LINE_COLOR = 'black'
@@ -305,7 +306,6 @@ def draw_heatmap(expr_df, df_pat, patterns, condition_map, age_series, enrich_di
 
     suffix = "upregulation" if is_up_regulation else "downregulation"
     out_file = out_dir / f"protein_patterns_heatmap_{suffix}.png"
-    plt.savefig(out_file, dpi=600, bbox_inches='tight')
-    plt.savefig(out_file.with_suffix('.pdf'), bbox_inches='tight')
+    save_fig(fig, out_file, also=('.pdf', '.svg'))
     plt.close()
     print("✅ 热力图完成：", out_file)

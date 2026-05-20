@@ -14,6 +14,8 @@ import seaborn as sns
 import matplotlib.image as mpimg
 import re
 
+from drawing_yh import DEFAULT_FONT_SIZE, save_fig
+
 
 def normalize_species_name(species_name):
     """
@@ -87,11 +89,13 @@ def plot_heatmap_with_icons(
         in_csv,
         out_dir=None,
         top_per_group=20,
-        font_scale=1.2,
+        font_scale=1.0,
         figsize=(16, 9),
-        dpi_png=600,
+        dpi_png=300,
         species_icon_paths=None,
         gene_type='all',
+        title='Cross-species B cell DEG',
+        output_stem='heatmap_icons',
 ):
     """
     绘制热图+物种图标叠加图
@@ -101,7 +105,7 @@ def plot_heatmap_with_icons(
         out_dir = in_csv.parent / "figure"
     else:
         out_dir = Path(out_dir)
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. 读表
     df = pd.read_csv(in_csv)
@@ -225,27 +229,29 @@ def plot_heatmap_with_icons(
                         print(f"加载图标失败 {icon_path}: {e}")
 
     # 9. 坐标轴
-    ax.set_xlabel('Tissue', fontsize=14 * font_scale, )
-    ax.set_ylabel('Gene', fontsize=14 * font_scale)
-    ax.set_title('Cross-Species Aging B Cell DEG', fontsize=16 * font_scale)
-    plt.xticks(rotation=45, ha='right', fontsize=10 * font_scale)
-    plt.yticks(rotation=0, fontsize=10 * font_scale)
+    base_fontsize = DEFAULT_FONT_SIZE * font_scale
+    ax.set_xlabel('Tissue', fontsize=base_fontsize)
+    ax.set_ylabel('Gene', fontsize=base_fontsize)
+    if title:
+        ax.set_title(title, fontsize=base_fontsize, pad=8)
+    plt.xticks(rotation=45, ha='right', fontsize=base_fontsize)
+    plt.yticks(rotation=0, fontsize=base_fontsize)
 
     # 10. 颜色条
     cbar_ax = fig.add_axes([0.81, 0.15, 0.03, 0.3])
     sm = plt.cm.ScalarMappable(cmap=cmap_fill, norm=norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cbar_ax, orientation='vertical')
-    cbar.ax.tick_params(labelsize=12 * font_scale)
-    cbar.set_label('exp-logFC', fontsize=12 * font_scale)
+    cbar.ax.tick_params(labelsize=base_fontsize)
+    cbar.set_label('exp-logFC', fontsize=base_fontsize)
 
     plt.tight_layout()
     # 11. 保存
-    for ext in ['png', 'pdf']:
-        out_path = out_dir / f'heatmap_icons.{ext}'
-        fig.savefig(out_path, dpi=dpi_png if ext == 'png' else None, bbox_inches='tight')
-        print(f'  ✅ {out_path.name} 完成')
+    written = save_fig(fig, out_dir / f'{output_stem}.svg', also=('.pdf', '.png'))
+    for out_path in written:
+        print(f'  {out_path.name} saved')
     plt.close()
+    return written
 
 
 def convert_svg_to_png(svg_paths):

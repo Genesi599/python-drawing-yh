@@ -14,17 +14,21 @@ import matplotlib.patches as mpatches
 from matplotlib import cm, colors
 import seaborn as sns
 
+from drawing_yh import DEFAULT_FONT_SIZE, save_fig
+
 
 def plot_heatmap_fan_species(
         in_csv,
         out_dir=None,
         top_per_group=20,
-        font_scale=1.2,
+        font_scale=1.0,
         r_base=0.4,
         figsize=(16, 9),
-        dpi_png=600,
+        dpi_png=300,
         species_colors=None,
         gene_type='all',
+        title='Cross-species B cell DEG',
+        output_stem='heatmap_fan_speciesTop',
 ):
     """
     绘制热图+物种扇形叠加图
@@ -44,7 +48,7 @@ def plot_heatmap_fan_species(
     figsize : tuple
         图表大小，默认(16, 9)
     dpi_png : int
-        PNG输出DPI，默认600
+        Deprecated;标准保存由 drawing_yh.save_fig 控制,PNG 默认 300 DPI
     species_colors : ndarray, optional
         自定义物种色板(N, 4)，RGBA格式
     gene_type : str
@@ -55,7 +59,7 @@ def plot_heatmap_fan_species(
         out_dir = in_csv.parent / "figure"
     else:
         out_dir = Path(out_dir)
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. 读表
     df = pd.read_csv(in_csv)
@@ -146,11 +150,13 @@ def plot_heatmap_fan_species(
                 ax.add_patch(wedge)
 
     # 9. 坐标轴
-    ax.set_xlabel('Tissue', fontsize=14 * font_scale)
-    ax.set_ylabel('Gene', fontsize=14 * font_scale)
-    ax.set_title('Cross-Species Aging B Cell DEG', fontsize=16 * font_scale)
-    plt.xticks(rotation=45, ha='right', fontsize=10 * font_scale)
-    plt.yticks(rotation=0, fontsize=10 * font_scale)
+    base_fontsize = DEFAULT_FONT_SIZE * font_scale
+    ax.set_xlabel('Tissue', fontsize=base_fontsize)
+    ax.set_ylabel('Gene', fontsize=base_fontsize)
+    if title:
+        ax.set_title(title, fontsize=base_fontsize, pad=8)
+    plt.xticks(rotation=45, ha='right', fontsize=base_fontsize)
+    plt.yticks(rotation=0, fontsize=base_fontsize)
 
     # 10. 物种图例（带边框扇形）
     legend_handles = []
@@ -162,7 +168,7 @@ def plot_heatmap_fan_species(
         legend_handles.append(wedge)
     ax.legend(legend_handles, all_species,
               loc='upper left', bbox_to_anchor=(1.02, 1),
-              frameon=False, fontsize=12 * font_scale,
+              frameon=False, fontsize=base_fontsize,
               handlelength=1.5, handletextpad=0.5)
 
     # 11. colorbar（右下方）
@@ -170,16 +176,16 @@ def plot_heatmap_fan_species(
     sm = cm.ScalarMappable(cmap=cmap_fill, norm=norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cbar_ax, orientation='vertical')
-    cbar.ax.tick_params(labelsize=12 * font_scale)
-    cbar.set_label('exp-logFC', fontsize=12 * font_scale)
+    cbar.ax.tick_params(labelsize=base_fontsize)
+    cbar.set_label('exp-logFC', fontsize=base_fontsize)
 
     plt.tight_layout()
     # 12. 保存
-    for ext in ['png', 'pdf']:
-        out_path = out_dir / f'heatmap_fan_speciesTop.{ext}'
-        fig.savefig(out_path, dpi=dpi_png if ext == 'png' else None, bbox_inches='tight')
-        print(f'  ✅ {out_path.name} 完成')
+    written = save_fig(fig, out_dir / f'{output_stem}.svg', also=('.pdf', '.png'))
+    for out_path in written:
+        print(f'  {out_path.name} saved')
     plt.close()
+    return written
 
 
 def main():
