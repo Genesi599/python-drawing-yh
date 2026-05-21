@@ -76,7 +76,7 @@ def _subset_arg(sets: list[set], mode: str):
 
 def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
                  show_members=False, member_labels=None, member_title=None,
-                 members_per_line=3, title=None,
+                 members_per_line=3, max_members=None, member_order=None, title=None,
                  ax=None, figsize=None, autoshrink=True,
                  set_label_size=None, subset_label_size=None,
                  edgecolor='white', linewidth=0.6):
@@ -146,10 +146,23 @@ def venn_diagram(sets, labels, *, colors=None, mode='proportional', alpha=0.5,
 
     def _add_members(fig, axv, v):
         # 用 fig.text(非独立 axes)列成员,避免空 axes 被 tight bbox 计入留白
-        names = sorted(str((member_labels or {}).get(x, x)) for x in inter)
-        head = member_title or f"{n}-set intersection ({len(names)})"
+        # member_order 给定 → 按该顺序(如显著性)排;否则按名字字母序。
+        if member_order:
+            mo = list(dict.fromkeys(member_order))
+            ordered = [x for x in mo if x in inter] + sorted(x for x in inter if x not in set(mo))
+        else:
+            ordered = sorted(inter, key=lambda x: str((member_labels or {}).get(x, x)))
+        names = [str((member_labels or {}).get(x, x)) for x in ordered]
+        # max_members 给定且超出 → 只列前 N,余者用 "… (+k more)" 省略
+        extra = 0
+        if max_members is not None and len(names) > max_members:
+            extra = len(names) - max_members
+            names = names[:max_members]
+        head = member_title or f"{n}-set intersection ({len(inter)})"
         body = '\n'.join(', '.join(names[i:i + members_per_line])
                          for i in range(0, len(names), members_per_line))
+        if extra:
+            body += f'\n… (+{extra} more)'
         center = v.get_patch_by_id('111' if n == 3 else '11')
         if center is not None:
             verts = center.get_path().vertices
