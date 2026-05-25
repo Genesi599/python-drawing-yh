@@ -1,0 +1,180 @@
+/* drawing_yh/report/templates/default.css
+ * GitHub-flavored, 980 px center column, CN/EN mixed-script friendly.
+ * Use via:  pandoc -c $(python -c "from drawing_yh import report; print(report.css_path())") ...
+ *      or:  drawing_yh.report.render('REPORT.md')
+ */
+:root {
+  --fg: #1f2328;
+  --muted: #57606a;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --border: #d0d7de;
+  --link: #0969da;
+  --accent: #0e7c66;
+  --code-bg: #f6f8fa;
+  --code-fg: #24292f;
+}
+
+html { font-size: 15px; }
+body {
+  max-width: 980px !important;
+  margin: 0 auto !important;
+  padding: 0 36px 80px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+h1, h2, h3, h4 { line-height: 1.3; margin-top: 1.8em; }
+h1 { font-size: 1.5em; border-bottom: 2px solid var(--border); padding-bottom: .3em; }
+h2 { font-size: 1.25em; border-bottom: 1px solid var(--border); padding-bottom: .22em; }
+h3 { font-size: 1.1em; color: var(--accent); }
+h4 { font-size: 1.0em; color: var(--muted); }
+
+p { margin: .85em 0; }
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+img { max-width: 100%; height: auto; display: block; margin: 1em auto;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; padding: 4px; }
+
+/* Tables */
+table { border-collapse: collapse; margin: 1.2em 0; width: 100%;
+        font-size: .92em; display: block; overflow-x: auto; }
+table thead { background: var(--bg-soft); }
+th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left;
+         vertical-align: top; }
+
+/* Code */
+code { font-family: "JetBrains Mono", Consolas, "SF Mono", monospace;
+       font-size: .9em; background: var(--code-bg); color: var(--code-fg);
+       padding: 1px 5px; border-radius: 3px; }
+pre { background: var(--code-bg); padding: 12px 16px; border-radius: 6px;
+      overflow-x: auto; border: 1px solid var(--border); }
+pre code { background: transparent; padding: 0; }
+
+blockquote { border-left: 3px solid var(--accent); padding: .2em 1em;
+             margin: 1em 0; color: var(--muted); background: var(--bg-soft);
+             border-radius: 0 4px 4px 0; }
+
+hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+
+/* TOC */
+#TOC { background: var(--bg-soft); border: 1px solid var(--border);
+       border-radius: 8px; padding: 16px 22px; margin: 1.5em 0; }
+#TOC > ul { margin: 0; padding-left: 1.2em; }
+#TOC ul { list-style: square; }
+#TOC li { margin: 2px 0; }
+
+ul, ol { padding-left: 1.6em; }
+li { margin: .15em 0; }
+
+strong { color: #1f2328; }
+em { color: var(--muted); }
+
+/* ============================================================
+ * Left sidebar (rendered by drawing_yh.report.build_sidebar)
+ * ============================================================ */
+aside.report-sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 200px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 18px 12px 24px;
+  background: var(--bg-soft);
+  border-right: 1px solid var(--border);
+  z-index: 10;
+  font-size: .9em;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+aside.report-sidebar .sidebar-label {
+  color: var(--muted); font-weight: 600;
+  font-size: .78em; letter-spacing: .08em; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+aside.report-sidebar .sidebar-section {
+  color: var(--muted); font-weight: 600;
+  margin: 14px 0 4px; padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: .82em; letter-spacing: .04em; text-transform: uppercase;
+}
+aside.report-sidebar a {
+  color: var(--fg); text-decoration: none;
+  padding: 5px 8px 5px 14px; border-radius: 4px; display: block;
+  border-left: 2px solid transparent;
+}
+aside.report-sidebar a:hover { background: #e7edf3; color: var(--link); }
+aside.report-sidebar a.current {
+  background: rgba(14, 124, 102, 0.12);
+  color: var(--accent); border-left-color: var(--accent); font-weight: 600;
+}
+
+body:has(aside.report-sidebar) {
+  padding-left: 224px !important;
+  max-width: calc(980px + 224px) !important;
+}
+main.report-main { display: block; max-width: 980px; margin: 0 auto; }
+
+@media (max-width: 1180px) {
+  aside.report-sidebar {
+    width: 48px; padding: 18px 4px 24px;
+    overflow-x: hidden;
+    transition: width 0.18s ease, padding 0.18s ease, box-shadow 0.18s ease;
+  }
+  aside.report-sidebar:hover,
+  aside.report-sidebar:focus-within {
+    width: 240px; padding: 18px 12px 24px;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.18);
+  }
+  aside.report-sidebar a,
+  aside.report-sidebar .sidebar-section,
+  aside.report-sidebar .sidebar-label {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  aside.report-sidebar a.current { border-left-width: 3px; }
+  body:has(aside.report-sidebar) {
+    padding-left: 72px !important;
+    max-width: calc(980px + 72px) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  body:has(aside.report-sidebar) { padding-left: 60px !important; padding-right: 16px !important; }
+}
+
+/* ============================================================
+ * Cross-page nav bar (rendered by drawing_yh.report.build_nav)
+ * sticky at viewport top
+ * ============================================================ */
+.report-nav {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  margin: 0 0 1.5em 0;
+  font-size: .95em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: baseline;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+.report-nav > .label { color: var(--muted); font-weight: 600; }
+.report-nav > a { padding: 2px 8px; border-radius: 4px; }
+.report-nav > a.current {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+.report-nav > a:not(.current):hover { background: #e7edf3; }

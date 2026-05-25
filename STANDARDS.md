@@ -174,6 +174,8 @@ print(report.css_path())   # → /…/drawing_yh/report/templates/default.css
 |---|---|---|
 | `report.config_template_path()` | `_report_config_template.py` | **共享配置**(SLIDES / CATEGORIES / split_by_heading / load_chunks),纯 import 无副作用 |
 | `report.slide_template_path()` | `build_pages_template.py` | **HTML 渲染**(REPORT.md → 多页 dark 网页 + sticky nav + sidebar) |
+| `report.combined_config_template_path()` | `_combined_report_config_template.py` | **三层 combined 配置**(多个已有报告 → 顶层 super switch + 原 category nav + sidebar) |
+| `report.combined_template_path()` | `build_combined_report_template.py` | **三层 combined 渲染**(非破坏式读取多个子报告,统一生成 combined/pages) |
 | `report.pptx_template_path()` | `md_to_pptx_template.py` | **PPTX 渲染**(REPORT.md → native PPTX,继承一份母版 .pptx 的 theme) |
 
 **典型工作流**:
@@ -191,6 +193,27 @@ cp $(python -c "from drawing_yh import report; print(report.pptx_template_path()
 python build_pages.py     # → pages/*.html(只跑 HTML)
 python md_to_pptx.py      # → REPORT.pptx(只跑 PPT,不连带刷 HTML)
 ```
+
+**三层目录 combined 工作流**(多个已存在子报告合成一个网页):
+
+```bash
+mkdir combined
+cd combined
+cp $(python -c "from drawing_yh import report; print(report.combined_config_template_path())") _combined_report_config.py
+cp $(python -c "from drawing_yh import report; print(report.combined_template_path())")        build_combined_report.py
+cp $(python -c "from drawing_yh import report; print(report.serve_nocache_template_path())")    serve_nocache.py
+
+# 改 _combined_report_config.py:
+# SOURCE_REPORTS = [{'key':'m','label':'脑膜','path':HERE.parent/'meninges'}, ...]
+# CROSS_PAGES 按需放综合/跨组织页面
+
+python build_combined_report.py
+python serve_nocache.py 8775
+```
+
+三层结构 = 顶层 super switch(如组织/物种/模块) + 每个子报告原有 category nav + 左侧 sidebar。
+构建是非破坏式,不改各子报告 `REPORT.md`;只读取各子报告 `_report_config.py` / `REPORT.md`,
+并把各自 `report_figs/` 加前缀同步到 combined/report_figs/。
 
 **产物布局**:
 

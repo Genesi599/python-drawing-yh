@@ -19,3 +19,6 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["drawing_yh*"]
+
+[tool.setuptools.package-data]
+"drawing_yh.report" = ["templates/*.css", "templates/*.py"]
