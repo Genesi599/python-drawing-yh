@@ -115,8 +115,10 @@ def _draw_pie_on_ax(ax, values, labels, colors,
         t.set_multialignment('left')
 
     if title:
+        # 标签外移(label_distance>1)时顶部标签会顶到标题，按外移量上抬标题
+        title_pad = 8.0 + max(0.0, label_distance - 1.0) * 90.0
         ax.set_title(title, fontsize=font_size, fontweight='normal',
-                     fontfamily='Arial', pad=8)
+                     fontfamily='Arial', pad=title_pad)
     ax.set_aspect('equal')
     return wedges, texts, mid_angles
 
@@ -359,10 +361,13 @@ def plot_zoom_pie(
     _fix_cross_axes_overlaps(fig, ax_left, left_texts,
                              ax_right, right_texts, margin=8.0)
 
-    # 引导线在 overlap 修正后画，位置已是最终位置
+    # 引导线在 overlap 修正后画，位置已是最终位置。
+    # 标签外移(label_distance>1)时引线从饼边缘(rim=1.0)画起，避免穿过扇形；
+    # 标签在饼内(旧默认 0.6)时 rim=label_distance，dist≈0 自动不画，行为不变。
     if show_leader_lines:
-        _draw_leader_lines(ax_left,  left_wedges,  left_texts,  left_angles)
-        _draw_leader_lines(ax_right, right_wedges, right_texts, right_angles)
+        rim = 1.0 if label_distance > 1.0 else label_distance
+        _draw_leader_lines(ax_left,  left_wedges,  left_texts,  left_angles, rim=rim)
+        _draw_leader_lines(ax_right, right_wedges, right_texts, right_angles, rim=rim)
 
     for t in left_texts:
         t.set_zorder(10)
