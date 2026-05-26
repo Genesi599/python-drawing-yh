@@ -170,6 +170,7 @@ def publish(
     source_dir: str | Path = ".",
     remote_root: str = "/var/www/reports",
     include_index: bool = True,
+    fix_remote_permissions: bool = True,
     dry_run: bool = False,
 ) -> str:
     """Publish a slide-style HTML report directory with ssh/scp.
@@ -191,6 +192,8 @@ def publish(
     include_index : bool, default True
         Copy root ``index.html`` when present, so ``/<project>/`` redirects to
         ``pages/index.html`` in standard reports.
+    fix_remote_permissions : bool, default True
+        Make uploaded directories/files readable by nginx-style static servers.
     dry_run : bool, default False
         Print the ssh/scp commands without running them.
 
@@ -223,15 +226,27 @@ def publish(
         *path_names,
         f"{host}:{remote_dir}/",
     ]
+    chmod_cmd = [
+        "ssh",
+        host,
+        (
+            f"find {shlex.quote(remote_dir)} -type d -exec chmod 755 {{}} + && "
+            f"find {shlex.quote(remote_dir)} -type f -exec chmod 644 {{}} +"
+        ),
+    ]
 
     if dry_run:
         print(f"cd {shlex.quote(str(source))}")
         print(" ".join(mkdir_cmd))
         print(" ".join(shlex.quote(part) for part in scp_cmd))
+        if fix_remote_permissions:
+            print(" ".join(chmod_cmd))
         return remote_dir
 
     subprocess.run(mkdir_cmd, check=True)
     subprocess.run(scp_cmd, check=True, cwd=source)
+    if fix_remote_permissions:
+        subprocess.run(chmod_cmd, check=True)
     return remote_dir
 
 
