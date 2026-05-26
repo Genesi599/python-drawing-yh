@@ -1,0 +1,302 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Marker expression dot plot — unified template.
+
+The reference style is the brain-aging report's "Olig separator-marker panel":
+viridis, per-gene min-max scaled mean colour (vmin=0 / vmax=1, right vertical
+colour-bar labelled "Gene-scaled mean"), dot size = pct expressed (thin dark
+edge ``#303030`` / lw 0.12), bottom-centre "Pct expressed" 10/30/60% size key,
+generous padding so the largest edge dots are never clipped, and optional
+vertical block dividers between functional / per-subtype gene groups.
+
+Two ways to use the module:
+
+* **Primitives** — call ``dot_sizes`` / ``pad_axes`` / ``style_colorbar`` /
+  ``add_size_legend`` / ``add_block_separators`` from inside an existing
+  ``plt.subplots`` / ``ax.scatter`` flow. Use this when you need fine control
+  over fig size, row highlights, custom colour-bar axes, etc.
+
+* **One-call convenience** — ``marker_dotplot(data, row_order, gene_order,
+  ...)`` for simple panels. Returns ``(fig, ax, sc)``.
+
+Both options enforce the same style; the package-level rcParams give Arial 8pt
++ editable fonts on import.
+"""
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from . import DEFAULT_FONT_SIZE
+
+
+# ============================================================
+# style constants (single source of truth)
+# ============================================================
+DOT_CMAP = "viridis"
+DOT_EDGE = "#303030"
+DOT_EDGE_LW = 0.12
+DOT_LEGEND_PCTS = (10, 30, 60)
+COLORBAR_LABEL = "Gene-scaled mean"
+SEPARATOR_COLOR = "#606060"
+SEPARATOR_LW = 0.55
+SEPARATOR_ALPHA = 0.65
+GRID_COLOR = "#E5E5E5"
+GRID_LW = 0.45
+GRID_ALPHA = 0.78
+HIGHLIGHT_COLOR = "#F2E7C9"  # row band for caveat / sensitivity rows
+
+
+# ============================================================
+# primitives
+# ============================================================
+def dot_sizes(pct, *, scale: float = 2.4, base: float = 4.0):
+    """Pct expressed (0-100) -> matplotlib scatter ``s`` (point area).
+
+    Default ``scale=2.4`` / ``base=4.0`` matches the original 10/30/60% size
+    key (28 / 76 / 148 pt^2). For sparse-expression panels (e.g. snRNA
+    secreted factors where ct-level pct usually < 5%), pass a larger
+    ``scale`` so the small dots remain readable, and re-key the legend
+    via ``add_size_legend(pcts=...)``.
+    """
+    return np.clip(np.asarray(pct, dtype=float), 0, 100) * scale + base
+
+
+def pad_axes(ax, n_cols, n_rows, pad: float = 0.6):
+    """Fixed margin around the dot grid so edge dots (top/bottom rows, first/
+    last columns) are never clipped, and y is inverted (row 0 at top).
+
+    Use this instead of ``ax.invert_yaxis()`` / matplotlib's auto-margin —
+    auto-margin is a fraction of the data range, which collapses to almost
+    zero for few-row panels and clips the largest edge dots.
+    """
+    ax.set_xlim(-pad, (n_cols - 1) + pad)
+    ax.set_ylim((n_rows - 1) + pad, -pad)
+
+
+def style_colorbar(cbar, font: int = DEFAULT_FONT_SIZE, label: str = COLORBAR_LABEL):
+    """Label + tick-fontsize the colour-bar in the unified style."""
+    cbar.set_label(label, fontsize=font)
+    cbar.ax.tick_params(labelsize=font)
+    return cbar
+
+
+def add_size_legend(ax, font: int = DEFAULT_FONT_SIZE, y: float = 0.012,
+                    title: str = "Pct expressed",
+                    pcts: Sequence[int] | None = None,
+                    size_scale: float = 2.4, size_base: float = 4.0):
+    """Figure-bottom-centre 'Pct expressed' size key (default 10/30/60%) that
+    matches the dot sizes from ``dot_sizes``. Uses ``fig.legend`` so the key
+    sits at a fixed figure-bottom location regardless of axes height. Leave
+    room with ``fig.subplots_adjust(bottom=...)``.
+
+    For sparse panels, override the breakpoints + size mapping, e.g.
+    ``add_size_legend(pcts=(1, 5, 15), size_scale=12, size_base=16)``; pair
+    with the same ``size_scale`` / ``size_base`` in the actual ``dot_sizes``
+    call (or in ``marker_dotplot(size_pcts=..., size_scale=..., size_base=...)``).
+    """
+    fig = ax.figure
+    legend_pcts = list(pcts) if pcts else list(DOT_LEGEND_PCTS)
+    handles = [
+        ax.scatter([], [], s=float(dot_sizes(p, scale=size_scale, base=size_base)),
+                   color="#888888", edgecolors=DOT_EDGE, linewidths=DOT_EDGE_LW,
+                   label=f"{p}%")
+        for p in legend_pcts
+    ]
+    return fig.legend(
+        handles=handles, title=title, loc="lower center",
+        bbox_to_anchor=(0.5, y), ncol=len(legend_pcts), frameon=False,
+        fontsize=font, title_fontsize=font,
+    )
+
+
+def add_block_separators(ax, blocks, color: str = SEPARATOR_COLOR,
+                         lw: float = SEPARATOR_LW, alpha: float = SEPARATOR_ALPHA):
+    """Draw vertical dividers between consecutive columns whose block label
+    differs. ``blocks`` is a length-n_cols sequence of block labels (one per
+    gene column). Pass ``None`` or an all-same sequence to draw nothing.
+
+    Typical block sources:
+
+    * **Per-subtype panels** where each gene is owned by one subtype: pull
+      from a per-subtype ``marker_set`` table — `marker_set.drop_duplicates(
+      "gene", keep="first")[["gene", "<owner_col>"]]`. The dotplot's own
+      data is often a full grid (every row × every gene) where first-
+      occurrence collapses to the first row's label, so prefer the
+      ``marker_set`` table.
+
+    * **Shared-marker panels** (e.g. identity / QC panels where every row
+      shares the same marker list): hand-code a ``gene -> functional_block``
+      dict (identity / state / off-lineage / etc.) and feed that.
+    """
+    if blocks is None:
+        return
+    previous = None
+    for i, block in enumerate(blocks):
+        if previous is not None and block != previous:
+            ax.axvline(i - 0.5, color=color, linewidth=lw, alpha=alpha)
+        previous = block
+
+
+# ============================================================
+# one-call convenience
+# ============================================================
+def _resolve_blocks(block_per_gene, gene_order) -> list | None:
+    if block_per_gene is None:
+        return None
+    if isinstance(block_per_gene, Mapping):
+        return [block_per_gene.get(g) for g in gene_order]
+    if isinstance(block_per_gene, Sequence) and not isinstance(block_per_gene, str):
+        seq = list(block_per_gene)
+        if len(seq) != len(gene_order):
+            raise ValueError(
+                f"block_per_gene length {len(seq)} != len(gene_order) {len(gene_order)}"
+            )
+        return seq
+    raise TypeError(
+        "block_per_gene must be a dict (gene -> block) or a sequence aligned "
+        f"with gene_order, got {type(block_per_gene).__name__}"
+    )
+
+
+def marker_dotplot(
+    data: pd.DataFrame,
+    row_order: Sequence[str],
+    gene_order: Sequence[str],
+    *,
+    row_col: str = "subtype",
+    gene_col: str = "gene",
+    avg_col: str = "avg_expr",
+    pct_col: str = "pct_expr",
+    title: str | None = None,
+    xlabel: str = "Marker gene",
+    ylabel: str | None = None,
+    row_labels: Sequence[str] | None = None,
+    fig_size: tuple[float, float] | None = None,
+    font: int = DEFAULT_FONT_SIZE,
+    block_per_gene=None,
+    scale_per_gene: bool = True,
+    pad: float = 0.6,
+    cbar_label: str = COLORBAR_LABEL,
+    size_pcts: Sequence[int] | None = None,
+    size_scale: float = 2.4,
+    size_base: float = 4.0,
+    ax=None,
+):
+    """One-call marker dot plot in the unified template style.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Long-form table with at least the row label, gene, mean expression
+        and percent-expressed columns named by ``row_col`` / ``gene_col`` /
+        ``avg_col`` / ``pct_col``.
+    row_order, gene_order
+        Row (y) and column (x) ordering.
+    row_col, gene_col, avg_col, pct_col
+        Column names in ``data``.
+    title, xlabel, ylabel
+        Axis labels and figure title (``ylabel`` defaults to ``row_col``).
+    row_labels
+        Optional pretty labels to use on the y-axis instead of ``row_order``.
+    fig_size
+        ``(width, height)`` inches. Defaults to a width that scales with
+        ``len(gene_order)`` and a height that scales with ``len(row_order)``.
+    block_per_gene
+        Dict ``gene -> block`` or sequence aligned with ``gene_order`` for
+        vertical separators. ``None`` (default) draws no separators.
+    scale_per_gene
+        If True (default), apply min-max scaling per gene to ``avg_col`` for
+        colour. If False, assume ``avg_col`` is already on a [0, 1] scale.
+    pad
+        Axis padding (cells of margin around the grid). Default 0.6.
+    cbar_label
+        Colour-bar label. Default ``"Gene-scaled mean"``.
+    ax
+        Existing axes to draw into. If ``None``, a new figure is created.
+
+    Returns
+    -------
+    fig, ax, sc
+        The matplotlib figure, axes, and the scatter ``PathCollection`` (for
+        attaching a custom colour-bar if needed).
+    """
+    df = data.loc[data[row_col].isin(row_order) & data[gene_col].isin(gene_order)].copy()
+    df[row_col] = pd.Categorical(df[row_col], categories=list(row_order), ordered=True)
+    df[gene_col] = pd.Categorical(df[gene_col], categories=list(gene_order), ordered=True)
+    df = df.sort_values([row_col, gene_col])
+
+    if scale_per_gene:
+        def _scale(s: pd.Series) -> pd.Series:
+            arr = s.to_numpy(dtype=float)
+            lo, hi = np.nanmin(arr), np.nanmax(arr)
+            if hi > lo:
+                return (s - lo) / (hi - lo)
+            return pd.Series(np.full(len(s), 0.5), index=s.index)
+        df["__color"] = df.groupby(gene_col, observed=True)[avg_col].transform(_scale)
+    else:
+        df["__color"] = df[avg_col].astype(float)
+
+    x_map = {g: i for i, g in enumerate(gene_order)}
+    y_map = {r: i for i, r in enumerate(row_order)}
+    x = df[gene_col].astype(str).map(x_map).to_numpy()
+    y = df[row_col].astype(str).map(y_map).to_numpy()
+
+    if ax is None:
+        if fig_size is None:
+            fig_w = max(7.2, 0.30 * len(gene_order) + 2.8)
+            fig_h = max(2.8, 0.42 * len(row_order) + 1.6)
+            fig_size = (fig_w, fig_h)
+        fig, ax = plt.subplots(figsize=fig_size)
+    else:
+        fig = ax.figure
+
+    sc = ax.scatter(
+        x, y,
+        s=dot_sizes(df[pct_col].to_numpy(dtype=float),
+                    scale=size_scale, base=size_base),
+        c=df["__color"].to_numpy(dtype=float),
+        cmap=DOT_CMAP, vmin=0, vmax=1,
+        linewidths=DOT_EDGE_LW, edgecolors=DOT_EDGE,
+    )
+    ax.set_xticks(range(len(gene_order)))
+    ax.set_xticklabels(list(gene_order), rotation=90, ha="center", va="top", fontsize=font)
+    ax.set_yticks(range(len(row_order)))
+    ax.set_yticklabels(list(row_labels) if row_labels is not None else list(row_order),
+                       fontsize=font)
+    if title:
+        ax.set_title(title, fontsize=font, pad=4)
+    ax.set_xlabel(xlabel, fontsize=font)
+    ax.set_ylabel(ylabel if ylabel is not None else row_col, fontsize=font)
+    ax.grid(color=GRID_COLOR, linewidth=GRID_LW, alpha=GRID_ALPHA)
+    ax.tick_params(axis="both", length=0, labelsize=font)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    pad_axes(ax, len(gene_order), len(row_order), pad=pad)
+    blocks = _resolve_blocks(block_per_gene, gene_order)
+    if blocks is not None:
+        add_block_separators(ax, blocks)
+
+    cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
+    style_colorbar(cbar, font=font, label=cbar_label)
+    add_size_legend(ax, font=font, pcts=size_pcts,
+                    size_scale=size_scale, size_base=size_base)
+    fig.subplots_adjust(left=0.30, right=0.84, top=0.90, bottom=0.34)
+    return fig, ax, sc
+
+
+__all__ = [
+    # constants
+    "DOT_CMAP", "DOT_EDGE", "DOT_EDGE_LW", "DOT_LEGEND_PCTS", "COLORBAR_LABEL",
+    "SEPARATOR_COLOR", "SEPARATOR_LW", "SEPARATOR_ALPHA",
+    "GRID_COLOR", "GRID_LW", "GRID_ALPHA", "HIGHLIGHT_COLOR",
+    # primitives
+    "dot_sizes", "pad_axes", "style_colorbar", "add_size_legend", "add_block_separators",
+    # one-call
+    "marker_dotplot",
+]
