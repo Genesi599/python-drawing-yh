@@ -245,6 +245,22 @@ header / 11–14pt body 自动降级;**有图的 slide 不放表;表 + bullets �
 - `pandoc` 必须在 PATH 上 —— Windows: `winget install JohnMacFarlane.Pandoc`,
   macOS: `brew install pandoc`
 
+**发布到 reports.yhtiddly.fun**
+
+组内共享的 slide-style HTML 报告发布到 `https://reports.yhtiddly.fun/<project>/`,
+服务器目录为 `todo:/var/www/reports/<project>/`。站点由 nginx basic auth 保护,
+账号密码不写入仓库或记忆库。
+
+```python
+from drawing_yh import report
+
+# 在含 pages/、report_figs/、index.html 的报告目录运行
+report.publish("cellchat_x_BMIF")
+```
+
+`publish()` 会上传 `pages/`、`report_figs/` 和根 `index.html`,并把远程目录/文件
+权限修成 nginx 可读。新项目发布后用无账号 401、有账号 200 的 curl 检查再发链接。
+
 ## 复用性
 
 - 颜色列表、字号、figsize **变量集中管理**,不硬编码在多处
