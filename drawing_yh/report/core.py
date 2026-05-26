@@ -37,6 +37,7 @@ Typical project use::
 from __future__ import annotations
 
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -142,6 +143,96 @@ def combined_template_path() -> Path:
     / `REPORT.md`,同步 report_figs,生成带三层目录的 `pages/*.html`。
     """
     return Path(str(resources.files(__package__).joinpath('templates', 'build_combined_report_template.py')))
+
+
+# ------------------------------------------------------------------
+# Publish helper
+# ------------------------------------------------------------------
+_PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _validate_project_name(project_name: str) -> str:
+    project = str(project_name).strip().strip("/\\")
+    if not _PROJECT_NAME_RE.fullmatch(project):
+        raise ValueError(
+            "project_name must start with an ASCII letter/number and contain "
+            "only ASCII letters, numbers, '.', '_' or '-'."
+        )
+    if project in {".", ".."} or ".." in project.split("."):
+        raise ValueError("project_name must not contain parent-directory traversal.")
+    return project
+
+
+def publish(
+    project_name: str,
+    host: str = "todo",
+    *,
+    source_dir: str | Path = ".",
+    remote_root: str = "/var/www/reports",
+    include_index: bool = True,
+    dry_run: bool = False,
+) -> str:
+    """Publish a slide-style HTML report directory with ssh/scp.
+
+    The expected local layout is the standard ``drawing_yh.report`` output:
+    ``pages/`` plus optional ``report_figs/`` and root ``index.html``.
+
+    Parameters
+    ----------
+    project_name : str
+        Remote project folder name under ``remote_root``. Only conservative
+        ASCII names are allowed to avoid accidental path traversal.
+    host : str, default "todo"
+        SSH host alias from the user's ``~/.ssh/config``.
+    source_dir : str | Path, default "."
+        Directory containing ``pages/`` and ``report_figs/``.
+    remote_root : str, default "/var/www/reports"
+        Remote reports root.
+    include_index : bool, default True
+        Copy root ``index.html`` when present, so ``/<project>/`` redirects to
+        ``pages/index.html`` in standard reports.
+    dry_run : bool, default False
+        Print the ssh/scp commands without running them.
+
+    Returns
+    -------
+    str
+        Remote directory path, e.g. ``/var/www/reports/cellchat_x_BMIF``.
+    """
+    project = _validate_project_name(project_name)
+    source = Path(source_dir).resolve()
+    remote_dir = f"{remote_root.rstrip('/')}/{project}"
+
+    pages = source / "pages"
+    if not pages.is_dir():
+        raise FileNotFoundError(f"Required report directory not found: {pages}")
+
+    path_names = ["pages"]
+    report_figs = source / "report_figs"
+    if report_figs.is_dir():
+        path_names.append("report_figs")
+
+    index_html = source / "index.html"
+    if include_index and index_html.is_file():
+        path_names.append("index.html")
+
+    mkdir_cmd = ["ssh", host, f"mkdir -p {shlex.quote(remote_dir)}"]
+    scp_cmd = [
+        "scp",
+        "-r",
+        *path_names,
+        f"{host}:{remote_dir}/",
+    ]
+
+    if dry_run:
+        print(f"cd {shlex.quote(str(source))}")
+        print(" ".join(mkdir_cmd))
+        print(" ".join(shlex.quote(part) for part in scp_cmd))
+        return remote_dir
+
+    subprocess.run(mkdir_cmd, check=True)
+    subprocess.run(scp_cmd, check=True, cwd=source)
+    return remote_dir
 
 
 # ------------------------------------------------------------------
