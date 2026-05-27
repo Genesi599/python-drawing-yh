@@ -39,6 +39,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
+from matplotlib.patches import Wedge
 
 
 HUB_FILL = "#1f78b4"
@@ -98,9 +99,10 @@ def _resolve_color(
 
 def hub_spoke(
     hub,                                       # str 或 list[str]
-    outer: dict[str, dict],                    # {label: {'size': ..., 'color': ...}}
+    outer: dict[str, dict] | None = None,      # {label: {'size': ..., 'color': ...}}
     mid: dict[str, dict] | None = None,        # {label: {'size': ..., 'color': ...}}
-    layout: dict | None = None,                # {'hub_r','mid_r','outer_r'}
+    outer_ring_segments: list | None = None,   # SREBP2 范式弧带: [{'label','n_up','n_down','color'}]
+    layout: dict | None = None,                # {'hub_r','mid_r','outer_r','ring_inner','ring_outer'}
     cmap: str | object = "Blues",
     vmin: float | None = None,
     vmax: float | None = None,
@@ -161,9 +163,15 @@ def hub_spoke(
     -------
     (fig, ax) : tuple
     """
-    L = {"hub_r": 0.18, "mid_r": 0.5, "outer_r": 1.0}
+    L = {"hub_r": 0.18, "mid_r": 0.5, "outer_r": 1.0,
+         "ring_inner": 1.08, "ring_outer": 1.32}
     if layout:
         L.update(layout)
+    # outer 用 dict 节点模式 (默认) 或 outer_ring_segments 弧带模式 (SREBP2 风格)
+    if outer is None and outer_ring_segments is None:
+        raise ValueError("must provide outer (dict) or outer_ring_segments (list)")
+    if outer is None:
+        outer = {}
     spoke_st = {"color": SPOKE_COLOR, "lw": 0.3, "alpha": 0.3}
     if spoke_style:
         spoke_st.update(spoke_style)
@@ -311,12 +319,68 @@ def hub_spoke(
             ax.text(lx, ly, k, ha=ha, va=va, fontsize=8, color="#222",
                     zorder=6)
 
+    # ---- outer_ring_segments: SREBP2 范式弧带 ----
+    # 每 segment 一 wedge,标 lineage name + n_up/n_down count + 配色
+    if outer_ring_segments:
+        n_seg = len(outer_ring_segments)
+        # 按 total count 加权角度, 或均分; 均分更可读
+        seg_angle = 360.0 / n_seg
+        for i, seg in enumerate(outer_ring_segments):
+            label = seg.get("label", f"seg{i}")
+            n_up = int(seg.get("n_up", 0))
+            n_down = int(seg.get("n_down", 0))
+            seg_color = seg.get("color", "#bbbbbb")
+            # 角度边界 (12 点顺时针, 与节点一致)
+            # 90° (matplotlib) = 12 点; 顺时针 = decreasing matplotlib theta
+            theta_start_mpl = 90.0 - (i + 1) * seg_angle
+            theta_end_mpl = 90.0 - i * seg_angle
+            mid_theta_mpl = (theta_start_mpl + theta_end_mpl) / 2
+            # 内带 up (内侧, 红/lineage color), 外带 down (外侧, 浅一些)
+            r_in = L["ring_inner"]
+            r_mid = (L["ring_inner"] + L["ring_outer"]) / 2
+            r_out = L["ring_outer"]
+            # up half (inner half of the ring)
+            w_up = Wedge((0, 0), r_mid, theta_start_mpl, theta_end_mpl,
+                         width=r_mid - r_in, facecolor="#e08080",
+                         edgecolor="white", lw=0.6, zorder=2)
+            ax.add_patch(w_up)
+            # down half (outer half)
+            w_dn = Wedge((0, 0), r_out, theta_start_mpl, theta_end_mpl,
+                         width=r_out - r_mid, facecolor="#8aaedf",
+                         edgecolor="white", lw=0.6, zorder=2)
+            ax.add_patch(w_dn)
+            # n_up label on inner band
+            cnt_a = math.radians(mid_theta_mpl)
+            lx, ly = (r_in + r_mid) / 2 * math.cos(cnt_a), (r_in + r_mid) / 2 * math.sin(cnt_a)
+            ax.text(lx, ly, f"{n_up:,}",
+                    ha="center", va="center", fontsize=7, color="#fff",
+                    fontweight="bold", zorder=4)
+            # n_down label on outer band
+            lx2, ly2 = (r_mid + r_out) / 2 * math.cos(cnt_a), (r_mid + r_out) / 2 * math.sin(cnt_a)
+            ax.text(lx2, ly2, f"{n_down:,}",
+                    ha="center", va="center", fontsize=7, color="#fff",
+                    fontweight="bold", zorder=4)
+            # lineage label outside the ring, 沿弧切线方向旋转
+            r_lbl = r_out * 1.08
+            llx, lly = r_lbl * math.cos(cnt_a), r_lbl * math.sin(cnt_a)
+            # 文字旋转: 切线方向, 自动翻转使可读
+            rot_deg = mid_theta_mpl - 90
+            if rot_deg < -90: rot_deg += 180
+            if rot_deg > 90: rot_deg -= 180
+            ax.text(llx, lly, label, ha="center", va="center",
+                    fontsize=7.5, color="#333", rotation=rot_deg,
+                    rotation_mode="anchor", zorder=4)
+
     # ---- title ----
     if title:
         ax.set_title(title, fontsize=8)
 
     # ---- 坐标轴 ----
-    pad = L["outer_r"] * (label_radius_factor + 0.35)
+    has_ring = bool(outer_ring_segments)
+    if has_ring:
+        pad = L["ring_outer"] * 1.22
+    else:
+        pad = L["outer_r"] * (label_radius_factor + 0.35)
     ax.set_xlim(-pad, pad); ax.set_ylim(-pad, pad)
     ax.set_aspect("equal")
     ax.set_axis_off()
