@@ -27,6 +27,7 @@ from .labels import (
 )
 from .edges import cubic_bezier_samples, quadratic_bezier_samples, bundled_arc
 from .palette import MODULE_PALETTE, module_palette, lighten_hex, darken_hex
+from .hub_spoke import hub_spoke
 
 __all__ = [
     "plot_modular_network",
@@ -45,4 +46,5 @@ __all__ = [
     "module_palette",
     "lighten_hex",
     "darken_hex",
+    "hub_spoke",
 ]

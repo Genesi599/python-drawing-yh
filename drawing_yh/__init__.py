@@ -95,7 +95,14 @@ from .layout import (                                   # noqa: E402
 )
 from .dumbbell import render_mean_dumbbell              # noqa: E402
 from .venn import venn_diagram                          # noqa: E402
+from .dotplot import (                                  # noqa: E402
+    marker_dotplot,
+    dot_sizes, pad_axes, style_colorbar,
+    add_size_legend, add_block_separators,
+)
+from . import dotplot                                   # noqa: E402,F401
 from . import report                                    # noqa: E402,F401
+from .network import hub_spoke                          # noqa: E402
 
 __all__ = [
     # version
@@ -117,6 +124,13 @@ __all__ = [
     # charts
     "render_mean_dumbbell",
     "venn_diagram",
+    "marker_dotplot",
+    # dot-plot style primitives (re-exported from drawing_yh.dotplot)
+    "dot_sizes", "pad_axes", "style_colorbar",
+    "add_size_legend", "add_block_separators",
     # subpackages
+    "dotplot",
     "report",
+    # network
+    "hub_spoke",
 ]
