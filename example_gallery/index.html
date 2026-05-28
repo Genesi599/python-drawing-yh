@@ -12,9 +12,10 @@
       --muted: #667174;
       --line: #d9ded8;
       --teal: #237b73;
+      --teal-soft: #dcebe7;
       --amber: #a76517;
-      --rose: #a94f5b;
       --blue: #315f8c;
+      --violet: #6b5b95;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -25,12 +26,12 @@
       font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
       letter-spacing: 0;
     }
-    .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
     aside {
       position: sticky;
       top: 0;
       height: 100vh;
-      padding: 22px 18px;
+      padding: 22px 16px;
       background: #eef1ec;
       border-right: 1px solid var(--line);
       overflow-y: auto;
@@ -39,24 +40,50 @@
     aside .count { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
     aside a {
       display: block;
-      padding: 6px 8px;
       color: var(--ink);
       text-decoration: none;
+    }
+    .sidebar-title {
+      margin-top: 12px;
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+    .sidebar-subtitle {
+      margin: 4px 0 2px 10px;
+      padding: 5px 8px;
+      color: var(--blue);
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .sidebar-leaf {
+      margin-left: 22px;
+      padding: 4px 8px;
+      font-size: 13px;
+      color: var(--ink);
       border-left: 3px solid transparent;
     }
-    aside a:hover { color: var(--teal); border-left-color: var(--teal); background: #e6ebe5; }
-    main { padding: 28px 34px 56px; max-width: 1460px; }
+    aside a:hover { color: var(--teal); background: #e6ebe5; }
+    .sidebar-leaf:hover { border-left-color: var(--teal); }
+    main { padding: 24px 34px 56px; max-width: 1480px; }
     .toolbar {
       position: sticky;
       top: 0;
       z-index: 5;
-      display: flex;
+      display: grid;
       gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      padding: 12px 0 18px;
+      padding: 10px 0 18px;
       background: linear-gradient(var(--bg) 82%, rgba(246,247,244,0));
     }
+    .toolbar-top {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .nav-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 36px; }
+    .summary { color: var(--muted); font-size: 13px; }
     input {
       width: min(360px, 100%);
       border: 1px solid var(--line);
@@ -66,7 +93,7 @@
       color: var(--ink);
       font: inherit;
     }
-    .chip {
+    .tab {
       border: 1px solid var(--line);
       background: white;
       color: var(--ink);
@@ -74,15 +101,35 @@
       padding: 8px 11px;
       cursor: pointer;
       font: inherit;
+      min-height: 34px;
     }
-    .chip.active { background: var(--teal); border-color: var(--teal); color: white; }
-    section { scroll-margin-top: 78px; margin-top: 20px; }
-    section h2 {
-      margin: 28px 0 14px;
-      font-size: 20px;
+    .tab span { margin-left: 6px; color: var(--muted); font-size: 12px; }
+    .tab.active { background: var(--teal); border-color: var(--teal); color: white; }
+    .tab.active span { color: rgba(255,255,255,0.78); }
+    .sub-tab.active { background: var(--blue); border-color: var(--blue); }
+    .top-section { scroll-margin-top: 130px; margin-top: 22px; }
+    .sub-section { scroll-margin-top: 130px; margin-top: 16px; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
       border-bottom: 1px solid var(--line);
       padding-bottom: 8px;
+      margin: 28px 0 14px;
     }
+    .section-head h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .section-head span, .sub-head span { color: var(--muted); font-size: 13px; }
+    .sub-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 8px 0 10px;
+    }
+    .sub-head h3 { margin: 0; font-size: 16px; color: var(--blue); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
     .card {
       background: var(--panel);
@@ -120,6 +167,7 @@
       line-height: 1.45;
       flex: 0 0 auto;
     }
+    .badge.sub { background: var(--violet); }
     .source {
       color: var(--muted);
       font-size: 12px;
@@ -127,7 +175,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    h3 { margin: 9px 0 6px; font-size: 17px; }
+    h4 { margin: 9px 0 6px; font-size: 17px; }
     p { margin: 6px 0; }
     .note { color: var(--muted); }
     .tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
@@ -142,14 +190,25 @@
     .links { display: flex; gap: 14px; margin-top: 8px; }
     .links a { color: var(--teal); text-decoration: none; font-weight: 600; }
     .links a:hover { text-decoration: underline; }
+    .no-results {
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      padding: 18px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.55);
+      margin-top: 24px;
+    }
     .hidden { display: none !important; }
     @media (max-width: 820px) {
       .layout { grid-template-columns: 1fr; }
       aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       aside nav { display: flex; flex-wrap: wrap; gap: 4px; }
-      aside a { border-left: 0; border-bottom: 2px solid transparent; }
+      .sidebar-sub, .sidebar-group { display: contents; }
+      .sidebar-title, .sidebar-subtitle, .sidebar-leaf { margin: 0; border-left: 0; border-bottom: 2px solid transparent; }
+      .sidebar-leaf { display: none; }
       main { padding: 18px 16px 42px; }
       .toolbar { position: relative; }
+      .toolbar-top { align-items: stretch; }
       .thumb { height: 220px; }
     }
   </style>
@@ -159,410 +218,638 @@
     <aside>
       <h1>drawing-yh 图型示例库</h1>
       <div class="count">27 种示例 · 2026-05-28</div>
-      <nav><a href="#Bar">Bar</a>
-<a href="#Distribution">Distribution</a>
-<a href="#Scatter">Scatter</a>
-<a href="#Omics">Omics</a>
-<a href="#Heatmap">Heatmap</a>
-<a href="#Composition">Composition</a>
-<a href="#Curve">Curve</a>
-<a href="#Network">Network</a>
-<a href="#Utility">Utility</a></nav>
+      <nav><div class="sidebar-group" data-top="Quantitative"><a class="sidebar-title" href="#top-quantitative" data-action="top" data-top="Quantitative">Quantitative</a><div class="sidebar-sub" data-top="Quantitative" data-sub-id="sub-quantitative-bar"><a class="sidebar-subtitle" href="#sub-quantitative-bar" data-action="sub" data-top="Quantitative" data-sub-id="sub-quantitative-bar">Bar</a><a class="sidebar-leaf" href="#bar-horizontal" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-card="bar-horizontal" data-search="horizontal bar 排序比较、top-n 指标、富集结果横向展示。 bar ranking">Horizontal bar</a><a class="sidebar-leaf" href="#bar-circular" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-card="bar-circular" data-search="circular bar 周期性或环形排列的类别值。 bar radial">Circular bar</a><a class="sidebar-leaf" href="#bar-enrichment" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-card="bar-enrichment" data-search="enrichment bar go / kegg / reactome 富集结果。 bar enrichment">Enrichment bar</a><a class="sidebar-leaf" href="#bar-waterfall" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-card="bar-waterfall" data-search="waterfall 按方向和幅度排序的连续变化。 bar waterfall">Waterfall</a></div><div class="sidebar-sub" data-top="Quantitative" data-sub-id="sub-quantitative-distribution"><a class="sidebar-subtitle" href="#sub-quantitative-distribution" data-action="sub" data-top="Quantitative" data-sub-id="sub-quantitative-distribution">Distribution</a><a class="sidebar-leaf" href="#box-plot" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-distribution" data-card="box-plot" data-search="box plot 组间分布与离散程度。 box distribution">Box plot</a><a class="sidebar-leaf" href="#violin-plot" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-distribution" data-card="violin-plot" data-search="violin plot 连续变量的密度分布。 violin distribution">Violin plot</a></div><div class="sidebar-sub" data-top="Quantitative" data-sub-id="sub-quantitative-scatter"><a class="sidebar-subtitle" href="#sub-quantitative-scatter" data-action="sub" data-top="Quantitative" data-sub-id="sub-quantitative-scatter">Scatter</a><a class="sidebar-leaf" href="#scatter-linear" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-card="scatter-linear" data-search="scatter + linear fit 年龄相关、相关性、回归趋势。 scatter correlation">Scatter + linear fit</a><a class="sidebar-leaf" href="#bubble-plot" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-card="bubble-plot" data-search="bubble plot 二维类别矩阵 + 第三变量大小。 bubble matrix">Bubble plot</a><a class="sidebar-leaf" href="#rank-plot" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-card="rank-plot" data-search="rank plot 候选基因、通路、feature 的排序。 rank candidate">Rank plot</a><a class="sidebar-leaf" href="#dot-chart" data-action="card" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-card="dot-chart" data-search="dot chart 蛋白/代谢物跨组织或分组点图。 dot summary">Dot chart</a></div></div><div class="sidebar-group" data-top="Omics"><a class="sidebar-title" href="#top-omics" data-action="top" data-top="Omics">Omics</a><div class="sidebar-sub" data-top="Omics" data-sub-id="sub-omics-marker-qc"><a class="sidebar-subtitle" href="#sub-omics-marker-qc" data-action="sub" data-top="Omics" data-sub-id="sub-omics-marker-qc">Marker / QC</a><a class="sidebar-leaf" href="#marker-dotplot" data-action="card" data-top="Omics" data-sub-id="sub-omics-marker-qc" data-card="marker-dotplot" data-search="marker dot plot 单细胞 marker 表达矩阵。 single-cell marker dotplot">Marker dot plot</a><a class="sidebar-leaf" href="#pca" data-action="card" data-top="Omics" data-sub-id="sub-omics-marker-qc" data-card="pca" data-search="pca score plot 样本整体结构、批次、分组分离。 pca qc">PCA score plot</a></div><div class="sidebar-sub" data-top="Omics" data-sub-id="sub-omics-comparison"><a class="sidebar-subtitle" href="#sub-omics-comparison" data-action="sub" data-top="Omics" data-sub-id="sub-omics-comparison">Comparison</a><a class="sidebar-leaf" href="#dumbbell" data-action="card" data-top="Omics" data-sub-id="sub-omics-comparison" data-card="dumbbell" data-search="dumbbell chart young vs old 或处理前后均值比较。 dumbbell comparison">Dumbbell chart</a></div><div class="sidebar-sub" data-top="Omics" data-sub-id="sub-omics-differential"><a class="sidebar-subtitle" href="#sub-omics-differential" data-action="sub" data-top="Omics" data-sub-id="sub-omics-differential">Differential</a><a class="sidebar-leaf" href="#volcano" data-action="card" data-top="Omics" data-sub-id="sub-omics-differential" data-card="volcano" data-search="volcano plot 差异分析结果，logfc × p-value。 volcano deg">Volcano plot</a></div><div class="sidebar-sub" data-top="Omics" data-sub-id="sub-omics-heatmap"><a class="sidebar-subtitle" href="#sub-omics-heatmap" data-action="sub" data-top="Omics" data-sub-id="sub-omics-heatmap">Heatmap</a><a class="sidebar-leaf" href="#heatmap-clustered" data-action="card" data-top="Omics" data-sub-id="sub-omics-heatmap" data-card="heatmap-clustered" data-search="clustered heatmap 矩阵聚类、表达模式、样本/基因分组。 heatmap cluster">Clustered heatmap</a><a class="sidebar-leaf" href="#heatmap-tile" data-action="card" data-top="Omics" data-sub-id="sub-omics-heatmap" data-card="heatmap-tile" data-search="tile heatmap 通路 × 细胞类型、组织 × feature 的紧凑矩阵。 heatmap tile">Tile heatmap</a><a class="sidebar-leaf" href="#dose-heatmap" data-action="card" data-top="Omics" data-sub-id="sub-omics-heatmap" data-card="dose-heatmap" data-search="dose-response heatmap 药物浓度 × 组合条件矩阵。 dose-response heatmap">Dose-response heatmap</a></div></div><div class="sidebar-group" data-top="Composition"><a class="sidebar-title" href="#top-composition" data-action="top" data-top="Composition">Composition</a><div class="sidebar-sub" data-top="Composition" data-sub-id="sub-composition-pie-donut"><a class="sidebar-subtitle" href="#sub-composition-pie-donut" data-action="sub" data-top="Composition" data-sub-id="sub-composition-pie-donut">Pie / Donut</a><a class="sidebar-leaf" href="#pie" data-action="card" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-card="pie" data-search="pie chart 少量类别的组成比例。 pie composition">Pie chart</a><a class="sidebar-leaf" href="#donut" data-action="card" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-card="donut" data-search="donut chart 组成比例 + 中心注释。 donut composition">Donut chart</a><a class="sidebar-leaf" href="#explode-pie" data-action="card" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-card="explode-pie" data-search="exploded pie 强调某一个组成部分。 pie highlight">Exploded pie</a><a class="sidebar-leaf" href="#zoom-pie" data-action="card" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-card="zoom-pie" data-search="zoom pie 大类 + 小类局部放大。 pie zoom">Zoom pie</a></div><div class="sidebar-sub" data-top="Composition" data-sub-id="sub-composition-set-overlap"><a class="sidebar-subtitle" href="#sub-composition-set-overlap" data-action="sub" data-top="Composition" data-sub-id="sub-composition-set-overlap">Set overlap</a><a class="sidebar-leaf" href="#venn" data-action="card" data-top="Composition" data-sub-id="sub-composition-set-overlap" data-card="venn" data-search="venn diagram 2-3 个集合交集。 venn set">Venn diagram</a></div></div><div class="sidebar-group" data-top="Curves"><a class="sidebar-title" href="#top-curves" data-action="top" data-top="Curves">Curves</a><div class="sidebar-sub" data-top="Curves" data-sub-id="sub-curves-dose-enzyme"><a class="sidebar-subtitle" href="#sub-curves-dose-enzyme" data-action="sub" data-top="Curves" data-sub-id="sub-curves-dose-enzyme">Dose / enzyme</a><a class="sidebar-leaf" href="#dose-curve" data-action="card" data-top="Curves" data-sub-id="sub-curves-dose-enzyme" data-card="dose-curve" data-search="dose-response curve 药物浓度-效应曲线。 curve dose-response">Dose-response curve</a><a class="sidebar-leaf" href="#michaelis-menten" data-action="card" data-top="Curves" data-sub-id="sub-curves-dose-enzyme" data-card="michaelis-menten" data-search="michaelis-menten curve 酶动力学 vmax/km 曲线。 curve enzyme">Michaelis-Menten curve</a></div></div><div class="sidebar-group" data-top="Network"><a class="sidebar-title" href="#top-network" data-action="top" data-top="Network">Network</a><div class="sidebar-sub" data-top="Network" data-sub-id="sub-network-flow-relation"><a class="sidebar-subtitle" href="#sub-network-flow-relation" data-action="sub" data-top="Network" data-sub-id="sub-network-flow-relation">Flow / relation</a><a class="sidebar-leaf" href="#chord" data-action="card" data-top="Network" data-sub-id="sub-network-flow-relation" data-card="chord" data-search="chord diagram 有向加权网络，如细胞通讯 sender → receiver。 network chord">Chord diagram</a><a class="sidebar-leaf" href="#hub-spoke" data-action="card" data-top="Network" data-sub-id="sub-network-flow-relation" data-card="hub-spoke" data-search="hub-spoke network 中心 tf / ligand 与 target/cell type 的辐射网络。 network tf">Hub-spoke network</a></div></div><div class="sidebar-group" data-top="Utility"><a class="sidebar-title" href="#top-utility" data-action="top" data-top="Utility">Utility</a><div class="sidebar-sub" data-top="Utility" data-sub-id="sub-utility-assets"><a class="sidebar-subtitle" href="#sub-utility-assets" data-action="sub" data-top="Utility" data-sub-id="sub-utility-assets">Assets</a><a class="sidebar-leaf" href="#tissue-icons" data-action="card" data-top="Utility" data-sub-id="sub-utility-assets" data-card="tissue-icons" data-search="tissue / species icons 报告和组合图里的组织/物种图标。 icon utility">Tissue / species icons</a></div></div></nav>
     </aside>
     <main>
       <div class="toolbar">
-        <input id="search" type="search" placeholder="搜索图型 / 场景 / tag">
-        <button class="chip active" data-filter="all">全部</button>
-        <button class="chip" data-filter="Bar">Bar</button>
-<button class="chip" data-filter="Distribution">Distribution</button>
-<button class="chip" data-filter="Scatter">Scatter</button>
-<button class="chip" data-filter="Omics">Omics</button>
-<button class="chip" data-filter="Heatmap">Heatmap</button>
-<button class="chip" data-filter="Composition">Composition</button>
-<button class="chip" data-filter="Curve">Curve</button>
-<button class="chip" data-filter="Network">Network</button>
-<button class="chip" data-filter="Utility">Utility</button>
+        <div class="toolbar-top">
+          <input id="search" type="search" placeholder="搜索图型 / 场景 / tag">
+          <div class="summary"><span id="visibleCount">27</span> / 27 examples</div>
+        </div>
+        <div class="nav-row top-nav">
+          <button class="tab top-tab active" data-top="all" data-anchor="">全部</button>
+          <button class="tab top-tab" data-top="Quantitative" data-anchor="top-quantitative">Quantitative<span>10</span></button>
+<button class="tab top-tab" data-top="Omics" data-anchor="top-omics">Omics<span>7</span></button>
+<button class="tab top-tab" data-top="Composition" data-anchor="top-composition">Composition<span>5</span></button>
+<button class="tab top-tab" data-top="Curves" data-anchor="top-curves">Curves<span>2</span></button>
+<button class="tab top-tab" data-top="Network" data-anchor="top-network">Network<span>2</span></button>
+<button class="tab top-tab" data-top="Utility" data-anchor="top-utility">Utility<span>1</span></button>
+        </div>
+        <div class="nav-row sub-nav">
+          <button class="tab sub-tab active" data-top="all" data-sub-id="all" data-anchor="">全部二级</button>
+          <button class="tab sub-tab" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-anchor="sub-quantitative-bar">Bar<span>4</span></button>
+<button class="tab sub-tab" data-top="Quantitative" data-sub-id="sub-quantitative-distribution" data-anchor="sub-quantitative-distribution">Distribution<span>2</span></button>
+<button class="tab sub-tab" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-anchor="sub-quantitative-scatter">Scatter<span>4</span></button>
+<button class="tab sub-tab" data-top="Omics" data-sub-id="sub-omics-marker-qc" data-anchor="sub-omics-marker-qc">Marker / QC<span>2</span></button>
+<button class="tab sub-tab" data-top="Omics" data-sub-id="sub-omics-comparison" data-anchor="sub-omics-comparison">Comparison<span>1</span></button>
+<button class="tab sub-tab" data-top="Omics" data-sub-id="sub-omics-differential" data-anchor="sub-omics-differential">Differential<span>1</span></button>
+<button class="tab sub-tab" data-top="Omics" data-sub-id="sub-omics-heatmap" data-anchor="sub-omics-heatmap">Heatmap<span>3</span></button>
+<button class="tab sub-tab" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-anchor="sub-composition-pie-donut">Pie / Donut<span>4</span></button>
+<button class="tab sub-tab" data-top="Composition" data-sub-id="sub-composition-set-overlap" data-anchor="sub-composition-set-overlap">Set overlap<span>1</span></button>
+<button class="tab sub-tab" data-top="Curves" data-sub-id="sub-curves-dose-enzyme" data-anchor="sub-curves-dose-enzyme">Dose / enzyme<span>2</span></button>
+<button class="tab sub-tab" data-top="Network" data-sub-id="sub-network-flow-relation" data-anchor="sub-network-flow-relation">Flow / relation<span>2</span></button>
+<button class="tab sub-tab" data-top="Utility" data-sub-id="sub-utility-assets" data-anchor="sub-utility-assets">Assets<span>1</span></button>
+        </div>
       </div>
-      <section id="Bar"><h2>Bar</h2><div class="grid">
-<article class="card" id="bar-horizontal" data-category="Bar" data-search="horizontal bar 排序比较、top-n 指标、富集结果横向展示。 bar ranking">
+      <section class="top-section" id="top-quantitative" data-top="Quantitative"><div class="section-head"><h2>Quantitative</h2><span>10 examples</span></div><section class="sub-section" id="sub-quantitative-bar" data-top="Quantitative" data-sub-id="sub-quantitative-bar"><div class="sub-head"><h3>Bar</h3><span>4</span></div><div class="grid">
+<article class="card" id="bar-horizontal" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-search="horizontal bar 排序比较、top-n 指标、富集结果横向展示。 适合标签较长的类别。 bar ranking">
   <a class="thumb" href="../drawing_yh/bar/horizontal/fig.png" title="Open image">
     <img src="../drawing_yh/bar/horizontal/fig.png" alt="Horizontal bar">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Bar</span><span class="source">drawing_yh/bar/horizontal/main.py</span></div>
-    <h3>Horizontal bar</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Bar</span>
+      <span class="source">drawing_yh/bar/horizontal/main.py</span>
+    </div>
+    <h4>Horizontal bar</h4>
     <p>排序比较、top-N 指标、富集结果横向展示。</p>
     <p class="note">适合标签较长的类别。</p>
     <div class="tags"><span>bar</span> <span>ranking</span></div>
     <div class="links"><a href="../drawing_yh/bar/horizontal/fig.png">原图</a><a href="../drawing_yh/bar/horizontal/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="bar-circular" data-category="Bar" data-search="circular bar 周期性或环形排列的类别值。 bar radial">
+<article class="card" id="bar-circular" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-search="circular bar 周期性或环形排列的类别值。 视觉更强，适合少量类别。 bar radial">
   <a class="thumb" href="../drawing_yh/bar/circle/test.png" title="Open image">
     <img src="../drawing_yh/bar/circle/test.png" alt="Circular bar">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Bar</span><span class="source">drawing_yh/bar/circle/main.py</span></div>
-    <h3>Circular bar</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Bar</span>
+      <span class="source">drawing_yh/bar/circle/main.py</span>
+    </div>
+    <h4>Circular bar</h4>
     <p>周期性或环形排列的类别值。</p>
     <p class="note">视觉更强，适合少量类别。</p>
     <div class="tags"><span>bar</span> <span>radial</span></div>
     <div class="links"><a href="../drawing_yh/bar/circle/test.png">原图</a><a href="../drawing_yh/bar/circle/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="bar-enrichment" data-category="Bar" data-search="enrichment bar go / kegg / reactome 富集结果。 bar enrichment">
+<article class="card" id="bar-enrichment" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-search="enrichment bar go / kegg / reactome 富集结果。 通常用 -log10(fdr) 或 enrichment score 排序。 bar enrichment">
   <a class="thumb" href="../drawing_yh/bar/enrichment_bar/figure/My_GO_KEGG_combo.png" title="Open image">
     <img src="../drawing_yh/bar/enrichment_bar/figure/My_GO_KEGG_combo.png" alt="Enrichment bar">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Bar</span><span class="source">drawing_yh/bar/enrichment_bar/enrichment_bar.py</span></div>
-    <h3>Enrichment bar</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Bar</span>
+      <span class="source">drawing_yh/bar/enrichment_bar/enrichment_bar.py</span>
+    </div>
+    <h4>Enrichment bar</h4>
     <p>GO / KEGG / Reactome 富集结果。</p>
     <p class="note">通常用 -log10(FDR) 或 enrichment score 排序。</p>
     <div class="tags"><span>bar</span> <span>enrichment</span></div>
     <div class="links"><a href="../drawing_yh/bar/enrichment_bar/figure/My_GO_KEGG_combo.png">原图</a><a href="../drawing_yh/bar/enrichment_bar/enrichment_bar.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="bar-waterfall" data-category="Bar" data-search="waterfall 按方向和幅度排序的连续变化。 bar waterfall">
+<article class="card" id="bar-waterfall" data-top="Quantitative" data-sub-id="sub-quantitative-bar" data-search="waterfall 按方向和幅度排序的连续变化。 适合展示个体、基因或通路的正负变化。 bar waterfall">
   <a class="thumb" href="../drawing_yh/bar/waterfall/waterfall.png" title="Open image">
     <img src="../drawing_yh/bar/waterfall/waterfall.png" alt="Waterfall">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Bar</span><span class="source">drawing_yh/bar/waterfall/waterfall.py</span></div>
-    <h3>Waterfall</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Bar</span>
+      <span class="source">drawing_yh/bar/waterfall/waterfall.py</span>
+    </div>
+    <h4>Waterfall</h4>
     <p>按方向和幅度排序的连续变化。</p>
     <p class="note">适合展示个体、基因或通路的正负变化。</p>
     <div class="tags"><span>bar</span> <span>waterfall</span></div>
     <div class="links"><a href="../drawing_yh/bar/waterfall/waterfall.png">原图</a><a href="../drawing_yh/bar/waterfall/waterfall.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Distribution"><h2>Distribution</h2><div class="grid">
-<article class="card" id="box-plot" data-category="Distribution" data-search="box plot 组间分布与离散程度。 box distribution">
+</article></div></section><section class="sub-section" id="sub-quantitative-distribution" data-top="Quantitative" data-sub-id="sub-quantitative-distribution"><div class="sub-head"><h3>Distribution</h3><span>2</span></div><div class="grid">
+<article class="card" id="box-plot" data-top="Quantitative" data-sub-id="sub-quantitative-distribution" data-search="box plot 组间分布与离散程度。 可叠加散点显示样本量。 box distribution">
   <a class="thumb" href="generated/box_plot.png" title="Open image">
     <img src="generated/box_plot.png" alt="Box plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Distribution</span><span class="source">example_gallery/build_gallery.py</span></div>
-    <h3>Box plot</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Distribution</span>
+      <span class="source">example_gallery/build_gallery.py</span>
+    </div>
+    <h4>Box plot</h4>
     <p>组间分布与离散程度。</p>
     <p class="note">可叠加散点显示样本量。</p>
     <div class="tags"><span>box</span> <span>distribution</span></div>
     <div class="links"><a href="generated/box_plot.png">原图</a><a href="build_gallery.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="violin-plot" data-category="Distribution" data-search="violin plot 连续变量的密度分布。 violin distribution">
+<article class="card" id="violin-plot" data-top="Quantitative" data-sub-id="sub-quantitative-distribution" data-search="violin plot 连续变量的密度分布。 比 box plot 更突出分布形状。 violin distribution">
   <a class="thumb" href="../drawing_yh/violin_plot/violin.png" title="Open image">
     <img src="../drawing_yh/violin_plot/violin.png" alt="Violin plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Distribution</span><span class="source">drawing_yh/violin_plot/violin_function.py</span></div>
-    <h3>Violin plot</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Distribution</span>
+      <span class="source">drawing_yh/violin_plot/violin_function.py</span>
+    </div>
+    <h4>Violin plot</h4>
     <p>连续变量的密度分布。</p>
     <p class="note">比 box plot 更突出分布形状。</p>
     <div class="tags"><span>violin</span> <span>distribution</span></div>
     <div class="links"><a href="../drawing_yh/violin_plot/violin.png">原图</a><a href="../drawing_yh/violin_plot/violin_function.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Scatter"><h2>Scatter</h2><div class="grid">
-<article class="card" id="scatter-linear" data-category="Scatter" data-search="scatter + linear fit 年龄相关、相关性、回归趋势。 scatter correlation">
+</article></div></section><section class="sub-section" id="sub-quantitative-scatter" data-top="Quantitative" data-sub-id="sub-quantitative-scatter"><div class="sub-head"><h3>Scatter</h3><span>4</span></div><div class="grid">
+<article class="card" id="scatter-linear" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-search="scatter + linear fit 年龄相关、相关性、回归趋势。 点表示样本，线表示拟合趋势。 scatter correlation">
   <a class="thumb" href="generated/scatter_linear_fit.png" title="Open image">
     <img src="generated/scatter_linear_fit.png" alt="Scatter + linear fit">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Scatter</span><span class="source">example_gallery/build_gallery.py</span></div>
-    <h3>Scatter + linear fit</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Scatter</span>
+      <span class="source">example_gallery/build_gallery.py</span>
+    </div>
+    <h4>Scatter + linear fit</h4>
     <p>年龄相关、相关性、回归趋势。</p>
     <p class="note">点表示样本，线表示拟合趋势。</p>
     <div class="tags"><span>scatter</span> <span>correlation</span></div>
     <div class="links"><a href="generated/scatter_linear_fit.png">原图</a><a href="build_gallery.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="bubble-plot" data-category="Scatter" data-search="bubble plot 二维类别矩阵 + 第三变量大小。 bubble matrix">
+<article class="card" id="bubble-plot" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-search="bubble plot 二维类别矩阵 + 第三变量大小。 颜色和气泡大小可同时编码。 bubble matrix">
   <a class="thumb" href="generated/bubble_plot.png" title="Open image">
     <img src="generated/bubble_plot.png" alt="Bubble plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Scatter</span><span class="source">example_gallery/build_gallery.py</span></div>
-    <h3>Bubble plot</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Scatter</span>
+      <span class="source">example_gallery/build_gallery.py</span>
+    </div>
+    <h4>Bubble plot</h4>
     <p>二维类别矩阵 + 第三变量大小。</p>
     <p class="note">颜色和气泡大小可同时编码。</p>
     <div class="tags"><span>bubble</span> <span>matrix</span></div>
     <div class="links"><a href="generated/bubble_plot.png">原图</a><a href="build_gallery.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="rank-plot" data-category="Scatter" data-search="rank plot 候选基因、通路、feature 的排序。 rank candidate">
+<article class="card" id="rank-plot" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-search="rank plot 候选基因、通路、feature 的排序。 适合强调 top candidates。 rank candidate">
   <a class="thumb" href="generated/rank_plot.png" title="Open image">
     <img src="generated/rank_plot.png" alt="Rank plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Scatter</span><span class="source">example_gallery/build_gallery.py</span></div>
-    <h3>Rank plot</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Scatter</span>
+      <span class="source">example_gallery/build_gallery.py</span>
+    </div>
+    <h4>Rank plot</h4>
     <p>候选基因、通路、feature 的排序。</p>
     <p class="note">适合强调 top candidates。</p>
     <div class="tags"><span>rank</span> <span>candidate</span></div>
     <div class="links"><a href="generated/rank_plot.png">原图</a><a href="build_gallery.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="dot-chart" data-category="Scatter" data-search="dot chart 蛋白/代谢物跨组织或分组点图。 dot summary">
+<article class="card" id="dot-chart" data-top="Quantitative" data-sub-id="sub-quantitative-scatter" data-search="dot chart 蛋白/代谢物跨组织或分组点图。 可用颜色、位置、显著性共同编码。 dot summary">
   <a class="thumb" href="../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png" title="Open image">
     <img src="../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png" alt="Dot chart">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Scatter</span><span class="source">drawing_yh/scatter/dot_chart/dot_chart.py</span></div>
-    <h3>Dot chart</h3>
+    <div class="meta">
+      <span class="badge">Quantitative</span>
+      <span class="badge sub">Scatter</span>
+      <span class="source">drawing_yh/scatter/dot_chart/dot_chart.py</span>
+    </div>
+    <h4>Dot chart</h4>
     <p>蛋白/代谢物跨组织或分组点图。</p>
     <p class="note">可用颜色、位置、显著性共同编码。</p>
     <div class="tags"><span>dot</span> <span>summary</span></div>
     <div class="links"><a href="../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png">原图</a><a href="../drawing_yh/scatter/dot_chart/dot_chart.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Omics"><h2>Omics</h2><div class="grid">
-<article class="card" id="marker-dotplot" data-category="Omics" data-search="marker dot plot 单细胞 marker 表达矩阵。 single-cell marker dotplot">
+</article></div></section></section><section class="top-section" id="top-omics" data-top="Omics"><div class="section-head"><h2>Omics</h2><span>7 examples</span></div><section class="sub-section" id="sub-omics-marker-qc" data-top="Omics" data-sub-id="sub-omics-marker-qc"><div class="sub-head"><h3>Marker / QC</h3><span>2</span></div><div class="grid">
+<article class="card" id="marker-dotplot" data-top="Omics" data-sub-id="sub-omics-marker-qc" data-search="marker dot plot 单细胞 marker 表达矩阵。 颜色=gene-scaled mean，大小=pct expressed。 single-cell marker dotplot">
   <a class="thumb" href="generated/marker_dotplot.png" title="Open image">
     <img src="generated/marker_dotplot.png" alt="Marker dot plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Omics</span><span class="source">drawing_yh/dotplot.py</span></div>
-    <h3>Marker dot plot</h3>
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Marker / QC</span>
+      <span class="source">drawing_yh/dotplot.py</span>
+    </div>
+    <h4>Marker dot plot</h4>
     <p>单细胞 marker 表达矩阵。</p>
     <p class="note">颜色=gene-scaled mean，大小=pct expressed。</p>
     <div class="tags"><span>single-cell</span> <span>marker</span> <span>dotplot</span></div>
     <div class="links"><a href="generated/marker_dotplot.png">原图</a><a href="../drawing_yh/dotplot.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="dumbbell" data-category="Omics" data-search="dumbbell chart young vs old 或处理前后均值比较。 dumbbell comparison">
-  <a class="thumb" href="generated/dumbbell.png" title="Open image">
-    <img src="generated/dumbbell.png" alt="Dumbbell chart">
-  </a>
-  <div class="card-body">
-    <div class="meta"><span class="badge">Omics</span><span class="source">drawing_yh/dumbbell.py</span></div>
-    <h3>Dumbbell chart</h3>
-    <p>Young vs Old 或处理前后均值比较。</p>
-    <p class="note">箭头方向编码升降，适合通讯强度或 pathway score。</p>
-    <div class="tags"><span>dumbbell</span> <span>comparison</span></div>
-    <div class="links"><a href="generated/dumbbell.png">原图</a><a href="../drawing_yh/dumbbell.py">源码/示例</a></div>
-  </div>
-</article>
-<article class="card" id="volcano" data-category="Omics" data-search="volcano plot 差异分析结果，logfc × p-value。 volcano deg">
-  <a class="thumb" href="../drawing_yh/volcano_plot/Volcano_plot.png" title="Open image">
-    <img src="../drawing_yh/volcano_plot/Volcano_plot.png" alt="Volcano plot">
-  </a>
-  <div class="card-body">
-    <div class="meta"><span class="badge">Omics</span><span class="source">drawing_yh/volcano_plot/volcano.py</span></div>
-    <h3>Volcano plot</h3>
-    <p>差异分析结果，logFC × p-value。</p>
-    <p class="note">适合快速筛选显著上/下调。</p>
-    <div class="tags"><span>volcano</span> <span>DEG</span></div>
-    <div class="links"><a href="../drawing_yh/volcano_plot/Volcano_plot.png">原图</a><a href="../drawing_yh/volcano_plot/volcano.py">源码/示例</a></div>
-  </div>
-</article>
-<article class="card" id="pca" data-category="Omics" data-search="pca score plot 样本整体结构、批次、分组分离。 pca qc">
+<article class="card" id="pca" data-top="Omics" data-sub-id="sub-omics-marker-qc" data-search="pca score plot 样本整体结构、批次、分组分离。 用于 qc 和组间结构展示。 pca qc">
   <a class="thumb" href="generated/pca_score.png" title="Open image">
     <img src="generated/pca_score.png" alt="PCA score plot">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Omics</span><span class="source">drawing_yh/pca/PCA.py</span></div>
-    <h3>PCA score plot</h3>
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Marker / QC</span>
+      <span class="source">drawing_yh/pca/PCA.py</span>
+    </div>
+    <h4>PCA score plot</h4>
     <p>样本整体结构、批次、分组分离。</p>
     <p class="note">用于 QC 和组间结构展示。</p>
     <div class="tags"><span>PCA</span> <span>QC</span></div>
     <div class="links"><a href="generated/pca_score.png">原图</a><a href="../drawing_yh/pca/PCA.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Heatmap"><h2>Heatmap</h2><div class="grid">
-<article class="card" id="heatmap-clustered" data-category="Heatmap" data-search="clustered heatmap 矩阵聚类、表达模式、样本/基因分组。 heatmap cluster">
+</article></div></section><section class="sub-section" id="sub-omics-comparison" data-top="Omics" data-sub-id="sub-omics-comparison"><div class="sub-head"><h3>Comparison</h3><span>1</span></div><div class="grid">
+<article class="card" id="dumbbell" data-top="Omics" data-sub-id="sub-omics-comparison" data-search="dumbbell chart young vs old 或处理前后均值比较。 箭头方向编码升降，适合通讯强度或 pathway score。 dumbbell comparison">
+  <a class="thumb" href="generated/dumbbell.png" title="Open image">
+    <img src="generated/dumbbell.png" alt="Dumbbell chart">
+  </a>
+  <div class="card-body">
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Comparison</span>
+      <span class="source">drawing_yh/dumbbell.py</span>
+    </div>
+    <h4>Dumbbell chart</h4>
+    <p>Young vs Old 或处理前后均值比较。</p>
+    <p class="note">箭头方向编码升降，适合通讯强度或 pathway score。</p>
+    <div class="tags"><span>dumbbell</span> <span>comparison</span></div>
+    <div class="links"><a href="generated/dumbbell.png">原图</a><a href="../drawing_yh/dumbbell.py">源码/示例</a></div>
+  </div>
+</article></div></section><section class="sub-section" id="sub-omics-differential" data-top="Omics" data-sub-id="sub-omics-differential"><div class="sub-head"><h3>Differential</h3><span>1</span></div><div class="grid">
+<article class="card" id="volcano" data-top="Omics" data-sub-id="sub-omics-differential" data-search="volcano plot 差异分析结果，logfc × p-value。 适合快速筛选显著上/下调。 volcano deg">
+  <a class="thumb" href="../drawing_yh/volcano_plot/Volcano_plot.png" title="Open image">
+    <img src="../drawing_yh/volcano_plot/Volcano_plot.png" alt="Volcano plot">
+  </a>
+  <div class="card-body">
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Differential</span>
+      <span class="source">drawing_yh/volcano_plot/volcano.py</span>
+    </div>
+    <h4>Volcano plot</h4>
+    <p>差异分析结果，logFC × p-value。</p>
+    <p class="note">适合快速筛选显著上/下调。</p>
+    <div class="tags"><span>volcano</span> <span>DEG</span></div>
+    <div class="links"><a href="../drawing_yh/volcano_plot/Volcano_plot.png">原图</a><a href="../drawing_yh/volcano_plot/volcano.py">源码/示例</a></div>
+  </div>
+</article></div></section><section class="sub-section" id="sub-omics-heatmap" data-top="Omics" data-sub-id="sub-omics-heatmap"><div class="sub-head"><h3>Heatmap</h3><span>3</span></div><div class="grid">
+<article class="card" id="heatmap-clustered" data-top="Omics" data-sub-id="sub-omics-heatmap" data-search="clustered heatmap 矩阵聚类、表达模式、样本/基因分组。 适合 feature 数中等的全局模式。 heatmap cluster">
   <a class="thumb" href="../drawing_yh/heatmap/heatmap_clustered/HMM%2020241126/heatmap_with_colorbar_cluster.png" title="Open image">
     <img src="../drawing_yh/heatmap/heatmap_clustered/HMM%2020241126/heatmap_with_colorbar_cluster.png" alt="Clustered heatmap">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Heatmap</span><span class="source">drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py</span></div>
-    <h3>Clustered heatmap</h3>
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Heatmap</span>
+      <span class="source">drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py</span>
+    </div>
+    <h4>Clustered heatmap</h4>
     <p>矩阵聚类、表达模式、样本/基因分组。</p>
     <p class="note">适合 feature 数中等的全局模式。</p>
     <div class="tags"><span>heatmap</span> <span>cluster</span></div>
     <div class="links"><a href="../drawing_yh/heatmap/heatmap_clustered/HMM%2020241126/heatmap_with_colorbar_cluster.png">原图</a><a href="../drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="heatmap-tile" data-category="Heatmap" data-search="tile heatmap 通路 × 细胞类型、组织 × feature 的紧凑矩阵。 heatmap tile">
+<article class="card" id="heatmap-tile" data-top="Omics" data-sub-id="sub-omics-heatmap" data-search="tile heatmap 通路 × 细胞类型、组织 × feature 的紧凑矩阵。 适合报告里快速比较方向。 heatmap tile">
   <a class="thumb" href="generated/heatmap_tile.png" title="Open image">
     <img src="generated/heatmap_tile.png" alt="Tile heatmap">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Heatmap</span><span class="source">drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py</span></div>
-    <h3>Tile heatmap</h3>
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Heatmap</span>
+      <span class="source">drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py</span>
+    </div>
+    <h4>Tile heatmap</h4>
     <p>通路 × 细胞类型、组织 × feature 的紧凑矩阵。</p>
     <p class="note">适合报告里快速比较方向。</p>
     <div class="tags"><span>heatmap</span> <span>tile</span></div>
     <div class="links"><a href="generated/heatmap_tile.png">原图</a><a href="../drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="dose-heatmap" data-category="Heatmap" data-search="dose-response heatmap 药物浓度 × 组合条件矩阵。 dose-response heatmap">
+<article class="card" id="dose-heatmap" data-top="Omics" data-sub-id="sub-omics-heatmap" data-search="dose-response heatmap 药物浓度 × 组合条件矩阵。 适合筛选敏感窗口。 dose-response heatmap">
   <a class="thumb" href="../drawing_yh/dose_response/heatmap_with_colorbar.png" title="Open image">
     <img src="../drawing_yh/dose_response/heatmap_with_colorbar.png" alt="Dose-response heatmap">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Heatmap</span><span class="source">drawing_yh/dose_response/heatmap_with_colorbar.py</span></div>
-    <h3>Dose-response heatmap</h3>
+    <div class="meta">
+      <span class="badge">Omics</span>
+      <span class="badge sub">Heatmap</span>
+      <span class="source">drawing_yh/dose_response/heatmap_with_colorbar.py</span>
+    </div>
+    <h4>Dose-response heatmap</h4>
     <p>药物浓度 × 组合条件矩阵。</p>
     <p class="note">适合筛选敏感窗口。</p>
     <div class="tags"><span>dose-response</span> <span>heatmap</span></div>
     <div class="links"><a href="../drawing_yh/dose_response/heatmap_with_colorbar.png">原图</a><a href="../drawing_yh/dose_response/heatmap_with_colorbar.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Composition"><h2>Composition</h2><div class="grid">
-<article class="card" id="pie" data-category="Composition" data-search="pie chart 少量类别的组成比例。 pie composition">
+</article></div></section></section><section class="top-section" id="top-composition" data-top="Composition"><div class="section-head"><h2>Composition</h2><span>5 examples</span></div><section class="sub-section" id="sub-composition-pie-donut" data-top="Composition" data-sub-id="sub-composition-pie-donut"><div class="sub-head"><h3>Pie / Donut</h3><span>4</span></div><div class="grid">
+<article class="card" id="pie" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-search="pie chart 少量类别的组成比例。 类别过多时优先换 bar plot。 pie composition">
   <a class="thumb" href="../drawing_yh/pie_chart/pie/pie.png" title="Open image">
     <img src="../drawing_yh/pie_chart/pie/pie.png" alt="Pie chart">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Composition</span><span class="source">drawing_yh/pie_chart/pie/main.py</span></div>
-    <h3>Pie chart</h3>
+    <div class="meta">
+      <span class="badge">Composition</span>
+      <span class="badge sub">Pie / Donut</span>
+      <span class="source">drawing_yh/pie_chart/pie/main.py</span>
+    </div>
+    <h4>Pie chart</h4>
     <p>少量类别的组成比例。</p>
     <p class="note">类别过多时优先换 bar plot。</p>
     <div class="tags"><span>pie</span> <span>composition</span></div>
     <div class="links"><a href="../drawing_yh/pie_chart/pie/pie.png">原图</a><a href="../drawing_yh/pie_chart/pie/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="donut" data-category="Composition" data-search="donut chart 组成比例 + 中心注释。 donut composition">
+<article class="card" id="donut" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-search="donut chart 组成比例 + 中心注释。 比普通 pie 更适合放总数或标签。 donut composition">
   <a class="thumb" href="../drawing_yh/pie_chart/donut/donut.png" title="Open image">
     <img src="../drawing_yh/pie_chart/donut/donut.png" alt="Donut chart">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Composition</span><span class="source">drawing_yh/pie_chart/donut/main.py</span></div>
-    <h3>Donut chart</h3>
+    <div class="meta">
+      <span class="badge">Composition</span>
+      <span class="badge sub">Pie / Donut</span>
+      <span class="source">drawing_yh/pie_chart/donut/main.py</span>
+    </div>
+    <h4>Donut chart</h4>
     <p>组成比例 + 中心注释。</p>
     <p class="note">比普通 pie 更适合放总数或标签。</p>
     <div class="tags"><span>donut</span> <span>composition</span></div>
     <div class="links"><a href="../drawing_yh/pie_chart/donut/donut.png">原图</a><a href="../drawing_yh/pie_chart/donut/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="explode-pie" data-category="Composition" data-search="exploded pie 强调某一个组成部分。 pie highlight">
+<article class="card" id="explode-pie" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-search="exploded pie 强调某一个组成部分。 只适合非常明确的 highlight。 pie highlight">
   <a class="thumb" href="../drawing_yh/pie_chart/explode/explode.png" title="Open image">
     <img src="../drawing_yh/pie_chart/explode/explode.png" alt="Exploded pie">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Composition</span><span class="source">drawing_yh/pie_chart/explode/main.py</span></div>
-    <h3>Exploded pie</h3>
+    <div class="meta">
+      <span class="badge">Composition</span>
+      <span class="badge sub">Pie / Donut</span>
+      <span class="source">drawing_yh/pie_chart/explode/main.py</span>
+    </div>
+    <h4>Exploded pie</h4>
     <p>强调某一个组成部分。</p>
     <p class="note">只适合非常明确的 highlight。</p>
     <div class="tags"><span>pie</span> <span>highlight</span></div>
     <div class="links"><a href="../drawing_yh/pie_chart/explode/explode.png">原图</a><a href="../drawing_yh/pie_chart/explode/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="zoom-pie" data-category="Composition" data-search="zoom pie 大类 + 小类局部放大。 pie zoom">
+<article class="card" id="zoom-pie" data-top="Composition" data-sub-id="sub-composition-pie-donut" data-search="zoom pie 大类 + 小类局部放大。 适合比例悬殊但又要展示小类。 pie zoom">
   <a class="thumb" href="../drawing_yh/pie_chart/zoom_pie/zoom_pie.png" title="Open image">
     <img src="../drawing_yh/pie_chart/zoom_pie/zoom_pie.png" alt="Zoom pie">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Composition</span><span class="source">drawing_yh/pie_chart/zoom_pie/main.py</span></div>
-    <h3>Zoom pie</h3>
+    <div class="meta">
+      <span class="badge">Composition</span>
+      <span class="badge sub">Pie / Donut</span>
+      <span class="source">drawing_yh/pie_chart/zoom_pie/main.py</span>
+    </div>
+    <h4>Zoom pie</h4>
     <p>大类 + 小类局部放大。</p>
     <p class="note">适合比例悬殊但又要展示小类。</p>
     <div class="tags"><span>pie</span> <span>zoom</span></div>
     <div class="links"><a href="../drawing_yh/pie_chart/zoom_pie/zoom_pie.png">原图</a><a href="../drawing_yh/pie_chart/zoom_pie/main.py">源码/示例</a></div>
   </div>
-</article>
-<article class="card" id="venn" data-category="Composition" data-search="venn diagram 2-3 个集合交集。 venn set">
+</article></div></section><section class="sub-section" id="sub-composition-set-overlap" data-top="Composition" data-sub-id="sub-composition-set-overlap"><div class="sub-head"><h3>Set overlap</h3><span>1</span></div><div class="grid">
+<article class="card" id="venn" data-top="Composition" data-sub-id="sub-composition-set-overlap" data-search="venn diagram 2-3 个集合交集。 集合大小悬殊时可用 equal/log 模式。 venn set">
   <a class="thumb" href="generated/venn_diagram.png" title="Open image">
     <img src="generated/venn_diagram.png" alt="Venn diagram">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Composition</span><span class="source">drawing_yh/venn/venn_plot.py</span></div>
-    <h3>Venn diagram</h3>
+    <div class="meta">
+      <span class="badge">Composition</span>
+      <span class="badge sub">Set overlap</span>
+      <span class="source">drawing_yh/venn/venn_plot.py</span>
+    </div>
+    <h4>Venn diagram</h4>
     <p>2-3 个集合交集。</p>
     <p class="note">集合大小悬殊时可用 equal/log 模式。</p>
     <div class="tags"><span>venn</span> <span>set</span></div>
     <div class="links"><a href="generated/venn_diagram.png">原图</a><a href="../drawing_yh/venn/venn_plot.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Curve"><h2>Curve</h2><div class="grid">
-<article class="card" id="dose-curve" data-category="Curve" data-search="dose-response curve 药物浓度-效应曲线。 curve dose-response">
+</article></div></section></section><section class="top-section" id="top-curves" data-top="Curves"><div class="section-head"><h2>Curves</h2><span>2 examples</span></div><section class="sub-section" id="sub-curves-dose-enzyme" data-top="Curves" data-sub-id="sub-curves-dose-enzyme"><div class="sub-head"><h3>Dose / enzyme</h3><span>2</span></div><div class="grid">
+<article class="card" id="dose-curve" data-top="Curves" data-sub-id="sub-curves-dose-enzyme" data-search="dose-response curve 药物浓度-效应曲线。 适合 ic50/viability 展示。 curve dose-response">
   <a class="thumb" href="../drawing_yh/dose_response/fig.png" title="Open image">
     <img src="../drawing_yh/dose_response/fig.png" alt="Dose-response curve">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Curve</span><span class="source">drawing_yh/dose_response/main.py</span></div>
-    <h3>Dose-response curve</h3>
+    <div class="meta">
+      <span class="badge">Curves</span>
+      <span class="badge sub">Dose / enzyme</span>
+      <span class="source">drawing_yh/dose_response/main.py</span>
+    </div>
+    <h4>Dose-response curve</h4>
     <p>药物浓度-效应曲线。</p>
     <p class="note">适合 IC50/viability 展示。</p>
     <div class="tags"><span>curve</span> <span>dose-response</span></div>
     <div class="links"><a href="../drawing_yh/dose_response/fig.png">原图</a><a href="../drawing_yh/dose_response/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="michaelis-menten" data-category="Curve" data-search="michaelis-menten curve 酶动力学 vmax/km 曲线。 curve enzyme">
+<article class="card" id="michaelis-menten" data-top="Curves" data-sub-id="sub-curves-dose-enzyme" data-search="michaelis-menten curve 酶动力学 vmax/km 曲线。 适合反应速率拟合。 curve enzyme">
   <a class="thumb" href="../drawing_yh/michaelis_menten/fig.png" title="Open image">
     <img src="../drawing_yh/michaelis_menten/fig.png" alt="Michaelis-Menten curve">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Curve</span><span class="source">drawing_yh/michaelis_menten/MM_curve.py</span></div>
-    <h3>Michaelis-Menten curve</h3>
+    <div class="meta">
+      <span class="badge">Curves</span>
+      <span class="badge sub">Dose / enzyme</span>
+      <span class="source">drawing_yh/michaelis_menten/MM_curve.py</span>
+    </div>
+    <h4>Michaelis-Menten curve</h4>
     <p>酶动力学 Vmax/Km 曲线。</p>
     <p class="note">适合反应速率拟合。</p>
     <div class="tags"><span>curve</span> <span>enzyme</span></div>
     <div class="links"><a href="../drawing_yh/michaelis_menten/fig.png">原图</a><a href="../drawing_yh/michaelis_menten/MM_curve.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Network"><h2>Network</h2><div class="grid">
-<article class="card" id="chord" data-category="Network" data-search="chord diagram 有向加权网络，如细胞通讯 sender → receiver。 network chord">
+</article></div></section></section><section class="top-section" id="top-network" data-top="Network"><div class="section-head"><h2>Network</h2><span>2 examples</span></div><section class="sub-section" id="sub-network-flow-relation" data-top="Network" data-sub-id="sub-network-flow-relation"><div class="sub-head"><h3>Flow / relation</h3><span>2</span></div><div class="grid">
+<article class="card" id="chord" data-top="Network" data-sub-id="sub-network-flow-relation" data-search="chord diagram 有向加权网络，如细胞通讯 sender → receiver。 ribbon 宽度表示权重，颜色跟 sender 对齐。 network chord">
   <a class="thumb" href="generated/chord_diagram.png" title="Open image">
     <img src="generated/chord_diagram.png" alt="Chord diagram">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Network</span><span class="source">drawing_yh/chord/main.py</span></div>
-    <h3>Chord diagram</h3>
+    <div class="meta">
+      <span class="badge">Network</span>
+      <span class="badge sub">Flow / relation</span>
+      <span class="source">drawing_yh/chord/main.py</span>
+    </div>
+    <h4>Chord diagram</h4>
     <p>有向加权网络，如细胞通讯 sender → receiver。</p>
     <p class="note">ribbon 宽度表示权重，颜色跟 sender 对齐。</p>
     <div class="tags"><span>network</span> <span>chord</span></div>
     <div class="links"><a href="generated/chord_diagram.png">原图</a><a href="../drawing_yh/chord/main.py">源码/示例</a></div>
   </div>
 </article>
-<article class="card" id="hub-spoke" data-category="Network" data-search="hub-spoke network 中心 tf / ligand 与 target/cell type 的辐射网络。 network tf">
+<article class="card" id="hub-spoke" data-top="Network" data-sub-id="sub-network-flow-relation" data-search="hub-spoke network 中心 tf / ligand 与 target/cell type 的辐射网络。 适合展示一个核心节点的调控范围。 network tf">
   <a class="thumb" href="generated/hub_spoke.png" title="Open image">
     <img src="generated/hub_spoke.png" alt="Hub-spoke network">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Network</span><span class="source">drawing_yh/network/hub_spoke.py</span></div>
-    <h3>Hub-spoke network</h3>
+    <div class="meta">
+      <span class="badge">Network</span>
+      <span class="badge sub">Flow / relation</span>
+      <span class="source">drawing_yh/network/hub_spoke.py</span>
+    </div>
+    <h4>Hub-spoke network</h4>
     <p>中心 TF / ligand 与 target/cell type 的辐射网络。</p>
     <p class="note">适合展示一个核心节点的调控范围。</p>
     <div class="tags"><span>network</span> <span>TF</span></div>
     <div class="links"><a href="generated/hub_spoke.png">原图</a><a href="../drawing_yh/network/hub_spoke.py">源码/示例</a></div>
   </div>
-</article></div></section><section id="Utility"><h2>Utility</h2><div class="grid">
-<article class="card" id="tissue-icons" data-category="Utility" data-search="tissue / species icons 报告和组合图里的组织/物种图标。 icon utility">
+</article></div></section></section><section class="top-section" id="top-utility" data-top="Utility"><div class="section-head"><h2>Utility</h2><span>1 examples</span></div><section class="sub-section" id="sub-utility-assets" data-top="Utility" data-sub-id="sub-utility-assets"><div class="sub-head"><h3>Assets</h3><span>1</span></div><div class="grid">
+<article class="card" id="tissue-icons" data-top="Utility" data-sub-id="sub-utility-assets" data-search="tissue / species icons 报告和组合图里的组织/物种图标。 用于 legend、schematic 或 atlas overview。 icon utility">
   <a class="thumb" href="../drawing_yh/icon/lib/brain.png" title="Open image">
     <img src="../drawing_yh/icon/lib/brain.png" alt="Tissue / species icons">
   </a>
   <div class="card-body">
-    <div class="meta"><span class="badge">Utility</span><span class="source">drawing_yh/icon/generate_missing_icons.py</span></div>
-    <h3>Tissue / species icons</h3>
+    <div class="meta">
+      <span class="badge">Utility</span>
+      <span class="badge sub">Assets</span>
+      <span class="source">drawing_yh/icon/generate_missing_icons.py</span>
+    </div>
+    <h4>Tissue / species icons</h4>
     <p>报告和组合图里的组织/物种图标。</p>
     <p class="note">用于 legend、schematic 或 atlas overview。</p>
     <div class="tags"><span>icon</span> <span>utility</span></div>
     <div class="links"><a href="../drawing_yh/icon/lib/brain.png">原图</a><a href="../drawing_yh/icon/generate_missing_icons.py">源码/示例</a></div>
   </div>
-</article></div></section>
+</article></div></section></section>
+      <div id="noResults" class="no-results hidden">没有匹配图型</div>
     </main>
   </div>
   <script>
     const search = document.querySelector("#search");
-    const chips = Array.from(document.querySelectorAll(".chip"));
+    const topTabs = Array.from(document.querySelectorAll(".top-tab"));
+    const subTabs = Array.from(document.querySelectorAll(".sub-tab"));
     const cards = Array.from(document.querySelectorAll(".card"));
-    const sections = Array.from(document.querySelectorAll("section"));
-    let active = "all";
+    const topSections = Array.from(document.querySelectorAll(".top-section"));
+    const subSections = Array.from(document.querySelectorAll(".sub-section"));
+    const sidebarGroups = Array.from(document.querySelectorAll(".sidebar-group"));
+    const sidebarSubs = Array.from(document.querySelectorAll(".sidebar-sub"));
+    const sidebarLeaves = Array.from(document.querySelectorAll(".sidebar-leaf"));
+    const visibleCount = document.querySelector("#visibleCount");
+    const noResults = document.querySelector("#noResults");
+    const legacyMap = {"Bar": {"top": "Quantitative", "subId": "sub-quantitative-bar", "target": "sub-quantitative-bar"}, "Distribution": {"top": "Quantitative", "subId": "sub-quantitative-distribution", "target": "sub-quantitative-distribution"}, "Scatter": {"top": "Quantitative", "subId": "sub-quantitative-scatter", "target": "sub-quantitative-scatter"}, "Omics": {"top": "Omics", "subId": "all", "target": "top-omics"}, "Heatmap": {"top": "Omics", "subId": "sub-omics-heatmap", "target": "sub-omics-heatmap"}, "Composition": {"top": "Composition", "subId": "all", "target": "top-composition"}, "Curve": {"top": "Curves", "subId": "all", "target": "top-curves"}, "Curves": {"top": "Curves", "subId": "all", "target": "top-curves"}, "Network": {"top": "Network", "subId": "all", "target": "top-network"}, "Utility": {"top": "Utility", "subId": "all", "target": "top-utility"}};
+    let activeTop = "all";
+    let activeSub = "all";
 
-    function applyFilter() {
-      const q = search.value.trim().toLowerCase();
-      cards.forEach(card => {
-        const okCat = active === "all" || card.dataset.category === active;
-        const okText = !q || card.dataset.search.includes(q);
-        card.classList.toggle("hidden", !(okCat && okText));
-      });
-      sections.forEach(sec => {
-        const visible = Array.from(sec.querySelectorAll(".card")).some(c => !c.classList.contains("hidden"));
-        sec.classList.toggle("hidden", !visible);
+    function setHash(anchor) {
+      if (anchor) {
+        history.replaceState(null, "", "#" + anchor);
+      } else {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    }
+
+    function syncTabs() {
+      topTabs.forEach(btn => btn.classList.toggle("active", btn.dataset.top === activeTop));
+      subTabs.forEach(btn => {
+        const isAll = btn.dataset.subId === "all";
+        const belongs = activeTop === "all" || btn.dataset.top === activeTop;
+        btn.classList.toggle("hidden", !isAll && !belongs);
+        btn.classList.toggle("active", btn.dataset.subId === activeSub);
       });
     }
 
-    chips.forEach(btn => btn.addEventListener("click", () => {
-      active = btn.dataset.filter;
-      chips.forEach(x => x.classList.toggle("active", x === btn));
+    function applyFilter() {
+      const q = search.value.trim().toLowerCase();
+      let visible = 0;
+      cards.forEach(card => {
+        const okTop = activeTop === "all" || card.dataset.top === activeTop;
+        const okSub = activeSub === "all" || card.dataset.subId === activeSub;
+        const okText = !q || card.dataset.search.includes(q);
+        const show = okTop && okSub && okText;
+        card.classList.toggle("hidden", !show);
+        if (show) visible += 1;
+      });
+      subSections.forEach(sec => {
+        const visible = Array.from(sec.querySelectorAll(".card")).some(c => !c.classList.contains("hidden"));
+        sec.classList.toggle("hidden", !visible);
+      });
+      topSections.forEach(sec => {
+        const visible = Array.from(sec.querySelectorAll(".card")).some(c => !c.classList.contains("hidden"));
+        sec.classList.toggle("hidden", !visible);
+      });
+      sidebarLeaves.forEach(leaf => {
+        const okTop = activeTop === "all" || leaf.dataset.top === activeTop;
+        const okSub = activeSub === "all" || leaf.dataset.subId === activeSub;
+        const okText = !q || leaf.dataset.search.includes(q);
+        leaf.classList.toggle("hidden", !(okTop && okSub && okText));
+      });
+      sidebarSubs.forEach(sec => {
+        const anyLeaf = Array.from(sec.querySelectorAll(".sidebar-leaf")).some(x => !x.classList.contains("hidden"));
+        sec.classList.toggle("hidden", !anyLeaf);
+      });
+      sidebarGroups.forEach(sec => {
+        const anyLeaf = Array.from(sec.querySelectorAll(".sidebar-leaf")).some(x => !x.classList.contains("hidden"));
+        sec.classList.toggle("hidden", !anyLeaf);
+      });
+      visibleCount.textContent = visible;
+      noResults.classList.toggle("hidden", visible !== 0);
+      syncTabs();
+    }
+
+    function scrollToAnchor(anchor) {
+      if (!anchor) return;
+      const target = document.getElementById(anchor);
+      if (target) requestAnimationFrame(() => target.scrollIntoView({ block: "start" }));
+    }
+
+    function setState(top, subId, anchor) {
+      activeTop = top || "all";
+      activeSub = subId || "all";
       applyFilter();
+      setHash(anchor);
+      scrollToAnchor(anchor);
+    }
+
+    topTabs.forEach(btn => btn.addEventListener("click", () => {
+      setState(btn.dataset.top, "all", btn.dataset.anchor);
+    }));
+    subTabs.forEach(btn => btn.addEventListener("click", () => {
+      const top = btn.dataset.subId === "all" ? activeTop : btn.dataset.top;
+      setState(top, btn.dataset.subId, btn.dataset.anchor);
+    }));
+    document.querySelectorAll("[data-action]").forEach(link => link.addEventListener("click", event => {
+      event.preventDefault();
+      if (link.dataset.action === "top") {
+        setState(link.dataset.top, "all", link.getAttribute("href").slice(1));
+      } else if (link.dataset.action === "sub") {
+        setState(link.dataset.top, link.dataset.subId, link.getAttribute("href").slice(1));
+      } else {
+        setState(link.dataset.top, link.dataset.subId, link.dataset.card);
+      }
     }));
     search.addEventListener("input", applyFilter);
+
+    function restoreHash() {
+      const raw = decodeURIComponent(location.hash.replace(/^#/, ""));
+      if (!raw) {
+        applyFilter();
+        return;
+      }
+      if (legacyMap[raw]) {
+        const item = legacyMap[raw];
+        activeTop = item.top;
+        activeSub = item.subId;
+        applyFilter();
+        scrollToAnchor(item.target);
+        return;
+      }
+      const target = document.getElementById(raw);
+      if (target && target.classList.contains("card")) {
+        activeTop = target.dataset.top;
+        activeSub = target.dataset.subId;
+      } else if (target && target.classList.contains("sub-section")) {
+        activeTop = target.dataset.top;
+        activeSub = target.dataset.subId;
+      } else if (target && target.classList.contains("top-section")) {
+        activeTop = target.dataset.top;
+        activeSub = "all";
+      }
+      applyFilter();
+      scrollToAnchor(raw);
+    }
+
+    restoreHash();
+    window.addEventListener("hashchange", restoreHash);
   </script>
 </body>
 </html>
