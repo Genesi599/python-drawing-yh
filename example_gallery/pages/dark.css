@@ -1,0 +1,250 @@
+/* drawing_yh/report/templates/dark.css
+ * Dark companion to default.css — GitHub Dark inspired, 980 px center column,
+ * CN/EN mixed-script friendly.  Use via:
+ *   from drawing_yh import report
+ *   report.render('REPORT.md', css=report.css_path('dark'))
+ *
+ * Image policy: matplotlib savefig defaults to white facecolor, so figures
+ * arrive as bright rectangles on a dark page. We DON'T invert (would flip
+ * data colors) — instead frame them with a soft border so the contrast is
+ * intentional rather than jarring, and add slight letterbox padding.
+ */
+:root {
+  --fg:       #c9d1d9;
+  --muted:    #8b949e;
+  --bg:       #0d1117;
+  --bg-soft:  #161b22;
+  --bg-elev:  #21262d;
+  --border:   #30363d;
+  --border-soft: #21262d;
+  --link:     #58a6ff;
+  --link-hover: #79c0ff;
+  --accent:   #2ea3a3;          /* brighter teal so it pops on dark */
+  --accent-strong: #3ec0c0;
+  --code-bg:  #161b22;
+  --code-fg:  #c9d1d9;
+  --img-frame: #1f262e;          /* slightly lighter than bg, surrounds white figs */
+}
+
+html { font-size: 15px; background: var(--bg); }
+body {
+  max-width: 980px !important;
+  margin: 0 auto !important;
+  padding: 0 36px 80px !important;     /* top=0 让 sticky nav 一直贴顶 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+h1, h2, h3, h4 { line-height: 1.3; margin-top: 1.8em; color: var(--fg); }
+h1 { font-size: 1.5em; border-bottom: 2px solid var(--border); padding-bottom: .3em; }
+h2 { font-size: 1.25em; border-bottom: 1px solid var(--border); padding-bottom: .22em; }
+h3 { font-size: 1.1em; color: var(--accent-strong); }
+h4 { font-size: 1.0em; color: var(--muted); }
+
+p { margin: .85em 0; }
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); text-decoration: underline; }
+
+/* Images — keep matplotlib white bg readable inside dark page */
+img {
+  max-width: 100%; height: auto; display: block; margin: 1em auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--img-frame);
+  padding: 6px;
+  box-shadow: 0 0 0 1px var(--border-soft) inset;
+}
+
+/* Tables */
+table { border-collapse: collapse; margin: 1.2em 0; width: 100%;
+        font-size: .92em; display: block; overflow-x: auto;
+        background: var(--bg-soft); border-radius: 6px; }
+table thead { background: var(--bg-elev); color: var(--fg); }
+th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left;
+         vertical-align: top; }
+tbody tr:hover { background: var(--bg-elev); }
+
+/* Code */
+code { font-family: "JetBrains Mono", Consolas, "SF Mono", monospace;
+       font-size: .9em; background: var(--code-bg); color: var(--code-fg);
+       padding: 1px 5px; border-radius: 3px;
+       border: 1px solid var(--border-soft); }
+pre { background: var(--code-bg); padding: 12px 16px; border-radius: 6px;
+      overflow-x: auto; border: 1px solid var(--border); }
+pre code { background: transparent; padding: 0; border: none; }
+
+blockquote { border-left: 3px solid var(--accent); padding: .2em 1em;
+             margin: 1em 0; color: var(--muted); background: var(--bg-soft);
+             border-radius: 0 4px 4px 0; }
+
+hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+
+/* TOC */
+#TOC { background: var(--bg-soft); border: 1px solid var(--border);
+       border-radius: 8px; padding: 16px 22px; margin: 1.5em 0; }
+#TOC > ul { margin: 0; padding-left: 1.2em; }
+#TOC ul { list-style: square; }
+#TOC li { margin: 2px 0; }
+
+ul, ol { padding-left: 1.6em; }
+li { margin: .15em 0; }
+
+strong { color: #f0f6fc; }
+em { color: var(--muted); }
+
+/* selection */
+::selection { background: rgba(46,163,163,0.35); color: var(--fg); }
+
+/* scrollbar (webkit) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ============================================================
+ * Left sidebar (rendered by drawing_yh.report.build_sidebar)
+ * ============================================================
+ * Fixed-position panel on the viewport's left edge. Body shifts right
+ * via padding-left so content doesn't slip under it.
+ * On narrow viewports (<= 900 px) the sidebar collapses to a top strip.
+ */
+aside.report-sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 200px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 18px 12px 24px;
+  background: var(--bg-soft);
+  border-right: 1px solid var(--border);
+  z-index: 10;
+  font-size: .9em;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+aside.report-sidebar .sidebar-label {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: .78em;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+aside.report-sidebar .sidebar-section {
+  color: var(--muted);
+  font-weight: 600;
+  margin: 14px 0 4px;
+  padding: 4px 6px 4px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: .82em;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+aside.report-sidebar a {
+  color: var(--fg);
+  text-decoration: none;
+  padding: 5px 8px 5px 14px;
+  border-radius: 4px;
+  display: block;
+  border-left: 2px solid transparent;
+}
+aside.report-sidebar a:hover {
+  background: var(--bg-elev);
+  color: var(--link-hover);
+}
+aside.report-sidebar a.current {
+  background: rgba(46, 163, 163, 0.18);
+  color: var(--accent-strong);
+  border-left-color: var(--accent-strong);
+  font-weight: 600;
+}
+
+/* When a sidebar exists, push body content right.
+   We don't have a wrapping container, so padding-left on body is the simplest.
+   The 980-px max-width still applies to keep line-length readable. */
+body:has(aside.report-sidebar) {
+  padding-left: 224px !important;        /* sidebar 200 + 24 gap */
+  max-width: calc(980px + 224px) !important;
+}
+
+/* The <main> container (when used) keeps prose centered within the
+   sidebar-shifted area — opt-in by passing footer_html='</main>'. */
+main.report-main {
+  display: block;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* On windows narrower than ~1180 px, collapse the sidebar to a 48 px rail
+   on the LEFT (NOT to the top). Hovering it expands to a full overlay. */
+@media (max-width: 1180px) {
+  aside.report-sidebar {
+    width: 48px;
+    padding: 18px 4px 24px;
+    overflow-x: hidden;
+    transition: width 0.18s ease, padding 0.18s ease, box-shadow 0.18s ease;
+  }
+  aside.report-sidebar:hover,
+  aside.report-sidebar:focus-within {
+    width: 240px;
+    padding: 18px 12px 24px;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.45);
+  }
+  aside.report-sidebar a,
+  aside.report-sidebar .sidebar-section,
+  aside.report-sidebar .sidebar-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* In rail (collapsed) state, current page should still be obvious */
+  aside.report-sidebar a.current {
+    border-left-width: 3px;
+  }
+  body:has(aside.report-sidebar) {
+    padding-left: 72px !important;     /* rail 48 + 24 gap, doesn't shift on hover */
+    max-width: calc(980px + 72px) !important;
+  }
+}
+
+/* Very narrow phones: drop body padding further so content fits */
+@media (max-width: 600px) {
+  body:has(aside.report-sidebar) { padding-left: 60px !important; padding-right: 16px !important; }
+}
+
+/* ============================================================
+ * Cross-page nav bar (rendered by drawing_yh.report.build_nav)
+ * ============================================================
+ * Sticky at viewport top so users always see their place in the
+ * top-level category nav while scrolling.
+ */
+.report-nav {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  margin: 0 0 1.5em 0;
+  font-size: .95em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: baseline;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+.report-nav > .label { color: var(--muted); font-weight: 600; }
+.report-nav > a { padding: 2px 8px; border-radius: 4px; color: var(--link); }
+.report-nav > a.current {
+  background: var(--accent);
+  color: #0d1117;
+  text-decoration: none;
+}
+.report-nav > a:not(.current):hover { background: var(--bg-elev); color: var(--link-hover); }

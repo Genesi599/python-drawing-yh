@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Composition / Set overlap</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="dark.css" />
+</head>
+<body>
+
+<style>
+.super-switch {
+  display: flex; gap: 8px; justify-content: center; align-items: center;
+  margin: 0 0 14px 0; padding: 8px 10px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  flex-wrap: wrap;
+}
+.super-switch .super-label {
+  color: var(--muted); font-size: .78em; font-weight: 600;
+  letter-spacing: .08em; margin-right: 6px; text-transform: uppercase;
+}
+.super-switch a.super-btn {
+  padding: 6px 18px; border-radius: 999px; color: var(--fg); font-weight: 600;
+  font-size: .95em; border: 1px solid var(--border); background: var(--bg-soft);
+}
+.super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
+.super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
+.gallery-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px; margin: 1.2em 0 2em;
+}
+.gallery-card {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
+  overflow: hidden;
+}
+.gallery-card figure { margin: 0; }
+.gallery-card img {
+  height: 230px; width: 100%; object-fit: contain; margin: 0;
+  border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+}
+.gallery-card .body { padding: 12px 14px 14px; }
+.gallery-card h3 { margin: 0 0 8px; }
+.gallery-card p { margin: .45em 0; }
+.gallery-meta {
+  color: var(--muted); font-size: .86em; word-break: break-all;
+}
+.gallery-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.gallery-tags span {
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+  color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
+}
+.gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+</style>
+
+<aside class="report-sidebar">
+  <a href="index.html">Overview</a>
+  <div class="sidebar-section">Composition</div>
+  <a href="composition.html">Composition overview</a>
+  <a href="composition-pie-donut.html">Pie / Donut</a>
+  <a href="composition-set-overlap.html" class="current">Set overlap</a>
+  <a href="#venn">  Venn diagram</a>
+</aside>
+<div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn current" href="composition.html">Composition</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
+<nav class="report-nav">
+  <a href="quantitative.html">Quantitative</a>
+  <a href="omics.html">Omics</a>
+  <a href="composition.html" class="current">Composition</a>
+  <a href="curves.html">Curves</a>
+  <a href="network.html">Network</a>
+  <a href="utility.html">Utility</a>
+</nav>
+<main class="report-main">
+<h1 id="set-overlap">Set overlap</h1>
+<p>Composition / Set overlap — 1 种示例图。</p>
+<div class="gallery-grid">
+<article class="gallery-card" id="venn">
+<figure>
+<a href="../generated/venn_diagram.png"><img src="../generated/venn_diagram.png" alt="Venn diagram"></a>
+</figure>
+<div class="body">
+<h3>
+Venn diagram
+</h3>
+<p>
+2-3 个集合交集。
+</p>
+<p>
+<em>集合大小悬殊时可用 equal/log 模式。</em>
+</p>
+<div class="gallery-meta">
+Composition / Set overlap · drawing_yh/venn/venn_plot.py
+</div>
+<div class="gallery-tags">
+<span>venn</span> <span>set</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/venn_diagram.png">原图</a><a href="../../drawing_yh/venn/venn_plot.py">源码/示例</a>
+</div>
+</div>
+</article>
+</div>
+</main>
+</body>
+</html>

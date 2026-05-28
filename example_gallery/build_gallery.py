@@ -7,6 +7,7 @@ import html
 import json
 import math
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
@@ -23,6 +24,7 @@ import drawing_yh
 from drawing_yh import (
     OKABE_ITO,
     marker_dotplot,
+    report,
     render_mean_dumbbell,
     save_fig,
     venn_diagram,
@@ -34,6 +36,7 @@ from drawing_yh.network import hub_spoke
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(__file__).resolve().parent
 GEN = OUT / "generated"
+PAGES = OUT / "pages"
 
 
 @dataclass(frozen=True)
@@ -397,495 +400,287 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
     ]
 
 
-def render_html(examples: list[Example]) -> str:
+def _categories(examples: list[Example]) -> list[str]:
     categories: list[str] = []
-    sub_categories: dict[str, list[str]] = {}
-    examples_by_sub: dict[tuple[str, str], list[Example]] = {}
     for ex in examples:
         if ex.category not in categories:
             categories.append(ex.category)
+    return categories
+
+
+def _sub_categories(examples: list[Example]) -> dict[str, list[str]]:
+    sub_categories: dict[str, list[str]] = {}
+    for ex in examples:
         sub_categories.setdefault(ex.category, [])
         if ex.sub_category not in sub_categories[ex.category]:
             sub_categories[ex.category].append(ex.sub_category)
-        examples_by_sub.setdefault((ex.category, ex.sub_category), []).append(ex)
+    return sub_categories
 
-    top_anchor = {cat: _anchor("top", cat) for cat in categories}
-    sub_anchor = {
-        (cat, sub): _anchor("sub", f"{cat}-{sub}")
-        for cat, subs in sub_categories.items()
-        for sub in subs
-    }
-    all_subs = [(cat, sub) for cat in categories for sub in sub_categories[cat]]
 
-    top_buttons = "\n".join(
-        f'<button class="tab top-tab" data-top="{html.escape(cat)}" data-anchor="{html.escape(top_anchor[cat])}">'
-        f'{html.escape(cat)}<span>{sum(1 for ex in examples if ex.category == cat)}</span></button>'
-        for cat in categories
-    )
-    sub_buttons = "\n".join(
-        f'<button class="tab sub-tab" data-top="{html.escape(cat)}" data-sub-id="{html.escape(sub_anchor[(cat, sub)])}" data-anchor="{html.escape(sub_anchor[(cat, sub)])}">'
-        f'{html.escape(sub)}<span>{len(examples_by_sub[(cat, sub)])}</span></button>'
-        for cat, sub in all_subs
-    )
+def _page_slug(category: str, sub_category: str | None = None) -> str:
+    if sub_category is None:
+        return _anchor("top", category).removeprefix("top-")
+    return _anchor("sub", f"{category}-{sub_category}").removeprefix("sub-")
 
-    sidebar_parts: list[str] = []
+
+def _page_href(slug: str) -> str:
+    return f"{slug}.html"
+
+
+def _image_href(path: Path, *, from_pages: bool = True) -> str:
+    rel = Path(os.path.relpath(path.resolve(), OUT.resolve())).as_posix()
+    if from_pages:
+        rel = f"../{rel}"
+    return quote(rel, safe="/:#?&=%")
+
+
+def _source_href(path: Path, *, from_pages: bool = True) -> str:
+    rel = Path(os.path.relpath(path.resolve(), OUT.resolve())).as_posix()
+    if from_pages:
+        rel = f"../{rel}"
+    return quote(rel, safe="/:#?&=%")
+
+
+def _super_switch(categories: list[str], current: str) -> str:
+    out = ['<div class="super-switch"><span class="super-label">图类</span>']
+    out.append(f'<a class="super-btn{" current" if current == "index" else ""}" href="index.html">Overview</a>')
     for cat in categories:
-        sidebar_parts.append(
-            f'<div class="sidebar-group" data-top="{html.escape(cat)}">'
-            f'<a class="sidebar-title" href="#{html.escape(top_anchor[cat])}" data-action="top" data-top="{html.escape(cat)}">{html.escape(cat)}</a>'
-        )
-        for sub in sub_categories[cat]:
-            sid = sub_anchor[(cat, sub)]
-            sidebar_parts.append(
-                f'<div class="sidebar-sub" data-top="{html.escape(cat)}" data-sub-id="{html.escape(sid)}">'
-                f'<a class="sidebar-subtitle" href="#{html.escape(sid)}" data-action="sub" data-top="{html.escape(cat)}" data-sub-id="{html.escape(sid)}">{html.escape(sub)}</a>'
-            )
-            for ex in examples_by_sub[(cat, sub)]:
-                search_text = html.escape((ex.title + " " + ex.use_case + " " + " ".join(ex.tags)).lower())
-                sidebar_parts.append(
-                    f'<a class="sidebar-leaf" href="#{html.escape(ex.slug)}" data-action="card" data-top="{html.escape(cat)}" '
-                    f'data-sub-id="{html.escape(sid)}" data-card="{html.escape(ex.slug)}" data-search="{search_text}">{html.escape(ex.title)}</a>'
-                )
-            sidebar_parts.append("</div>")
-        sidebar_parts.append("</div>")
+        slug = _page_slug(cat)
+        cls = " current" if cat == current else ""
+        out.append(f'<a class="super-btn{cls}" href="{_page_href(slug)}">{html.escape(cat)}</a>')
+    out.append("</div>")
+    return "".join(out)
 
-    def render_card(ex: Example, sid: str) -> str:
-        img_url = _rel_url(ex.image)
-        source_url = _rel_url(ex.source)
-        root_rel = html.escape(_root_rel(ex.source))
-        tags = " ".join(f"<span>{html.escape(t)}</span>" for t in ex.tags)
-        search_text = html.escape((ex.title + " " + ex.use_case + " " + ex.note + " " + " ".join(ex.tags)).lower())
-        return f"""
-<article class="card" id="{html.escape(ex.slug)}" data-top="{html.escape(ex.category)}" data-sub-id="{html.escape(sid)}" data-search="{search_text}">
-  <a class="thumb" href="{img_url}" title="Open image">
-    <img src="{img_url}" alt="{html.escape(ex.title)}">
-  </a>
-  <div class="card-body">
-    <div class="meta">
-      <span class="badge">{html.escape(ex.category)}</span>
-      <span class="badge sub">{html.escape(ex.sub_category)}</span>
-      <span class="source">{root_rel}</span>
-    </div>
-    <h4>{html.escape(ex.title)}</h4>
-    <p>{html.escape(ex.use_case)}</p>
-    <p class="note">{html.escape(ex.note)}</p>
-    <div class="tags">{tags}</div>
-    <div class="links"><a href="{img_url}">原图</a><a href="{source_url}">源码/示例</a></div>
-  </div>
-</article>"""
 
-    grouped: list[str] = []
-    for cat in categories:
-        grouped.append(
-            f'<section class="top-section" id="{html.escape(top_anchor[cat])}" data-top="{html.escape(cat)}">'
-            f'<div class="section-head"><h2>{html.escape(cat)}</h2><span>{sum(1 for ex in examples if ex.category == cat)} examples</span></div>'
-        )
-        for sub in sub_categories[cat]:
-            sid = sub_anchor[(cat, sub)]
-            grouped.append(
-                f'<section class="sub-section" id="{html.escape(sid)}" data-top="{html.escape(cat)}" data-sub-id="{html.escape(sid)}">'
-                f'<div class="sub-head"><h3>{html.escape(sub)}</h3><span>{len(examples_by_sub[(cat, sub)])}</span></div>'
-                '<div class="grid">'
-            )
-            grouped.extend(render_card(ex, sid) for ex in examples_by_sub[(cat, sub)])
-            grouped.append("</div></section>")
-        grouped.append("</section>")
+def _top_nav(categories: list[str], current: str) -> str:
+    items = [(_page_slug(cat), cat, _page_href(_page_slug(cat))) for cat in categories]
+    return report.build_nav(items, current=_page_slug(current), label=None)
 
-    legacy_hash = {
-        "Bar": {"top": "Quantitative", "subId": sub_anchor[("Quantitative", "Bar")], "target": sub_anchor[("Quantitative", "Bar")]},
-        "Distribution": {"top": "Quantitative", "subId": sub_anchor[("Quantitative", "Distribution")], "target": sub_anchor[("Quantitative", "Distribution")]},
-        "Scatter": {"top": "Quantitative", "subId": sub_anchor[("Quantitative", "Scatter")], "target": sub_anchor[("Quantitative", "Scatter")]},
-        "Omics": {"top": "Omics", "subId": "all", "target": top_anchor["Omics"]},
-        "Heatmap": {"top": "Omics", "subId": sub_anchor[("Omics", "Heatmap")], "target": sub_anchor[("Omics", "Heatmap")]},
-        "Composition": {"top": "Composition", "subId": "all", "target": top_anchor["Composition"]},
-        "Curve": {"top": "Curves", "subId": "all", "target": top_anchor["Curves"]},
-        "Curves": {"top": "Curves", "subId": "all", "target": top_anchor["Curves"]},
-        "Network": {"top": "Network", "subId": "all", "target": top_anchor["Network"]},
-        "Utility": {"top": "Utility", "subId": "all", "target": top_anchor["Utility"]},
-    }
-    legacy_json = json.dumps(legacy_hash, ensure_ascii=False)
 
-    return f"""<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>drawing-yh 图型示例库</title>
-  <style>
-    :root {{
-      --bg: #f6f7f4;
-      --panel: #ffffff;
-      --ink: #1d2528;
-      --muted: #667174;
-      --line: #d9ded8;
-      --teal: #237b73;
-      --teal-soft: #dcebe7;
-      --amber: #a76517;
-      --blue: #315f8c;
-      --violet: #6b5b95;
-    }}
-    * {{ box-sizing: border-box; }}
-    html {{ scroll-behavior: smooth; }}
-    body {{
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
-      letter-spacing: 0;
-    }}
-    .layout {{ display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }}
-    aside {{
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      padding: 22px 16px;
-      background: #eef1ec;
-      border-right: 1px solid var(--line);
-      overflow-y: auto;
-    }}
-    aside h1 {{ font-size: 18px; line-height: 1.25; margin: 0 0 14px; }}
-    aside .count {{ color: var(--muted); font-size: 13px; margin-bottom: 18px; }}
-    aside a {{
-      display: block;
-      color: var(--ink);
-      text-decoration: none;
-    }}
-    .sidebar-title {{
-      margin-top: 12px;
-      padding: 7px 8px;
-      border-radius: 6px;
-      font-weight: 700;
-    }}
-    .sidebar-subtitle {{
-      margin: 4px 0 2px 10px;
-      padding: 5px 8px;
-      color: var(--blue);
-      font-weight: 600;
-      font-size: 13px;
-    }}
-    .sidebar-leaf {{
-      margin-left: 22px;
-      padding: 4px 8px;
-      font-size: 13px;
-      color: var(--ink);
-      border-left: 3px solid transparent;
-    }}
-    aside a:hover {{ color: var(--teal); background: #e6ebe5; }}
-    .sidebar-leaf:hover {{ border-left-color: var(--teal); }}
-    main {{ padding: 24px 34px 56px; max-width: 1480px; }}
-    .toolbar {{
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      display: grid;
-      gap: 10px;
-      padding: 10px 0 18px;
-      background: linear-gradient(var(--bg) 82%, rgba(246,247,244,0));
-    }}
-    .toolbar-top {{
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-    }}
-    .nav-row {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 36px; }}
-    .summary {{ color: var(--muted); font-size: 13px; }}
-    input {{
-      width: min(360px, 100%);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 9px 11px;
-      background: white;
-      color: var(--ink);
-      font: inherit;
-    }}
-    .tab {{
-      border: 1px solid var(--line);
-      background: white;
-      color: var(--ink);
-      border-radius: 6px;
-      padding: 8px 11px;
-      cursor: pointer;
-      font: inherit;
-      min-height: 34px;
-    }}
-    .tab span {{ margin-left: 6px; color: var(--muted); font-size: 12px; }}
-    .tab.active {{ background: var(--teal); border-color: var(--teal); color: white; }}
-    .tab.active span {{ color: rgba(255,255,255,0.78); }}
-    .sub-tab.active {{ background: var(--blue); border-color: var(--blue); }}
-    .top-section {{ scroll-margin-top: 130px; margin-top: 22px; }}
-    .sub-section {{ scroll-margin-top: 130px; margin-top: 16px; }}
-    .section-head {{
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 8px;
-      margin: 28px 0 14px;
-    }}
-    .section-head h2 {{
-      margin: 0;
-      font-size: 20px;
-    }}
-    .section-head span, .sub-head span {{ color: var(--muted); font-size: 13px; }}
-    .sub-head {{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 8px 0 10px;
-    }}
-    .sub-head h3 {{ margin: 0; font-size: 16px; color: var(--blue); }}
-    .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }}
-    .card {{
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 1px 2px rgba(20, 34, 36, 0.05);
-    }}
-    .thumb {{
-      display: grid;
-      place-items: center;
-      height: 245px;
-      padding: 10px;
-      background: #fbfbf8;
-      border-bottom: 1px solid var(--line);
-    }}
-    .thumb img {{
-      max-width: 100%;
-      max-height: 225px;
-      object-fit: contain;
-      background: white;
-    }}
-    .card-body {{ padding: 13px 14px 15px; }}
-    .meta {{ display: flex; gap: 8px; align-items: center; min-width: 0; }}
-    .badge {{
-      display: inline-block;
-      color: white;
-      background: var(--blue);
-      border-radius: 5px;
-      padding: 2px 7px;
-      font-size: 12px;
-      line-height: 1.45;
-      flex: 0 0 auto;
-    }}
-    .badge.sub {{ background: var(--violet); }}
-    .source {{
-      color: var(--muted);
-      font-size: 12px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }}
-    h4 {{ margin: 9px 0 6px; font-size: 17px; }}
-    p {{ margin: 6px 0; }}
-    .note {{ color: var(--muted); }}
-    .tags {{ display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }}
-    .tags span {{
-      border: 1px solid #e1d2c2;
-      color: var(--amber);
-      border-radius: 4px;
-      padding: 1px 6px;
-      font-size: 12px;
-      background: #fff9f1;
-    }}
-    .links {{ display: flex; gap: 14px; margin-top: 8px; }}
-    .links a {{ color: var(--teal); text-decoration: none; font-weight: 600; }}
-    .links a:hover {{ text-decoration: underline; }}
-    .no-results {{
-      border: 1px dashed var(--line);
-      color: var(--muted);
-      padding: 18px;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.55);
-      margin-top: 24px;
-    }}
-    .hidden {{ display: none !important; }}
-    @media (max-width: 820px) {{
-      .layout {{ grid-template-columns: 1fr; }}
-      aside {{ position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }}
-      aside nav {{ display: flex; flex-wrap: wrap; gap: 4px; }}
-      .sidebar-sub, .sidebar-group {{ display: contents; }}
-      .sidebar-title, .sidebar-subtitle, .sidebar-leaf {{ margin: 0; border-left: 0; border-bottom: 2px solid transparent; }}
-      .sidebar-leaf {{ display: none; }}
-      main {{ padding: 18px 16px 42px; }}
-      .toolbar {{ position: relative; }}
-      .toolbar-top {{ align-items: stretch; }}
-      .thumb {{ height: 220px; }}
-    }}
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside>
-      <h1>drawing-yh 图型示例库</h1>
-      <div class="count">{len(examples)} 种示例 · 2026-05-28</div>
-      <nav>{"".join(sidebar_parts)}</nav>
-    </aside>
-    <main>
-      <div class="toolbar">
-        <div class="toolbar-top">
-          <input id="search" type="search" placeholder="搜索图型 / 场景 / tag">
-          <div class="summary"><span id="visibleCount">{len(examples)}</span> / {len(examples)} examples</div>
-        </div>
-        <div class="nav-row top-nav">
-          <button class="tab top-tab active" data-top="all" data-anchor="">全部</button>
-          {top_buttons}
-        </div>
-        <div class="nav-row sub-nav">
-          <button class="tab sub-tab active" data-top="all" data-sub-id="all" data-anchor="">全部二级</button>
-          {sub_buttons}
-        </div>
-      </div>
-      {"".join(grouped)}
-      <div id="noResults" class="no-results hidden">没有匹配图型</div>
-    </main>
-  </div>
-  <script>
-    const search = document.querySelector("#search");
-    const topTabs = Array.from(document.querySelectorAll(".top-tab"));
-    const subTabs = Array.from(document.querySelectorAll(".sub-tab"));
-    const cards = Array.from(document.querySelectorAll(".card"));
-    const topSections = Array.from(document.querySelectorAll(".top-section"));
-    const subSections = Array.from(document.querySelectorAll(".sub-section"));
-    const sidebarGroups = Array.from(document.querySelectorAll(".sidebar-group"));
-    const sidebarSubs = Array.from(document.querySelectorAll(".sidebar-sub"));
-    const sidebarLeaves = Array.from(document.querySelectorAll(".sidebar-leaf"));
-    const visibleCount = document.querySelector("#visibleCount");
-    const noResults = document.querySelector("#noResults");
-    const legacyMap = {legacy_json};
-    let activeTop = "all";
-    let activeSub = "all";
+def _sidebar(
+    examples: list[Example],
+    current: str,
+    current_sub: str | None = None,
+    *,
+    overview: bool = False,
+) -> str:
+    items: list[tuple] = [("index", "Overview", "index.html")]
+    sub_categories = _sub_categories(examples)
+    categories = _categories(examples)
+    if overview:
+        for cat in categories:
+            items.append(("section", cat))
+            items.append((_page_slug(cat), f"{cat} overview", _page_href(_page_slug(cat))))
+            for sub in sub_categories[cat]:
+                items.append((_page_slug(cat, sub), sub, _page_href(_page_slug(cat, sub))))
+        return report.build_sidebar(items, current="index")
 
-    function setHash(anchor) {{
-      if (anchor) {{
-        history.replaceState(null, "", "#" + anchor);
-      }} else {{
-        history.replaceState(null, "", location.pathname + location.search);
-      }}
-    }}
+    items.append(("section", current))
+    items.append((_page_slug(current), f"{current} overview", _page_href(_page_slug(current))))
+    for sub in sub_categories[current]:
+        items.append((_page_slug(current, sub), sub, _page_href(_page_slug(current, sub))))
+        if current_sub == sub:
+            for ex in examples:
+                if ex.category == current and ex.sub_category == sub:
+                    items.append((f"{ex.slug}", f"  {ex.title}", f"#{ex.slug}"))
+    current_slug = _page_slug(current, current_sub) if current_sub else _page_slug(current)
+    return report.build_sidebar(items, current=current_slug)
 
-    function syncTabs() {{
-      topTabs.forEach(btn => btn.classList.toggle("active", btn.dataset.top === activeTop));
-      subTabs.forEach(btn => {{
-        const isAll = btn.dataset.subId === "all";
-        const belongs = activeTop === "all" || btn.dataset.top === activeTop;
-        btn.classList.toggle("hidden", !isAll && !belongs);
-        btn.classList.toggle("active", btn.dataset.subId === activeSub);
-      }});
-    }}
 
-    function applyFilter() {{
-      const q = search.value.trim().toLowerCase();
-      let visible = 0;
-      cards.forEach(card => {{
-        const okTop = activeTop === "all" || card.dataset.top === activeTop;
-        const okSub = activeSub === "all" || card.dataset.subId === activeSub;
-        const okText = !q || card.dataset.search.includes(q);
-        const show = okTop && okSub && okText;
-        card.classList.toggle("hidden", !show);
-        if (show) visible += 1;
-      }});
-      subSections.forEach(sec => {{
-        const visible = Array.from(sec.querySelectorAll(".card")).some(c => !c.classList.contains("hidden"));
-        sec.classList.toggle("hidden", !visible);
-      }});
-      topSections.forEach(sec => {{
-        const visible = Array.from(sec.querySelectorAll(".card")).some(c => !c.classList.contains("hidden"));
-        sec.classList.toggle("hidden", !visible);
-      }});
-      sidebarLeaves.forEach(leaf => {{
-        const okTop = activeTop === "all" || leaf.dataset.top === activeTop;
-        const okSub = activeSub === "all" || leaf.dataset.subId === activeSub;
-        const okText = !q || leaf.dataset.search.includes(q);
-        leaf.classList.toggle("hidden", !(okTop && okSub && okText));
-      }});
-      sidebarSubs.forEach(sec => {{
-        const anyLeaf = Array.from(sec.querySelectorAll(".sidebar-leaf")).some(x => !x.classList.contains("hidden"));
-        sec.classList.toggle("hidden", !anyLeaf);
-      }});
-      sidebarGroups.forEach(sec => {{
-        const anyLeaf = Array.from(sec.querySelectorAll(".sidebar-leaf")).some(x => !x.classList.contains("hidden"));
-        sec.classList.toggle("hidden", !anyLeaf);
-      }});
-      visibleCount.textContent = visible;
-      noResults.classList.toggle("hidden", visible !== 0);
-      syncTabs();
-    }}
-
-    function scrollToAnchor(anchor) {{
-      if (!anchor) return;
-      const target = document.getElementById(anchor);
-      if (target) requestAnimationFrame(() => target.scrollIntoView({{ block: "start" }}));
-    }}
-
-    function setState(top, subId, anchor) {{
-      activeTop = top || "all";
-      activeSub = subId || "all";
-      applyFilter();
-      setHash(anchor);
-      scrollToAnchor(anchor);
-    }}
-
-    topTabs.forEach(btn => btn.addEventListener("click", () => {{
-      setState(btn.dataset.top, "all", btn.dataset.anchor);
-    }}));
-    subTabs.forEach(btn => btn.addEventListener("click", () => {{
-      const top = btn.dataset.subId === "all" ? activeTop : btn.dataset.top;
-      setState(top, btn.dataset.subId, btn.dataset.anchor);
-    }}));
-    document.querySelectorAll("[data-action]").forEach(link => link.addEventListener("click", event => {{
-      event.preventDefault();
-      if (link.dataset.action === "top") {{
-        setState(link.dataset.top, "all", link.getAttribute("href").slice(1));
-      }} else if (link.dataset.action === "sub") {{
-        setState(link.dataset.top, link.dataset.subId, link.getAttribute("href").slice(1));
-      }} else {{
-        setState(link.dataset.top, link.dataset.subId, link.dataset.card);
-      }}
-    }}));
-    search.addEventListener("input", applyFilter);
-
-    function restoreHash() {{
-      const raw = decodeURIComponent(location.hash.replace(/^#/, ""));
-      if (!raw) {{
-        applyFilter();
-        return;
-      }}
-      if (legacyMap[raw]) {{
-        const item = legacyMap[raw];
-        activeTop = item.top;
-        activeSub = item.subId;
-        applyFilter();
-        scrollToAnchor(item.target);
-        return;
-      }}
-      const target = document.getElementById(raw);
-      if (target && target.classList.contains("card")) {{
-        activeTop = target.dataset.top;
-        activeSub = target.dataset.subId;
-      }} else if (target && target.classList.contains("sub-section")) {{
-        activeTop = target.dataset.top;
-        activeSub = target.dataset.subId;
-      }} else if (target && target.classList.contains("top-section")) {{
-        activeTop = target.dataset.top;
-        activeSub = "all";
-      }}
-      applyFilter();
-      scrollToAnchor(raw);
-    }}
-
-    restoreHash();
-    window.addEventListener("hashchange", restoreHash);
-  </script>
-</body>
-</html>
+def _gallery_extra_css() -> str:
+    return """
+<style>
+.super-switch {
+  display: flex; gap: 8px; justify-content: center; align-items: center;
+  margin: 0 0 14px 0; padding: 8px 10px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  flex-wrap: wrap;
+}
+.super-switch .super-label {
+  color: var(--muted); font-size: .78em; font-weight: 600;
+  letter-spacing: .08em; margin-right: 6px; text-transform: uppercase;
+}
+.super-switch a.super-btn {
+  padding: 6px 18px; border-radius: 999px; color: var(--fg); font-weight: 600;
+  font-size: .95em; border: 1px solid var(--border); background: var(--bg-soft);
+}
+.super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
+.super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
+.gallery-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px; margin: 1.2em 0 2em;
+}
+.gallery-card {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
+  overflow: hidden;
+}
+.gallery-card figure { margin: 0; }
+.gallery-card img {
+  height: 230px; width: 100%; object-fit: contain; margin: 0;
+  border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+}
+.gallery-card .body { padding: 12px 14px 14px; }
+.gallery-card h3 { margin: 0 0 8px; }
+.gallery-card p { margin: .45em 0; }
+.gallery-meta {
+  color: var(--muted); font-size: .86em; word-break: break-all;
+}
+.gallery-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.gallery-tags span {
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+  color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
+}
+.gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+</style>
 """
+
+
+def _header(examples: list[Example], current: str, current_sub: str | None = None, *, overview: bool = False) -> str:
+    categories = _categories(examples)
+    if overview:
+        nav = report.build_nav(
+            [(_page_slug(cat), cat, _page_href(_page_slug(cat))) for cat in categories],
+            current=None,
+            label=None,
+        )
+        sidebar = _sidebar(examples, current, overview=True)
+        super_nav = _super_switch(categories, "index")
+    else:
+        nav = _top_nav(categories, current)
+        sidebar = _sidebar(examples, current, current_sub)
+        super_nav = _super_switch(categories, current)
+    return _gallery_extra_css() + "\n" + sidebar + "\n" + super_nav + "\n" + nav + '\n<main class="report-main">'
+
+
+def _example_card(ex: Example) -> str:
+    img_url = _image_href(ex.image)
+    source_url = _source_href(ex.source)
+    tags = " ".join(f"<span>{html.escape(tag)}</span>" for tag in ex.tags)
+    return f"""
+<article class="gallery-card" id="{html.escape(ex.slug)}">
+<figure>
+<a href="{img_url}"><img src="{img_url}" alt="{html.escape(ex.title)}"></a>
+</figure>
+<div class="body">
+<h3>{html.escape(ex.title)}</h3>
+<p>{html.escape(ex.use_case)}</p>
+<p><em>{html.escape(ex.note)}</em></p>
+<div class="gallery-meta">{html.escape(ex.category)} / {html.escape(ex.sub_category)} · {html.escape(_root_rel(ex.source))}</div>
+<div class="gallery-tags">{tags}</div>
+<div class="gallery-links"><a href="{img_url}">原图</a><a href="{source_url}">源码/示例</a></div>
+</div>
+</article>
+"""
+
+
+def _render_report_page(md: str, out_html: Path, title: str, header_html: str) -> None:
+    report.render(
+        md,
+        out_html=out_html,
+        css=report.css_path("dark"),
+        toc=False,
+        title=title,
+        header_html=header_html,
+        footer_html="</main>",
+        extra_args=["--resource-path", str(OUT)],
+    )
+
+
+def render_report_site(examples: list[Example]) -> None:
+    if PAGES.exists():
+        shutil.rmtree(PAGES)
+    PAGES.mkdir(parents=True, exist_ok=True)
+    categories = _categories(examples)
+    sub_categories = _sub_categories(examples)
+
+    overview_lines = [
+        "# drawing-yh 图型示例库",
+        "",
+        f"{len(examples)} 种示例图，按标准三层目录组织：图类 → 子类 → 具体图型。",
+        "",
+        "## 图类",
+        "",
+    ]
+    for cat in categories:
+        n = sum(1 for ex in examples if ex.category == cat)
+        overview_lines.append(f"- [{cat}]({_page_href(_page_slug(cat))}) — {n} examples")
+    _render_report_page(
+        "\n".join(overview_lines) + "\n",
+        PAGES / "index.html",
+        "drawing-yh 图型示例库",
+        _header(examples, categories[0], overview=True),
+    )
+
+    for cat in categories:
+        cat_examples = [ex for ex in examples if ex.category == cat]
+        lines = [f"# {cat}", "", f"{len(cat_examples)} 种示例图。", "", "## 子类", ""]
+        for sub in sub_categories[cat]:
+            sub_examples = [ex for ex in cat_examples if ex.sub_category == sub]
+            lines.append(f"- [{sub}]({_page_href(_page_slug(cat, sub))}) — {len(sub_examples)} examples")
+        lines += ["", "## 全部示例", "", '<div class="gallery-grid">']
+        lines += [_example_card(ex) for ex in cat_examples]
+        lines.append("</div>")
+        _render_report_page(
+            "\n".join(lines) + "\n",
+            PAGES / _page_href(_page_slug(cat)),
+            f"{cat} gallery",
+            _header(examples, cat),
+        )
+
+        for sub in sub_categories[cat]:
+            sub_examples = [ex for ex in cat_examples if ex.sub_category == sub]
+            lines = [
+                f"# {sub}",
+                "",
+                f"{cat} / {sub} — {len(sub_examples)} 种示例图。",
+                "",
+                '<div class="gallery-grid">',
+            ]
+            lines += [_example_card(ex) for ex in sub_examples]
+            lines.append("</div>")
+            _render_report_page(
+                "\n".join(lines) + "\n",
+                PAGES / _page_href(_page_slug(cat, sub)),
+                f"{cat} / {sub}",
+                _header(examples, cat, sub),
+            )
+
+    legacy_routes = {
+        "": "pages/index.html",
+        "top-quantitative": "pages/quantitative.html",
+        "Quantitative": "pages/quantitative.html",
+        "Bar": "pages/quantitative-bar.html",
+        "Distribution": "pages/quantitative-distribution.html",
+        "Scatter": "pages/quantitative-scatter.html",
+        "Omics": "pages/omics.html",
+        "Heatmap": "pages/omics-heatmap.html",
+        "Composition": "pages/composition.html",
+        "Curve": "pages/curves.html",
+        "Curves": "pages/curves.html",
+        "Network": "pages/network.html",
+        "Utility": "pages/utility.html",
+    }
+    for cat in categories:
+        legacy_routes[_anchor("top", cat)] = f"pages/{_page_href(_page_slug(cat))}"
+        for sub in sub_categories[cat]:
+            legacy_routes[_anchor("sub", f"{cat}-{sub}")] = f"pages/{_page_href(_page_slug(cat, sub))}"
+    for ex in examples:
+        legacy_routes[ex.slug] = f"pages/{_page_href(_page_slug(ex.category, ex.sub_category))}#{ex.slug}"
+
+    routes_json = json.dumps(legacy_routes, ensure_ascii=False)
+    (OUT / "index.html").write_text(
+        f"""<!doctype html>
+<meta charset="utf-8">
+<title>redirect</title>
+<script>
+const routes = {routes_json};
+const key = decodeURIComponent(location.hash.replace(/^#/, ""));
+location.replace(routes[key] || routes[""]);
+</script>
+<p>Redirect to <a href="pages/index.html">report</a>.</p>
+""",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -895,8 +690,7 @@ def main() -> None:
     if missing:
         miss = "\n".join(f"- {ex.slug}: {ex.image}" for ex in missing)
         raise FileNotFoundError(f"Missing gallery images:\n{miss}")
-    html_text = render_html(examples)
-    (OUT / "index.html").write_text(html_text, encoding="utf-8")
+    render_report_site(examples)
     manifest = pd.DataFrame(
         [
             {
