@@ -58,6 +58,20 @@ GRID_LW = 0.45
 GRID_ALPHA = 0.78
 HIGHLIGHT_COLOR = "#F2E7C9"  # row band for caveat / sensitivity rows
 
+# layout inch budgets —— 内容驱动 figsize + 边距(8pt Arial)
+# 网格按 pitch、边距按标签长度、图例按固定英寸带:全部用英寸算好再换成 figure
+# 分数,使边距 / 图例随 figsize 与内容自适应、不写死分数(矩形网格版的"尽量紧凑";
+# autoshrink_figsize 只缩正方形,不适合本图型,故用 pitch 预算等价实现)。
+_CHAR_W_IN = 0.052        # 8pt Arial 单字符近似宽
+_COL_PITCH_IN = 0.30      # 每基因列宽
+_ROW_PITCH_IN = 0.36      # 每细胞行高
+_AXIS_LABEL_IN = 0.24     # x/y 轴名(旋转)占位
+_ROW_DOT_IN = 0.16        # 左侧 cell-type 彩点占位
+_PAD_IN = 0.08
+_TITLE_IN = 0.30
+_RIGHT_LEGEND_IN = 1.00   # 右侧竖排图例带(colorbar 柱 + 数字 + 竖排名称)
+_BOTTOM_LEGEND_IN = 0.80  # 底部横排 size 图例(legend_loc='bottom')
+
 
 # ============================================================
 # primitives
@@ -200,32 +214,67 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
     )
 
 
-def _draw_right_legends(fig, ax, sc, *, cbar_label, pcts, size_scale, size_base,
-                        font: int = DEFAULT_FONT_SIZE, col_x: float = 0.845):
-    """右侧两个图例:colorbar(柱) + size 点列,严格共用一条中线、纵向对齐;名称
-    都竖排放在最右、对齐到同一 x。
+def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
+                 max_row_label, max_gene_label, legend_loc, fig_size):
+    """按内容算 dot plot 布局(英寸预算 → figure 分数)。
 
-    size 点不走 ``fig.legend``(那样点在图例框内有不可控的内部偏移,和 colorbar
-    柱中心对不齐),而是用 figure 坐标(``transFigure`` + ``clip_on=False``)直接
-    画在 ``col_x`` 上 —— colorbar 柱中心也设在 ``col_x``,两者由此精确对齐。标签
-    与竖排标题的 x 由实测各自右缘求出,保证标题成列。
+    网格 = ``pitch × 数量``,左 / 下边距按 cell-type / gene 标签长度,右(或下)留固
+    定图例带。``fig_size=None`` 时由各英寸预算相加得最紧凑 figsize;给定 figsize 时
+    只据此换算边距分数。返回 ``((fig_w, fig_h), {left, right, bottom, top})``,分数
+    已夹紧到合法区间,防 figsize 过小时退化。
     """
-    cbar_w, cbar_y0, cbar_h = 0.016, 0.52, 0.36
-    bar_right = col_x + cbar_w / 2.0
-    cax = fig.add_axes([col_x - cbar_w / 2.0, cbar_y0, cbar_w, cbar_h])
-    cbar = fig.colorbar(sc, cax=cax)
+    cw = _CHAR_W_IN * (font / DEFAULT_FONT_SIZE)
+    left_in = (_AXIS_LABEL_IN + max_row_label * cw
+               + (_ROW_DOT_IN if has_row_colors else 0.0) + _PAD_IN)
+    bottom_in = _AXIS_LABEL_IN + max_gene_label * cw + _PAD_IN
+    top_in = _TITLE_IN if has_title else _PAD_IN + 0.06
+    if legend_loc == "right":
+        right_in = _RIGHT_LEGEND_IN
+    else:
+        right_in = _AXIS_LABEL_IN + 0.45
+        bottom_in += _BOTTOM_LEGEND_IN
+    grid_w = _COL_PITCH_IN * max(n_genes, 1)
+    grid_h = _ROW_PITCH_IN * max(n_rows, 1)
+    if fig_size is None:
+        fig_size = (left_in + grid_w + right_in, top_in + grid_h + bottom_in)
+    fig_w, fig_h = float(fig_size[0]), float(fig_size[1])
+    left = min(max(left_in / fig_w, 0.04), 0.6)
+    right = max(min(1.0 - right_in / fig_w, 0.97), left + 0.15)
+    bottom = min(max(bottom_in / fig_h, 0.04), 0.6)
+    top = max(min(1.0 - top_in / fig_h, 0.97), bottom + 0.15)
+    return (fig_w, fig_h), {"left": left, "right": right, "bottom": bottom, "top": top}
 
+
+def _draw_right_legends(fig, ax, sc, *, right_f, fig_w, cbar_label, pcts,
+                        size_scale, size_base, font: int = DEFAULT_FONT_SIZE):
+    """右侧两个图例:colorbar(柱) + size 点列,严格共用一条中线、纵向对齐;两组
+    数字(colorbar 刻度 / pct)左缘对齐,名称都竖排放最右、对齐成列。
+
+    水平位置按「主图右缘 ``right_f`` + 英寸偏移」算,随 figsize 自适应、不写死分数。
+    size 点不走 ``fig.legend``(点在图例框内有不可控偏移、对不齐 colorbar),而是用
+    figure 坐标(``transFigure`` + ``clip_on=False``)直接画在 ``col_x`` 上;colorbar
+    柱中心也设在 ``col_x``,二者精确对齐。colorbar 刻度数字再用 ``tick_params(pad)``
+    推到与 pct 标签同一 x,两组数字左对齐。
+    """
     legend_pcts = list(pcts) if pcts else list(DOT_LEGEND_PCTS)
     sizes = [float(dot_sizes(p, scale=size_scale, base=size_base)) for p in legend_pcts]
-    y_top, y_bot = 0.36, 0.16
+    # 柱宽 = 最大点直径 → colorbar 柱与 size 点列等宽、右缘齐平,数字紧贴两者并左对齐
+    r_fx = ((max(sizes) / np.pi) ** 0.5 / 72.0) / fig_w   # 最大点半径(fraction)
+    bar_w = 2.0 * r_fx
+    col_x = right_f + 0.10 / fig_w + bar_w / 2.0           # 柱中心 = 点列中心(距图 0.10in)
+    bar_right = col_x + bar_w / 2.0
+    cbar_h = min(0.40, 2.2 / fig.get_size_inches()[1])
+    cbar_y0 = 0.90 - cbar_h
+    cax = fig.add_axes([col_x - bar_w / 2.0, cbar_y0, bar_w, cbar_h])
+    cbar = fig.colorbar(sc, cax=cax)
+
+    y_top, y_bot = 0.34, 0.14
     ys = (np.linspace(y_top, y_bot, len(legend_pcts)) if len(legend_pcts) > 1
           else [(y_top + y_bot) / 2.0])
-    # pct 标签 x:让开最大点半径;colorbar 刻度数字也用 pad 推到同一 x,两组数字左对齐
-    fig_w_in = fig.get_size_inches()[0]
-    r_fx = ((max(sizes) / np.pi) ** 0.5 / 72.0) / fig_w_in
-    label_x = col_x + r_fx + 0.008
+    # 数字紧贴 柱 / 点 右缘(极小空隙),colorbar 刻度用 pad 推到同一 x、与 pct 左对齐
+    label_x = col_x + r_fx + 0.004
     cbar.ax.tick_params(labelsize=font,
-                        pad=max((label_x - bar_right) * fig_w_in * 72.0, 2.0))
+                        pad=max((label_x - bar_right) * fig_w * 72.0, 1.0))
     labels = []
     for y, p, s in zip(ys, legend_pcts, sizes):
         ax.scatter([col_x], [y], s=s, color="#888888", edgecolors=DOT_EDGE,
@@ -240,7 +289,7 @@ def _draw_right_legends(fig, ax, sc, *, cbar_label, pcts, size_scale, size_base,
     cbar_right = inv.transform(cbar.ax.get_tightbbox(renderer).get_points())[1][0]
     size_right = max(inv.transform(t.get_window_extent(renderer).get_points())[1][0]
                      for t in labels)
-    title_x = max(cbar_right, size_right) + 0.012
+    title_x = max(cbar_right, size_right) + 0.005
     fig.text(title_x, cbar_y0 + cbar_h / 2.0, cbar_label, rotation=90,
              va="center", ha="left", fontsize=font)
     fig.text(title_x, (y_top + y_bot) / 2.0, "Pct expressed", rotation=90,
@@ -296,8 +345,10 @@ def marker_dotplot(
     row_labels
         Optional pretty labels to use on the y-axis instead of ``row_order``.
     fig_size
-        ``(width, height)`` inches. Defaults to a width that scales with
-        ``len(gene_order)`` and a height that scales with ``len(row_order)``.
+        ``(width, height)`` inches. ``None`` (default) → content-driven inch
+        budget: grid sized by per-gene / per-row pitch, margins by label length,
+        plus a fixed right legend band. Margins and the right legend also adapt
+        to any explicit ``fig_size`` you pass (no hard-coded figure fractions).
     block_per_gene
         Dict ``gene -> block`` or sequence aligned with ``gene_order`` for
         vertical separators. ``None`` (default) draws no separators.
@@ -374,14 +425,21 @@ def marker_dotplot(
     x = df[gene_col].astype(str).map(x_map).to_numpy()
     y = df[row_col].astype(str).map(y_map).to_numpy()
 
+    row_disp = list(row_labels) if row_labels is not None else list(row_order)
+    max_row_label = max((len(str(r)) for r in row_disp), default=1)
+    max_gene_label = max((len(str(g)) for g in gene_order), default=1)
+    layout_size = fig_size if ax is None else tuple(ax.figure.get_size_inches())
+    fig_size, frac = _grid_layout(
+        len(gene_order), len(row_order), font=font,
+        has_row_colors=row_colors is not None, has_title=bool(title),
+        max_row_label=max_row_label, max_gene_label=max_gene_label,
+        legend_loc=legend_loc, fig_size=layout_size,
+    )
     if ax is None:
-        if fig_size is None:
-            fig_w = max(7.2, 0.30 * len(gene_order) + 2.8)
-            fig_h = max(2.8, 0.42 * len(row_order) + 1.6)
-            fig_size = (fig_w, fig_h)
         fig, ax = plt.subplots(figsize=fig_size)
     else:
         fig = ax.figure
+    fig_w = fig.get_size_inches()[0]
 
     sc = ax.scatter(
         x, y,
@@ -426,15 +484,17 @@ def marker_dotplot(
 
     if legend_loc == "right":
         # colorbar 柱 + size 点列共用一条中线、纵向对齐;名称竖排放最右对齐成列
-        fig.subplots_adjust(left=0.30, right=0.78, top=0.92, bottom=0.12)
-        _draw_right_legends(fig, ax, sc, cbar_label=cbar_label, pcts=size_pcts,
+        fig.subplots_adjust(**frac)
+        _draw_right_legends(fig, ax, sc, right_f=frac["right"], fig_w=fig_w,
+                            cbar_label=cbar_label, pcts=size_pcts,
                             size_scale=size_scale, size_base=size_base, font=font)
     else:  # "bottom": colorbar 右侧 + size 图例 底部横排(旧版式)
         cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
         style_colorbar(cbar, font=font, label=cbar_label)
         add_size_legend(ax, font=font, pcts=size_pcts,
                         size_scale=size_scale, size_base=size_base)
-        fig.subplots_adjust(left=0.30, right=0.84, top=0.90, bottom=0.34)
+        fig.subplots_adjust(left=frac["left"], right=0.84,
+                            top=frac["top"], bottom=frac["bottom"])
     return fig, ax, sc
 
 
