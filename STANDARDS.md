@@ -92,6 +92,17 @@ fig, ax = autoshrink_figsize(
 **Why**:手动调 figsize 不准 — 同一 `figsize=4` 在 6 个 cell 跟 24 个 cell 上视觉完全不同。
 让代码实测 label bbox 决定最小可用 figsize。
 
+## 版面以文字为准、标记自适应、图例对齐(2026-05-30,通用)
+
+紧凑性的统一落地,所有图型默认照此(dotplot 是参考实现,见下"单细胞作图模板"):
+
+- **版面以文字为准**:figsize / 网格 pitch / 行列间距由"刻度等文字刚好不重叠"的最紧值定,只要不重叠越紧越好、不留多余空白。autoshrink(上节)缩正方图;矩形网格(dotplot)用英寸预算 pitch 等价实现。
+- **数据标记自适应 fit 版面**:dot size / 格 / 条宽随版面(格距)自动缩放,不让标记撑大版面;要固定标记绝对大小才显式关(如 `marker_dotplot(autosize_dots=False, size_scale=…)`)。
+- **边距 / 图例随 figsize 自适应,不写死 figure 分数**:英寸预算(标签长度 + 图例带宽)换算成 `subplots_adjust` 分数,换 figsize / 数据量不破版。
+- **多图例紧凑对齐**:同侧多图例(colorbar + size key)共用中线 / 同列竖排;数字标签左缘对齐;名称竖排放最右成列;名称↔数字↔标记留极小空隙。
+
+参考实现:`drawing_yh.dotplot`(`_grid_layout` 英寸预算 + 文字驱动 pitch + `autosize_dots` + `_draw_right_legends` 共线对齐)。
+
 ## 文字防重叠
 
 不靠经验估,用 pixel bbox 测:
