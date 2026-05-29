@@ -30,6 +30,7 @@ from collections.abc import Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.transforms import blended_transform_factory
 
 from . import DEFAULT_FONT_SIZE
 
@@ -142,6 +143,26 @@ def add_block_separators(ax, blocks, color: str = SEPARATOR_COLOR,
         previous = block
 
 
+def add_row_color_dots(ax, colors, *, x: float = -0.022,
+                       size: float = 60.0, edgecolor: str = "none"):
+    """Colour dot per row just left of the y-axis (e.g. a cell-type colour
+    key), aligned with the dot-grid rows.
+
+    ``colors`` is a sequence of length n_rows (row 0 at top, matching
+    ``pad_axes``). Use any matplotlib colour; pass ``"#bdbdbd"`` for unknown
+    rows. Drawn in a blended transform (x in axes coords, y in data coords) so
+    it tracks the rows regardless of axis limits and is never clipped.
+    """
+    n_rows = len(colors)
+    trans = blended_transform_factory(ax.transAxes, ax.transData)
+    ax.scatter(
+        [x] * n_rows, np.arange(n_rows),
+        s=size, c=list(colors), marker="o",
+        edgecolors=edgecolor, linewidths=0,
+        clip_on=False, zorder=10, transform=trans,
+    )
+
+
 # ============================================================
 # one-call convenience
 # ============================================================
@@ -180,6 +201,12 @@ def marker_dotplot(
     font: int = DEFAULT_FONT_SIZE,
     block_per_gene=None,
     scale_per_gene: bool = True,
+    scale: str | None = None,
+    cmap=DOT_CMAP,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    row_colors=None,
+    row_color_size: float = 60.0,
     pad: float = 0.6,
     cbar_label: str = COLORBAR_LABEL,
     size_pcts: Sequence[int] | None = None,
@@ -210,8 +237,27 @@ def marker_dotplot(
         Dict ``gene -> block`` or sequence aligned with ``gene_order`` for
         vertical separators. ``None`` (default) draws no separators.
     scale_per_gene
-        If True (default), apply min-max scaling per gene to ``avg_col`` for
-        colour. If False, assume ``avg_col`` is already on a [0, 1] scale.
+        Legacy switch kept for back-compat. Used only when ``scale`` is None:
+        True -> ``scale="gene"``, False -> ``scale="none"``.
+    scale
+        Colour scaling mode. ``"gene"`` = per-gene (column) min-max to [0, 1]
+        (default, the viridis "gene-scaled mean" style). ``"row"`` = per-row
+        min-max to [0, 1] (matches scanpy ``standard_scale="group"``).
+        ``"none"`` = colour by raw ``avg_col``; colour-bar spans the data range
+        (or ``vmin``/``vmax`` if given). When None, falls back to
+        ``scale_per_gene``.
+    cmap
+        Matplotlib colormap name or object. Default ``"viridis"``; pass e.g. a
+        grey->red LinearSegmentedColormap for the scanpy-style look.
+    vmin, vmax
+        Override the colour limits. Default: 0/1 for ``"gene"``/``"row"``,
+        data min/max for ``"none"``.
+    row_colors
+        Optional per-row colour key drawn just left of the y-axis (cell-type
+        colours). Dict ``row -> colour`` (keyed by ``row_order``) or a sequence
+        aligned with ``row_order``. ``None`` (default) draws nothing.
+    row_color_size
+        Marker area (pt^2) for the ``row_colors`` dots.
     pad
         Axis padding (cells of margin around the grid). Default 0.6.
     cbar_label
@@ -230,16 +276,33 @@ def marker_dotplot(
     df[gene_col] = pd.Categorical(df[gene_col], categories=list(gene_order), ordered=True)
     df = df.sort_values([row_col, gene_col])
 
-    if scale_per_gene:
-        def _scale(s: pd.Series) -> pd.Series:
-            arr = s.to_numpy(dtype=float)
-            lo, hi = np.nanmin(arr), np.nanmax(arr)
-            if hi > lo:
-                return (s - lo) / (hi - lo)
-            return pd.Series(np.full(len(s), 0.5), index=s.index)
-        df["__color"] = df.groupby(gene_col, observed=True)[avg_col].transform(_scale)
-    else:
+    if scale is None:
+        scale = "gene" if scale_per_gene else "none"
+
+    def _minmax(s: pd.Series) -> pd.Series:
+        arr = s.to_numpy(dtype=float)
+        lo, hi = np.nanmin(arr), np.nanmax(arr)
+        if hi > lo:
+            return (s - lo) / (hi - lo)
+        return pd.Series(np.full(len(s), 0.5), index=s.index)
+
+    if scale == "gene":
+        df["__color"] = df.groupby(gene_col, observed=True)[avg_col].transform(_minmax)
+        cvmin, cvmax = 0.0, 1.0
+    elif scale == "row":
+        df["__color"] = df.groupby(row_col, observed=True)[avg_col].transform(_minmax)
+        cvmin, cvmax = 0.0, 1.0
+    elif scale == "none":
         df["__color"] = df[avg_col].astype(float)
+        col = df["__color"].to_numpy(dtype=float)
+        cvmin = float(np.nanmin(col)) if col.size else 0.0
+        cvmax = float(np.nanmax(col)) if col.size else 1.0
+    else:
+        raise ValueError("scale must be one of {'gene', 'row', 'none'} or None")
+    if vmin is not None:
+        cvmin = float(vmin)
+    if vmax is not None:
+        cvmax = float(vmax)
 
     x_map = {g: i for i, g in enumerate(gene_order)}
     y_map = {r: i for i, r in enumerate(row_order)}
@@ -260,7 +323,7 @@ def marker_dotplot(
         s=dot_sizes(df[pct_col].to_numpy(dtype=float),
                     scale=size_scale, base=size_base),
         c=df["__color"].to_numpy(dtype=float),
-        cmap=DOT_CMAP, vmin=0, vmax=1,
+        cmap=cmap, vmin=cvmin, vmax=cvmax,
         linewidths=DOT_EDGE_LW, edgecolors=DOT_EDGE,
     )
     ax.set_xticks(range(len(gene_order)))
@@ -282,6 +345,18 @@ def marker_dotplot(
     if blocks is not None:
         add_block_separators(ax, blocks)
 
+    if row_colors is not None:
+        if isinstance(row_colors, Mapping):
+            row_color_seq = [row_colors.get(r, "#bdbdbd") for r in row_order]
+        else:
+            row_color_seq = list(row_colors)
+            if len(row_color_seq) != len(row_order):
+                raise ValueError(
+                    f"row_colors length {len(row_color_seq)} != "
+                    f"len(row_order) {len(row_order)}"
+                )
+        add_row_color_dots(ax, row_color_seq, size=row_color_size)
+
     cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
     style_colorbar(cbar, font=font, label=cbar_label)
     add_size_legend(ax, font=font, pcts=size_pcts,
@@ -296,7 +371,8 @@ __all__ = [
     "SEPARATOR_COLOR", "SEPARATOR_LW", "SEPARATOR_ALPHA",
     "GRID_COLOR", "GRID_LW", "GRID_ALPHA", "HIGHLIGHT_COLOR",
     # primitives
-    "dot_sizes", "pad_axes", "style_colorbar", "add_size_legend", "add_block_separators",
+    "dot_sizes", "pad_axes", "style_colorbar", "add_size_legend",
+    "add_block_separators", "add_row_color_dots",
     # one-call
     "marker_dotplot",
 ]
