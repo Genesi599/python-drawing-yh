@@ -135,7 +135,7 @@ preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰
 | Embedding feature plot | `feature_plot(coords, values, …)` | coords (N,2) + 值矩阵 / dict / DataFrame |
 | 热图 + 每行富集条 | `heatmap_with_row_bars(Z, row_labels, …)` | Z 矩阵 + 每行 `[(term, value)]` |
 
-**Dot plot**(默认 grey-red,scseq 配色;`cmap="viridis"` 切 viridis):
+**Dot plot**(默认 grey-red,scseq 配色;`cmap="viridis"` 切 viridis;图例默认右侧竖排——colorbar 右上 + size 右下,`legend_loc="bottom"` 回到底部横排):
 
 ```python
 from drawing_yh import marker_dotplot

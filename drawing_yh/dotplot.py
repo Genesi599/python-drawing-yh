@@ -93,7 +93,8 @@ def style_colorbar(cbar, font: int = DEFAULT_FONT_SIZE, label: str = COLORBAR_LA
 def add_size_legend(ax, font: int = DEFAULT_FONT_SIZE, y: float = 0.012,
                     title: str = "Pct expressed",
                     pcts: Sequence[int] | None = None,
-                    size_scale: float = 2.4, size_base: float = 4.0):
+                    size_scale: float = 2.4, size_base: float = 4.0,
+                    *, orientation: str = "horizontal", bbox=None):
     """Figure-bottom-centre 'Pct expressed' size key (default 10/30/60%) that
     matches the dot sizes from ``dot_sizes``. Uses ``fig.legend`` so the key
     sits at a fixed figure-bottom location regardless of axes height. Leave
@@ -112,9 +113,17 @@ def add_size_legend(ax, font: int = DEFAULT_FONT_SIZE, y: float = 0.012,
                    label=f"{p}%")
         for p in legend_pcts
     ]
+    if orientation == "vertical":
+        anchor = bbox if bbox is not None else (0.86, 0.22)
+        return fig.legend(
+            handles=handles, title=title, loc="center left",
+            bbox_to_anchor=anchor, ncol=1, frameon=False,
+            fontsize=font, title_fontsize=font, labelspacing=1.3,
+        )
+    anchor = bbox if bbox is not None else (0.5, y)
     return fig.legend(
         handles=handles, title=title, loc="lower center",
-        bbox_to_anchor=(0.5, y), ncol=len(legend_pcts), frameon=False,
+        bbox_to_anchor=anchor, ncol=len(legend_pcts), frameon=False,
         fontsize=font, title_fontsize=font,
     )
 
@@ -216,6 +225,7 @@ def marker_dotplot(
     size_pcts: Sequence[int] | None = None,
     size_scale: float = 2.4,
     size_base: float = 4.0,
+    legend_loc: str = "right",
     ax=None,
 ):
     """One-call marker dot plot in the unified template style.
@@ -363,11 +373,21 @@ def marker_dotplot(
         ax.tick_params(axis="y", pad=float(np.clip(6.0 + row_color_size / 12.0, 8.0, 18.0)))
         add_row_color_dots(ax, row_color_seq, size=row_color_size)
 
-    cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
-    style_colorbar(cbar, font=font, label=cbar_label)
-    add_size_legend(ax, font=font, pcts=size_pcts,
-                    size_scale=size_scale, size_base=size_base)
-    fig.subplots_adjust(left=0.30, right=0.84, top=0.90, bottom=0.34)
+    if legend_loc == "right":
+        # colorbar 右上(竖) + size 图例 右下(竖),贴右侧排成一列
+        fig.subplots_adjust(left=0.30, right=0.80, top=0.92, bottom=0.12)
+        cax = fig.add_axes([0.85, 0.54, 0.025, 0.34])
+        cbar = fig.colorbar(sc, cax=cax)
+        style_colorbar(cbar, font=font, label=cbar_label)
+        add_size_legend(ax, font=font, pcts=size_pcts,
+                        size_scale=size_scale, size_base=size_base,
+                        orientation="vertical", bbox=(0.845, 0.24))
+    else:  # "bottom": colorbar 右侧 + size 图例 底部横排(旧版式)
+        cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
+        style_colorbar(cbar, font=font, label=cbar_label)
+        add_size_legend(ax, font=font, pcts=size_pcts,
+                        size_scale=size_scale, size_base=size_base)
+        fig.subplots_adjust(left=0.30, right=0.84, top=0.90, bottom=0.34)
     return fig, ax, sc
 
 
