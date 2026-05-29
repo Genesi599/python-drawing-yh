@@ -3,8 +3,9 @@
 """
 Marker expression dot plot — unified template.
 
-The reference style is the brain-aging report's "Olig separator-marker panel":
-viridis, per-gene min-max scaled mean colour (vmin=0 / vmax=1, right vertical
+The default colour ramp is grey->red, matching single_cell-yh (scseq) dot
+plots; pass ``cmap="viridis"`` for the brain-aging "Olig panel" look. Per-gene
+min-max scaled mean colour (vmin=0 / vmax=1, right vertical
 colour-bar labelled "Gene-scaled mean"), dot size = pct expressed (thin dark
 edge ``#303030`` / lw 0.12), bottom-centre "Pct expressed" 10/30/60% size key,
 generous padding so the largest edge dots are never clipped, and optional
@@ -30,6 +31,7 @@ from collections.abc import Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.transforms import blended_transform_factory
 
 from . import DEFAULT_FONT_SIZE
@@ -38,7 +40,9 @@ from . import DEFAULT_FONT_SIZE
 # ============================================================
 # style constants (single source of truth)
 # ============================================================
-DOT_CMAP = "viridis"
+DOT_CMAP = "viridis"   # 备选连续色板(传 cmap="viridis" 启用)
+# 默认 dot 配色:grey -> red,与 single_cell-yh(scseq) 原 dot plot 一致
+GREY_RED_CMAP = LinearSegmentedColormap.from_list("grey_to_red", ["#F0F0F0", "#B2182B"])
 DOT_EDGE = "#303030"
 DOT_EDGE_LW = 0.12
 DOT_LEGEND_PCTS = (10, 30, 60)
@@ -202,7 +206,7 @@ def marker_dotplot(
     block_per_gene=None,
     scale_per_gene: bool = True,
     scale: str | None = None,
-    cmap=DOT_CMAP,
+    cmap=GREY_RED_CMAP,
     vmin: float | None = None,
     vmax: float | None = None,
     row_colors=None,
@@ -247,8 +251,8 @@ def marker_dotplot(
         (or ``vmin``/``vmax`` if given). When None, falls back to
         ``scale_per_gene``.
     cmap
-        Matplotlib colormap name or object. Default ``"viridis"``; pass e.g. a
-        grey->red LinearSegmentedColormap for the scanpy-style look.
+        Matplotlib colormap name or object. Default grey->red (scseq style,
+        ``GREY_RED_CMAP``); pass ``"viridis"`` (``DOT_CMAP``) or any cmap.
     vmin, vmax
         Override the colour limits. Default: 0/1 for ``"gene"``/``"row"``,
         data min/max for ``"none"``.
@@ -369,7 +373,7 @@ def marker_dotplot(
 
 __all__ = [
     # constants
-    "DOT_CMAP", "DOT_EDGE", "DOT_EDGE_LW", "DOT_LEGEND_PCTS", "COLORBAR_LABEL",
+    "DOT_CMAP", "GREY_RED_CMAP", "DOT_EDGE", "DOT_EDGE_LW", "DOT_LEGEND_PCTS", "COLORBAR_LABEL",
     "SEPARATOR_COLOR", "SEPARATOR_LW", "SEPARATOR_ALPHA",
     "GRID_COLOR", "GRID_LW", "GRID_ALPHA", "HIGHLIGHT_COLOR",
     # primitives

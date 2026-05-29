@@ -135,16 +135,14 @@ preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰
 | Embedding feature plot | `feature_plot(coords, values, …)` | coords (N,2) + 值矩阵 / dict / DataFrame |
 | 热图 + 每行富集条 | `heatmap_with_row_bars(Z, row_labels, …)` | Z 矩阵 + 每行 `[(term, value)]` |
 
-**Dot plot**(viridis 默认;scanpy 风用 grey-red):
+**Dot plot**(默认 grey-red,scseq 配色;`cmap="viridis"` 切 viridis):
 
 ```python
 from drawing_yh import marker_dotplot
-import matplotlib.colors as mc
-grey_red = mc.LinearSegmentedColormap.from_list('gr', ['#F0F0F0', '#B2182B'])
 fig, ax, sc = marker_dotplot(
     long_df, row_order=celltypes, gene_order=genes,
     scale='row',                 # 'gene'(默认,per-gene) / 'row'(=scanpy standard_scale='group') / 'none'
-    cmap=grey_red,               # 默认 viridis
+    # cmap 默认 grey->red(scseq);要 viridis 传 cmap="viridis"
     row_colors=celltype_colors,  # 左侧 cell-type 彩点(dict / seq)
     block_per_gene=gene_block,   # 列块竖线分隔(可选)
 )
