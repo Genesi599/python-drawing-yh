@@ -59,16 +59,18 @@ GRID_ALPHA = 0.78
 HIGHLIGHT_COLOR = "#F2E7C9"  # row band for caveat / sensitivity rows
 
 # layout inch budgets —— 内容驱动 figsize + 边距(8pt Arial)
-# 网格按 pitch、边距按标签长度、图例按固定英寸带:全部用英寸算好再换成 figure
-# 分数,使边距 / 图例随 figsize 与内容自适应、不写死分数(矩形网格版的"尽量紧凑";
-# autoshrink_figsize 只缩正方形,不适合本图型,故用 pitch 预算等价实现)。
+# 网格 pitch 实算 = max(单行文字含行距, 最大点直径) + 极小 gap → 文字与点都刚好不
+# 重叠的最紧值,并随字体 / 数据最大点自适应;边距按标签长度、图例按固定英寸带:全部
+# 用英寸算好再换成 figure 分数,随 figsize 与内容自适应、不写死分数(矩形网格版"尽量
+# 紧凑";autoshrink_figsize 只缩正方形,不适合本图型,故用 pitch 预算等价实现)。
 _CHAR_W_IN = 0.052        # 8pt Arial 单字符近似宽
-_COL_PITCH_IN = 0.26      # 每基因列宽
-_ROW_PITCH_IN = 0.31      # 每细胞行高
-_AXIS_LABEL_IN = 0.24     # x/y 轴名(旋转)占位
+_GRID_GAP_IN = 0.02       # 相邻格子最小净间隙(pitch = max(文字, 点) + gap)
+_TEXT_PITCH_K = 1.30      # 单行文字含行距 ≈ font_pt * k / 72(竖排基因名 / 水平细胞名共用此下限)
+_PITCH_MIN_IN = 0.18      # pitch 下限(极小字体 / 极小点时兜底)
+_AXIS_LABEL_IN = 0.22     # x/y 轴名(旋转)占位
 _ROW_DOT_IN = 0.16        # 左侧 cell-type 彩点占位
-_PAD_IN = 0.08
-_TITLE_IN = 0.30
+_PAD_IN = 0.05
+_TITLE_IN = 0.28
 _RIGHT_LEGEND_IN = 1.00   # 右侧竖排图例带(colorbar 柱 + 数字 + 竖排名称)
 _BOTTOM_LEGEND_IN = 0.80  # 底部横排 size 图例(legend_loc='bottom')
 
@@ -215,15 +217,21 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
 
 
 def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
-                 max_row_label, max_gene_label, legend_loc, fig_size):
+                 max_row_label, max_gene_label, legend_loc, fig_size,
+                 max_pct=100.0, size_scale=2.4, size_base=4.0):
     """按内容算 dot plot 布局(英寸预算 → figure 分数)。
 
-    网格 = ``pitch × 数量``,左 / 下边距按 cell-type / gene 标签长度,右(或下)留固
-    定图例带。``fig_size=None`` 时由各英寸预算相加得最紧凑 figsize;给定 figsize 时
-    只据此换算边距分数。返回 ``((fig_w, fig_h), {left, right, bottom, top})``,分数
-    已夹紧到合法区间,防 figsize 过小时退化。
+    pitch 实算 = ``max(单行文字含行距, 最大点直径) + gap``,取文字与点都刚好不重叠
+    的最紧值,随字体 / 数据最大点自适应(竖排基因名 / 水平细胞名的文字下限一致)。网格
+    = ``pitch × 数量``,左 / 下边距按 cell-type / gene 标签长度,右(或下)留固定图例带。
+    ``fig_size=None`` 时各英寸预算相加得最紧凑 figsize;给定 figsize 则只据此换算边距
+    分数。返回 ``((fig_w, fig_h), {left, right, bottom, top})``,分数已夹紧到合法区间。
     """
     cw = _CHAR_W_IN * (font / DEFAULT_FONT_SIZE)
+    text_pitch = font / 72.0 * _TEXT_PITCH_K
+    dot_d = 2.0 * (float(dot_sizes(max_pct, scale=size_scale, base=size_base))
+                   / np.pi) ** 0.5 / 72.0
+    pitch = max(max(text_pitch, dot_d) + _GRID_GAP_IN, _PITCH_MIN_IN)
     left_in = (_AXIS_LABEL_IN + max_row_label * cw
                + (_ROW_DOT_IN if has_row_colors else 0.0) + _PAD_IN)
     bottom_in = _AXIS_LABEL_IN + max_gene_label * cw + _PAD_IN
@@ -233,8 +241,8 @@ def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
     else:
         right_in = _AXIS_LABEL_IN + 0.45
         bottom_in += _BOTTOM_LEGEND_IN
-    grid_w = _COL_PITCH_IN * max(n_genes, 1)
-    grid_h = _ROW_PITCH_IN * max(n_rows, 1)
+    grid_w = pitch * max(n_genes, 1)
+    grid_h = pitch * max(n_rows, 1)
     if fig_size is None:
         fig_size = (left_in + grid_w + right_in, top_in + grid_h + bottom_in)
     fig_w, fig_h = float(fig_size[0]), float(fig_size[1])
@@ -428,12 +436,15 @@ def marker_dotplot(
     row_disp = list(row_labels) if row_labels is not None else list(row_order)
     max_row_label = max((len(str(r)) for r in row_disp), default=1)
     max_gene_label = max((len(str(g)) for g in gene_order), default=1)
+    _pct = df[pct_col].to_numpy(dtype=float)
+    max_pct = float(np.clip(_pct.max() if _pct.size else 100.0, 1.0, 100.0))
     layout_size = fig_size if ax is None else tuple(ax.figure.get_size_inches())
     fig_size, frac = _grid_layout(
         len(gene_order), len(row_order), font=font,
         has_row_colors=row_colors is not None, has_title=bool(title),
         max_row_label=max_row_label, max_gene_label=max_gene_label,
         legend_loc=legend_loc, fig_size=layout_size,
+        max_pct=max_pct, size_scale=size_scale, size_base=size_base,
     )
     if ax is None:
         fig, ax = plt.subplots(figsize=fig_size)
