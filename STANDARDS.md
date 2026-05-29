@@ -123,6 +123,62 @@ grayscale_distinct(my_palette)                   # bool,灰度下两两亮度差
 preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰度
 ```
 
+## 单细胞作图模板(dot plot / feature plot / heatmap + 富集)
+
+三个单细胞常用图的**纯 matplotlib 模板**(8pt / 配合 `save_fig` 三格式 / 不依赖 scanpy·gseapy)。
+**分层约定**:drawing-yh 只管画(输入已算好的矩阵 / 坐标 / 表),h5ad 读取、选基因、
+算均值 / z-score、跑富集等数据准备留在 `single_cell-yh`,由它调这里的模板。
+
+| 图型 | 入口 | 输入 |
+|---|---|---|
+| Marker dot plot | `marker_dotplot(data, row_order, gene_order, …)` | long 表(row / gene / avg / pct) |
+| Embedding feature plot | `feature_plot(coords, values, …)` | coords (N,2) + 值矩阵 / dict / DataFrame |
+| 热图 + 每行富集条 | `heatmap_with_row_bars(Z, row_labels, …)` | Z 矩阵 + 每行 `[(term, value)]` |
+
+**Dot plot**(viridis 默认;scanpy 风用 grey-red):
+
+```python
+from drawing_yh import marker_dotplot
+import matplotlib.colors as mc
+grey_red = mc.LinearSegmentedColormap.from_list('gr', ['#F0F0F0', '#B2182B'])
+fig, ax, sc = marker_dotplot(
+    long_df, row_order=celltypes, gene_order=genes,
+    scale='row',                 # 'gene'(默认,per-gene) / 'row'(=scanpy standard_scale='group') / 'none'
+    cmap=grey_red,               # 默认 viridis
+    row_colors=celltype_colors,  # 左侧 cell-type 彩点(dict / seq)
+    block_per_gene=gene_block,   # 列块竖线分隔(可选)
+)
+```
+
+**Feature plot**(多基因 UMAP/tSNE 网格,共享 grey-red colorbar + 角落箭头轴):
+
+```python
+from drawing_yh import feature_plot
+fig, axes = feature_plot(
+    coords,                      # adata.obsm['X_umap']
+    {'MZB1': v1, 'PTX3': v2},    # 或 DataFrame(列=基因) / (N,G) array + genes=
+    vmin='p2', vmax='p98',       # 百分位(默认按非零值)或固定值
+    share_clim=True,             # 所有 panel 共用一个 colorbar
+    axis_labels=('UMAP1', 'UMAP2'),
+)
+```
+
+**Heatmap + 富集条**(左 z-score 热图 + 列块分隔 + 左侧行彩条;右每行 top 富集条):
+
+```python
+from drawing_yh import heatmap_with_row_bars
+fig, (ax_heat, ax_bars) = heatmap_with_row_bars(
+    Z, row_labels=celltypes,
+    row_bars={ct: [(term, neg_log10_p), …] for ct in celltypes},
+    block_sizes=per_group_marker_counts,   # 列块竖线
+    row_colors=celltype_colors,            # 左侧彩条 + 柱色
+    z_clip=2.0,
+)
+```
+
+原语(自拼布局时用):dot plot `dot_sizes` / `add_row_color_dots` / `add_block_separators`;
+feature plot `scatter_embedding` / `add_embedding_axes` / `resolve_vlim` / `auto_ncols`。
+
 ## HTML 报告(`drawing_yh.report`)
 
 Markdown 研究报告 → 标准 GitHub-flavored 单页 / 多页 HTML,

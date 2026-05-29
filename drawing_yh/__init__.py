@@ -98,9 +98,15 @@ from .venn import venn_diagram                          # noqa: E402
 from .dotplot import (                                  # noqa: E402
     marker_dotplot,
     dot_sizes, pad_axes, style_colorbar,
-    add_size_legend, add_block_separators,
+    add_size_legend, add_block_separators, add_row_color_dots,
 )
 from . import dotplot                                   # noqa: E402,F401
+from .embedding import (                                # noqa: E402
+    feature_plot,
+    resolve_vlim, scatter_embedding, add_embedding_axes, auto_ncols,
+)
+from . import embedding                                 # noqa: E402,F401
+from .heatmap import heatmap_with_row_bars              # noqa: E402
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
 
@@ -125,11 +131,16 @@ __all__ = [
     "render_mean_dumbbell",
     "venn_diagram",
     "marker_dotplot",
+    "feature_plot",
+    "heatmap_with_row_bars",
     # dot-plot style primitives (re-exported from drawing_yh.dotplot)
     "dot_sizes", "pad_axes", "style_colorbar",
-    "add_size_legend", "add_block_separators",
+    "add_size_legend", "add_block_separators", "add_row_color_dots",
+    # embedding feature-plot primitives (re-exported from drawing_yh.embedding)
+    "resolve_vlim", "scatter_embedding", "add_embedding_axes", "auto_ncols",
     # subpackages
     "dotplot",
+    "embedding",
     "report",
     # network
     "hub_spoke",
