@@ -5,11 +5,14 @@ Marker expression dot plot — unified template.
 
 The default colour ramp is grey->red, matching single_cell-yh (scseq) dot
 plots; pass ``cmap="viridis"`` for the brain-aging "Olig panel" look. Per-gene
-min-max scaled mean colour (vmin=0 / vmax=1, right vertical
-colour-bar labelled "Gene-scaled mean"), dot size = pct expressed (thin dark
-edge ``#303030`` / lw 0.12), bottom-centre "Pct expressed" 10/30/60% size key,
-generous padding so the largest edge dots are never clipped, and optional
-vertical block dividers between functional / per-subtype gene groups.
+min-max scaled mean colour (vmin=0 / vmax=1). By default both keys sit at the
+right, stacked and vertically aligned (``legend_loc="right"``): a narrow
+colour-bar plus a 10/30/60% dot-size key, each with its name as vertical text
+aligned in one right-hand column. dot size = pct expressed (thin dark edge
+``#303030`` / lw 0.12); ``legend_loc="bottom"`` falls back to a right colour-
+bar + bottom-centre horizontal size key. Generous padding so the largest edge
+dots are never clipped, and optional vertical block dividers between functional
+/ per-subtype gene groups.
 
 Two ways to use the module:
 
@@ -197,6 +200,29 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
     )
 
 
+def _add_aligned_vertical_titles(fig, items, *, font: int = DEFAULT_FONT_SIZE,
+                                 pad: float = 0.012):
+    """给右侧竖排图例补竖排标题,并把所有标题对齐到同一 x,使其纵向成列、形式一致。
+
+    ``items`` = ``[(artist, title), ...]``,artist 取 colorbar 的 ``ax`` 或
+    ``Legend``。各标题旋转 90° 放到「所有图例右缘的最大值 + pad」处、各自垂直
+    居中。需在 artist 已加入 figure 后调用(内部会先 draw 一次量取 bbox)。
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    placed = []
+    right = 0.0
+    for artist, title in items:
+        (x0, y0), (x1, y1) = inv.transform(artist.get_tightbbox(renderer).get_points())
+        right = max(right, x1)
+        placed.append(((y0 + y1) / 2.0, title))
+    title_x = right + pad
+    for y_center, title in placed:
+        fig.text(title_x, y_center, title, rotation=90, va="center", ha="left",
+                 fontsize=font)
+
+
 def marker_dotplot(
     data: pd.DataFrame,
     row_order: Sequence[str],
@@ -374,14 +400,18 @@ def marker_dotplot(
         add_row_color_dots(ax, row_color_seq, size=row_color_size)
 
     if legend_loc == "right":
-        # colorbar 右上(竖) + size 图例 右下(竖),贴右侧排成一列
-        fig.subplots_adjust(left=0.30, right=0.80, top=0.92, bottom=0.12)
-        cax = fig.add_axes([0.85, 0.54, 0.025, 0.34])
+        # 两个图例贴右侧竖排成一列、纵向对齐;名称都竖排放最右、对齐到同一列
+        fig.subplots_adjust(left=0.30, right=0.78, top=0.92, bottom=0.12)
+        cbar_x, cbar_w = 0.83, 0.018  # colorbar 窄一点
+        cax = fig.add_axes([cbar_x, 0.52, cbar_w, 0.36])
         cbar = fig.colorbar(sc, cax=cax)
-        style_colorbar(cbar, font=font, label=cbar_label)
-        add_size_legend(ax, font=font, pcts=size_pcts,
-                        size_scale=size_scale, size_base=size_base,
-                        orientation="vertical", bbox=(0.845, 0.24))
+        cbar.ax.tick_params(labelsize=font)  # 名称不走 set_label,稍后竖排对齐
+        leg = add_size_legend(ax, font=font, pcts=size_pcts,
+                              size_scale=size_scale, size_base=size_base,
+                              orientation="vertical", bbox=(cbar_x, 0.24),
+                              title=None)
+        _add_aligned_vertical_titles(
+            fig, [(cbar.ax, cbar_label), (leg, "Pct expressed")], font=font)
     else:  # "bottom": colorbar 右侧 + size 图例 底部横排(旧版式)
         cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
         style_colorbar(cbar, font=font, label=cbar_label)
