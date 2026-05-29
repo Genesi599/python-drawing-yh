@@ -9,7 +9,7 @@ scatter-linear,Quantitative,Scatter,Scatter + linear fit,example_gallery/generat
 bubble-plot,Quantitative,Scatter,Bubble plot,example_gallery/generated/bubble_plot.png,example_gallery/build_gallery.py,二维类别矩阵 + 第三变量大小。,颜色和气泡大小可同时编码。,"bubble,matrix"
 rank-plot,Quantitative,Scatter,Rank plot,example_gallery/generated/rank_plot.png,example_gallery/build_gallery.py,候选基因、通路、feature 的排序。,适合强调 top candidates。,"rank,candidate"
 dot-chart,Quantitative,Scatter,Dot chart,drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png,drawing_yh/scatter/dot_chart/dot_chart.py,蛋白/代谢物跨组织或分组点图。,可用颜色、位置、显著性共同编码。,"dot,summary"
-marker-dotplot,Omics,Marker / QC,Marker dot plot,example_gallery/generated/marker_dotplot.png,drawing_yh/dotplot.py,单细胞 marker 表达矩阵。,颜色=gene-scaled mean(可换 grey-red)，大小=pct expressed，左侧彩点=cell-type 颜色。,"single-cell,marker,dotplot"
+marker-dotplot,Omics,Marker / QC,Marker dot plot,example_gallery/generated/marker_dotplot.png,drawing_yh/dotplot.py,单细胞 marker 表达矩阵。,颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct expressed，左侧彩点=cell-type 颜色。,"single-cell,marker,dotplot"
 feature-plot,Omics,Marker / QC,Embedding feature plot,example_gallery/generated/feature_plot.png,drawing_yh/embedding.py,基因表达投影到 UMAP/tSNE 的多基因网格。,共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。,"single-cell,umap,feature"
 dumbbell,Omics,Comparison,Dumbbell chart,example_gallery/generated/dumbbell.png,drawing_yh/dumbbell.py,Young vs Old 或处理前后均值比较。,箭头方向编码升降，适合通讯强度或 pathway score。,"dumbbell,comparison"
 volcano,Omics,Differential,Volcano plot,drawing_yh/volcano_plot/Volcano_plot.png,drawing_yh/volcano_plot/volcano.py,差异分析结果，logFC × p-value。,适合快速筛选显著上/下调。,"volcano,DEG"
