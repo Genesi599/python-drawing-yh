@@ -331,8 +331,8 @@ def marker_dotplot(
     pad: float = 0.6,
     cbar_label: str = COLORBAR_LABEL,
     size_pcts: Sequence[int] | None = None,
-    size_scale: float = 2.4,
-    size_base: float = 4.0,
+    size_scale: float = 1.6,
+    size_base: float = 2.5,
     legend_loc: str = "right",
     ax=None,
 ):
