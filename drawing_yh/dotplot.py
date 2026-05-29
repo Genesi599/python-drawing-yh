@@ -355,6 +355,8 @@ def marker_dotplot(
                     f"row_colors length {len(row_color_seq)} != "
                     f"len(row_order) {len(row_order)}"
                 )
+        # 给 y 轴标签按彩点大小让位,避免较长标签被彩点压住
+        ax.tick_params(axis="y", pad=float(np.clip(6.0 + row_color_size / 12.0, 8.0, 18.0)))
         add_row_color_dots(ax, row_color_seq, size=row_color_size)
 
     cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
