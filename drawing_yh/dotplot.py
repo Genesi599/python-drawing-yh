@@ -63,8 +63,8 @@ HIGHLIGHT_COLOR = "#F2E7C9"  # row band for caveat / sensitivity rows
 # 分数,使边距 / 图例随 figsize 与内容自适应、不写死分数(矩形网格版的"尽量紧凑";
 # autoshrink_figsize 只缩正方形,不适合本图型,故用 pitch 预算等价实现)。
 _CHAR_W_IN = 0.052        # 8pt Arial 单字符近似宽
-_COL_PITCH_IN = 0.30      # 每基因列宽
-_ROW_PITCH_IN = 0.36      # 每细胞行高
+_COL_PITCH_IN = 0.26      # 每基因列宽
+_ROW_PITCH_IN = 0.31      # 每细胞行高
 _AXIS_LABEL_IN = 0.24     # x/y 轴名(旋转)占位
 _ROW_DOT_IN = 0.16        # 左侧 cell-type 彩点占位
 _PAD_IN = 0.08
@@ -478,9 +478,9 @@ def marker_dotplot(
                     f"row_colors length {len(row_color_seq)} != "
                     f"len(row_order) {len(row_order)}"
                 )
-        # 给 y 轴标签按彩点大小让位,避免较长标签被彩点压住
-        ax.tick_params(axis="y", pad=float(np.clip(6.0 + row_color_size / 12.0, 8.0, 18.0)))
-        add_row_color_dots(ax, row_color_seq, size=row_color_size)
+        # 彩点贴近 y 轴(x=-0.010),y 标签 pad 让其右缘与彩点留一点点空隙、不挨着
+        ax.tick_params(axis="y", pad=float(np.clip(8.0 + row_color_size / 15.0, 10.0, 18.0)))
+        add_row_color_dots(ax, row_color_seq, size=row_color_size, x=-0.010)
 
     if legend_loc == "right":
         # colorbar 柱 + size 点列共用一条中线、纵向对齐;名称竖排放最右对齐成列
