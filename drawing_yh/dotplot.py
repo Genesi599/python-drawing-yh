@@ -211,18 +211,21 @@ def _draw_right_legends(fig, ax, sc, *, cbar_label, pcts, size_scale, size_base,
     与竖排标题的 x 由实测各自右缘求出,保证标题成列。
     """
     cbar_w, cbar_y0, cbar_h = 0.016, 0.52, 0.36
+    bar_right = col_x + cbar_w / 2.0
     cax = fig.add_axes([col_x - cbar_w / 2.0, cbar_y0, cbar_w, cbar_h])
     cbar = fig.colorbar(sc, cax=cax)
-    cbar.ax.tick_params(labelsize=font)
 
     legend_pcts = list(pcts) if pcts else list(DOT_LEGEND_PCTS)
     sizes = [float(dot_sizes(p, scale=size_scale, base=size_base)) for p in legend_pcts]
     y_top, y_bot = 0.36, 0.16
     ys = (np.linspace(y_top, y_bot, len(legend_pcts)) if len(legend_pcts) > 1
           else [(y_top + y_bot) / 2.0])
-    # 标签 x:让开最大点的半径,避免数字压到点上
-    r_fx = ((max(sizes) / np.pi) ** 0.5 / 72.0) / fig.get_size_inches()[0]
-    label_x = col_x + r_fx + 0.012
+    # pct 标签 x:让开最大点半径;colorbar 刻度数字也用 pad 推到同一 x,两组数字左对齐
+    fig_w_in = fig.get_size_inches()[0]
+    r_fx = ((max(sizes) / np.pi) ** 0.5 / 72.0) / fig_w_in
+    label_x = col_x + r_fx + 0.008
+    cbar.ax.tick_params(labelsize=font,
+                        pad=max((label_x - bar_right) * fig_w_in * 72.0, 2.0))
     labels = []
     for y, p, s in zip(ys, legend_pcts, sizes):
         ax.scatter([col_x], [y], s=s, color="#888888", edgecolors=DOT_EDGE,
