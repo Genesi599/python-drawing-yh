@@ -200,27 +200,49 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
     )
 
 
-def _add_aligned_vertical_titles(fig, items, *, font: int = DEFAULT_FONT_SIZE,
-                                 pad: float = 0.012):
-    """给右侧竖排图例补竖排标题,并把所有标题对齐到同一 x,使其纵向成列、形式一致。
+def _draw_right_legends(fig, ax, sc, *, cbar_label, pcts, size_scale, size_base,
+                        font: int = DEFAULT_FONT_SIZE, col_x: float = 0.845):
+    """右侧两个图例:colorbar(柱) + size 点列,严格共用一条中线、纵向对齐;名称
+    都竖排放在最右、对齐到同一 x。
 
-    ``items`` = ``[(artist, title), ...]``,artist 取 colorbar 的 ``ax`` 或
-    ``Legend``。各标题旋转 90° 放到「所有图例右缘的最大值 + pad」处、各自垂直
-    居中。需在 artist 已加入 figure 后调用(内部会先 draw 一次量取 bbox)。
+    size 点不走 ``fig.legend``(那样点在图例框内有不可控的内部偏移,和 colorbar
+    柱中心对不齐),而是用 figure 坐标(``transFigure`` + ``clip_on=False``)直接
+    画在 ``col_x`` 上 —— colorbar 柱中心也设在 ``col_x``,两者由此精确对齐。标签
+    与竖排标题的 x 由实测各自右缘求出,保证标题成列。
     """
+    cbar_w, cbar_y0, cbar_h = 0.016, 0.52, 0.36
+    cax = fig.add_axes([col_x - cbar_w / 2.0, cbar_y0, cbar_w, cbar_h])
+    cbar = fig.colorbar(sc, cax=cax)
+    cbar.ax.tick_params(labelsize=font)
+
+    legend_pcts = list(pcts) if pcts else list(DOT_LEGEND_PCTS)
+    sizes = [float(dot_sizes(p, scale=size_scale, base=size_base)) for p in legend_pcts]
+    y_top, y_bot = 0.36, 0.16
+    ys = (np.linspace(y_top, y_bot, len(legend_pcts)) if len(legend_pcts) > 1
+          else [(y_top + y_bot) / 2.0])
+    # 标签 x:让开最大点的半径,避免数字压到点上
+    r_fx = ((max(sizes) / np.pi) ** 0.5 / 72.0) / fig.get_size_inches()[0]
+    label_x = col_x + r_fx + 0.012
+    labels = []
+    for y, p, s in zip(ys, legend_pcts, sizes):
+        ax.scatter([col_x], [y], s=s, color="#888888", edgecolors=DOT_EDGE,
+                   linewidths=DOT_EDGE_LW, transform=fig.transFigure,
+                   clip_on=False, zorder=5)
+        labels.append(ax.text(label_x, y, f"{p}%", transform=fig.transFigure,
+                              va="center", ha="left", fontsize=font))
+
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     inv = fig.transFigure.inverted()
-    placed = []
-    right = 0.0
-    for artist, title in items:
-        (x0, y0), (x1, y1) = inv.transform(artist.get_tightbbox(renderer).get_points())
-        right = max(right, x1)
-        placed.append(((y0 + y1) / 2.0, title))
-    title_x = right + pad
-    for y_center, title in placed:
-        fig.text(title_x, y_center, title, rotation=90, va="center", ha="left",
-                 fontsize=font)
+    cbar_right = inv.transform(cbar.ax.get_tightbbox(renderer).get_points())[1][0]
+    size_right = max(inv.transform(t.get_window_extent(renderer).get_points())[1][0]
+                     for t in labels)
+    title_x = max(cbar_right, size_right) + 0.012
+    fig.text(title_x, cbar_y0 + cbar_h / 2.0, cbar_label, rotation=90,
+             va="center", ha="left", fontsize=font)
+    fig.text(title_x, (y_top + y_bot) / 2.0, "Pct expressed", rotation=90,
+             va="center", ha="left", fontsize=font)
+    return cbar
 
 
 def marker_dotplot(
@@ -400,18 +422,10 @@ def marker_dotplot(
         add_row_color_dots(ax, row_color_seq, size=row_color_size)
 
     if legend_loc == "right":
-        # 两个图例贴右侧竖排成一列、纵向对齐;名称都竖排放最右、对齐到同一列
+        # colorbar 柱 + size 点列共用一条中线、纵向对齐;名称竖排放最右对齐成列
         fig.subplots_adjust(left=0.30, right=0.78, top=0.92, bottom=0.12)
-        cbar_x, cbar_w = 0.83, 0.018  # colorbar 窄一点
-        cax = fig.add_axes([cbar_x, 0.52, cbar_w, 0.36])
-        cbar = fig.colorbar(sc, cax=cax)
-        cbar.ax.tick_params(labelsize=font)  # 名称不走 set_label,稍后竖排对齐
-        leg = add_size_legend(ax, font=font, pcts=size_pcts,
-                              size_scale=size_scale, size_base=size_base,
-                              orientation="vertical", bbox=(cbar_x, 0.24),
-                              title=None)
-        _add_aligned_vertical_titles(
-            fig, [(cbar.ax, cbar_label), (leg, "Pct expressed")], font=font)
+        _draw_right_legends(fig, ax, sc, cbar_label=cbar_label, pcts=size_pcts,
+                            size_scale=size_scale, size_base=size_base, font=font)
     else:  # "bottom": colorbar 右侧 + size 图例 底部横排(旧版式)
         cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
         style_colorbar(cbar, font=font, label=cbar_label)
