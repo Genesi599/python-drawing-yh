@@ -10,6 +10,7 @@ from .core import (
 )
 from .heapmap_3D import plot_heatmap_fan_species, plot_heatmap_with_icons
 from .heatmap_tile_style import plot_correlation_heatmap
+from .row_bars import heatmap_with_row_bars, wrap_text
 
 __all__ = [
     "compute_heatmap_figsize",
@@ -22,4 +23,6 @@ __all__ = [
     "plot_heatmap_fan_species",
     "plot_heatmap_with_icons",
     "plot_correlation_heatmap",
+    "heatmap_with_row_bars",
+    "wrap_text",
 ]
