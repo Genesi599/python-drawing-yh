@@ -67,6 +67,8 @@ _CHAR_W_IN = 0.052        # 8pt Arial 单字符近似宽
 _GRID_GAP_IN = 0.02       # 相邻格子最小净间隙(pitch = max(文字, 点) + gap)
 _TEXT_PITCH_K = 1.30      # 单行文字含行距 ≈ font_pt * k / 72(竖排基因名 / 水平细胞名共用此下限)
 _PITCH_MIN_IN = 0.18      # pitch 下限(极小字体 / 极小点时兜底)
+_DOT_FILL = 0.80          # autosize:pct=100 点直径占格子比例(留缝防点重叠)
+_DOT_BASE_MIN = 1.5       # autosize:pct=0 的极小点 area(pt^2,保证仍可见)
 _AXIS_LABEL_IN = 0.22     # x/y 轴名(旋转)占位
 _ROW_DOT_IN = 0.16        # 左侧 cell-type 彩点占位
 _PAD_IN = 0.05
@@ -218,20 +220,28 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
 
 def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
                  max_row_label, max_gene_label, legend_loc, fig_size,
-                 max_pct=100.0, size_scale=2.4, size_base=4.0):
-    """按内容算 dot plot 布局(英寸预算 → figure 分数)。
+                 max_pct=100.0, size_scale=2.4, size_base=4.0,
+                 autosize_dots=True):
+    """按内容算 dot plot 布局(英寸预算 → figure 分数)+ 点尺寸。
 
-    pitch 实算 = ``max(单行文字含行距, 最大点直径) + gap``,取文字与点都刚好不重叠
-    的最紧值,随字体 / 数据最大点自适应(竖排基因名 / 水平细胞名的文字下限一致)。网格
-    = ``pitch × 数量``,左 / 下边距按 cell-type / gene 标签长度,右(或下)留固定图例带。
-    ``fig_size=None`` 时各英寸预算相加得最紧凑 figsize;给定 figsize 则只据此换算边距
-    分数。返回 ``((fig_w, fig_h), {left, right, bottom, top})``,分数已夹紧到合法区间。
+    ``autosize_dots=True``(默认):**版面以文字为准** —— pitch 取相邻刻度文字刚好不
+    重叠的最紧值(``font * k / 72 + gap``),点大小则**自动缩放**去 fit 这个 pitch(pct
+    =100 点直径 = 实际格距 × ``_DOT_FILL``,留缝防重叠),反推出 ``size_scale`` /
+    ``size_base`` 供散点 + 图例统一使用。``False``:点尺寸固定(用传入 ``size_scale`` /
+    ``size_base``),pitch 取 ``max(文字, 点) + gap``(旧行为)。
+
+    网格 = ``pitch × 数量``,左 / 下边距按标签长度,右(或下)留图例带。``fig_size=None``
+    时各英寸预算相加得最紧凑 figsize;给定则据此换算边距(点仍 fit 真实数据区格距)。
+    返回 ``((fig_w, fig_h), {left,right,bottom,top}, eff_size_scale, eff_size_base)``。
     """
     cw = _CHAR_W_IN * (font / DEFAULT_FONT_SIZE)
     text_pitch = font / 72.0 * _TEXT_PITCH_K
-    dot_d = 2.0 * (float(dot_sizes(max_pct, scale=size_scale, base=size_base))
-                   / np.pi) ** 0.5 / 72.0
-    pitch = max(max(text_pitch, dot_d) + _GRID_GAP_IN, _PITCH_MIN_IN)
+    if autosize_dots:
+        pitch = max(text_pitch + _GRID_GAP_IN, _PITCH_MIN_IN)
+    else:
+        dot_d = 2.0 * (float(dot_sizes(max_pct, scale=size_scale, base=size_base))
+                       / np.pi) ** 0.5 / 72.0
+        pitch = max(max(text_pitch, dot_d) + _GRID_GAP_IN, _PITCH_MIN_IN)
     left_in = (_AXIS_LABEL_IN + max_row_label * cw
                + (_ROW_DOT_IN if has_row_colors else 0.0) + _PAD_IN)
     bottom_in = _AXIS_LABEL_IN + max_gene_label * cw + _PAD_IN
@@ -250,7 +260,19 @@ def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
     right = max(min(1.0 - right_in / fig_w, 0.97), left + 0.15)
     bottom = min(max(bottom_in / fig_h, 0.04), 0.6)
     top = max(min(1.0 - top_in / fig_h, 0.97), bottom + 0.15)
-    return (fig_w, fig_h), {"left": left, "right": right, "bottom": bottom, "top": top}
+    if autosize_dots:
+        # 点 fit 真实数据区格距(fig_size 给定时按实际宽高算,不只用名义 pitch)
+        act_pitch = min(fig_w * (right - left) / max(n_genes, 1),
+                        fig_h * (top - bottom) / max(n_rows, 1))
+        d_pt = act_pitch * _DOT_FILL * 72.0
+        area100 = np.pi * (d_pt / 2.0) ** 2          # pct=100 满格点 area(pt^2)
+        eff_scale = max((area100 - _DOT_BASE_MIN) / 100.0, 0.01)
+        eff_base = _DOT_BASE_MIN
+    else:
+        eff_scale, eff_base = size_scale, size_base
+    return ((fig_w, fig_h),
+            {"left": left, "right": right, "bottom": bottom, "top": top},
+            eff_scale, eff_base)
 
 
 def _draw_right_legends(fig, ax, sc, *, right_f, fig_w, cbar_label, pcts,
@@ -333,6 +355,7 @@ def marker_dotplot(
     size_pcts: Sequence[int] | None = None,
     size_scale: float = 1.6,
     size_base: float = 2.5,
+    autosize_dots: bool = True,
     legend_loc: str = "right",
     ax=None,
 ):
@@ -357,6 +380,11 @@ def marker_dotplot(
         budget: grid sized by per-gene / per-row pitch, margins by label length,
         plus a fixed right legend band. Margins and the right legend also adapt
         to any explicit ``fig_size`` you pass (no hard-coded figure fractions).
+    autosize_dots
+        ``True`` (default): pitch follows the tick **text** (tightest non-
+        overlapping) and dot sizes auto-scale to fit that pitch — the figure is
+        sized by text, dots follow. Pass ``False`` + ``size_scale`` /
+        ``size_base`` to fix dot sizes instead (pitch then grows to fit the dots).
     block_per_gene
         Dict ``gene -> block`` or sequence aligned with ``gene_order`` for
         vertical separators. ``None`` (default) draws no separators.
@@ -439,12 +467,13 @@ def marker_dotplot(
     _pct = df[pct_col].to_numpy(dtype=float)
     max_pct = float(np.clip(_pct.max() if _pct.size else 100.0, 1.0, 100.0))
     layout_size = fig_size if ax is None else tuple(ax.figure.get_size_inches())
-    fig_size, frac = _grid_layout(
+    fig_size, frac, eff_scale, eff_base = _grid_layout(
         len(gene_order), len(row_order), font=font,
         has_row_colors=row_colors is not None, has_title=bool(title),
         max_row_label=max_row_label, max_gene_label=max_gene_label,
         legend_loc=legend_loc, fig_size=layout_size,
         max_pct=max_pct, size_scale=size_scale, size_base=size_base,
+        autosize_dots=autosize_dots,
     )
     if ax is None:
         fig, ax = plt.subplots(figsize=fig_size)
@@ -455,7 +484,7 @@ def marker_dotplot(
     sc = ax.scatter(
         x, y,
         s=dot_sizes(df[pct_col].to_numpy(dtype=float),
-                    scale=size_scale, base=size_base),
+                    scale=eff_scale, base=eff_base),
         c=df["__color"].to_numpy(dtype=float),
         cmap=cmap, vmin=cvmin, vmax=cvmax,
         linewidths=DOT_EDGE_LW, edgecolors=DOT_EDGE,
@@ -498,12 +527,12 @@ def marker_dotplot(
         fig.subplots_adjust(**frac)
         _draw_right_legends(fig, ax, sc, right_f=frac["right"], fig_w=fig_w,
                             cbar_label=cbar_label, pcts=size_pcts,
-                            size_scale=size_scale, size_base=size_base, font=font)
+                            size_scale=eff_scale, size_base=eff_base, font=font)
     else:  # "bottom": colorbar 右侧 + size 图例 底部横排(旧版式)
         cbar = fig.colorbar(sc, ax=ax, fraction=0.022, pad=0.025)
         style_colorbar(cbar, font=font, label=cbar_label)
         add_size_legend(ax, font=font, pcts=size_pcts,
-                        size_scale=size_scale, size_base=size_base)
+                        size_scale=eff_scale, size_base=eff_base)
         fig.subplots_adjust(left=frac["left"], right=0.84,
                             top=frac["top"], bottom=frac["bottom"])
     return fig, ax, sc
