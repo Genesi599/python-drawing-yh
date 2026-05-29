@@ -76,6 +76,7 @@
   <a href="omics.html">Omics overview</a>
   <a href="omics-marker-qc.html" class="current">Marker / QC</a>
   <a href="#marker-dotplot">  Marker dot plot</a>
+  <a href="#feature-plot">  Embedding feature plot</a>
   <a href="#pca">  PCA score plot</a>
   <a href="omics-comparison.html">Comparison</a>
   <a href="omics-differential.html">Differential</a>
@@ -92,7 +93,7 @@
 </nav>
 <main class="report-main">
 <h1 id="marker-qc">Marker / QC</h1>
-<p>Omics / Marker / QC — 2 种示例图。</p>
+<p>Omics / Marker / QC — 3 种示例图。</p>
 <div class="gallery-grid">
 <article class="gallery-card" id="marker-dotplot">
 <figure>
@@ -106,7 +107,8 @@ Marker dot plot
 单细胞 marker 表达矩阵。
 </p>
 <p>
-<em>颜色=gene-scaled mean，大小=pct expressed。</em>
+<em>颜色=gene-scaled mean(可换 grey-red)，大小=pct
+expressed，左侧彩点=cell-type 颜色。</em>
 </p>
 <div class="gallery-meta">
 Omics / Marker / QC · drawing_yh/dotplot.py
@@ -116,6 +118,31 @@ Omics / Marker / QC · drawing_yh/dotplot.py
 </div>
 <div class="gallery-links">
 <a href="../generated/marker_dotplot.png">原图</a><a href="../../drawing_yh/dotplot.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="feature-plot">
+<figure>
+<a href="../generated/feature_plot.png"><img src="../generated/feature_plot.png" alt="Embedding feature plot"></a>
+</figure>
+<div class="body">
+<h3>
+Embedding feature plot
+</h3>
+<p>
+基因表达投影到 UMAP/tSNE 的多基因网格。
+</p>
+<p>
+<em>共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。</em>
+</p>
+<div class="gallery-meta">
+Omics / Marker / QC · drawing_yh/embedding.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>umap</span> <span>feature</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/feature_plot.png">原图</a><a href="../../drawing_yh/embedding.py">源码/示例</a>
 </div>
 </div>
 </article>

@@ -250,6 +250,7 @@ def generate_marker_dotplot() -> Path:
         xlabel="Marker gene",
         ylabel="Cell type",
         fig_size=(5.2, 3.25),
+        row_colors=dict(zip(rows, OKABE_ITO)),
         block_per_gene={
             "COL1A1": "Lineage",
             "PECAM1": "Lineage",
@@ -350,6 +351,59 @@ def generate_hub_spoke() -> Path:
     return out
 
 
+def generate_feature_plot() -> Path:
+    from drawing_yh import feature_plot
+
+    rng = np.random.default_rng(23)
+    per = 200
+    centers = np.array([[-2.6, 0.1], [2.1, 2.0], [1.4, -2.3]])
+    coords = np.vstack([c + rng.normal(0, 0.7, (per, 2)) for c in centers])
+
+    def marker(cluster_idx: int, strength: float = 3.0):
+        v = rng.gamma(0.3, size=coords.shape[0])
+        lo, hi = cluster_idx * per, (cluster_idx + 1) * per
+        v[lo:hi] += rng.gamma(strength, size=per)
+        return v
+
+    values = {"PECAM1": marker(0), "COL1A1": marker(1), "LYZ": marker(2)}
+    out = GEN / "feature_plot.png"
+    fig, _ = feature_plot(coords, values, panel_size=1.95, point_size=7,
+                          vmin="p2", vmax="p98")
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
+def generate_heatmap_row_bars() -> Path:
+    from drawing_yh import heatmap_with_row_bars
+
+    rng = np.random.default_rng(29)
+    rows = ["Fib", "EC", "Mac", "VSMC", "T cell", "B cell"]
+    per = 3
+    G = len(rows)
+    Z = rng.normal(0, 0.6, (G, G * per))
+    for i in range(G):
+        Z[i, i * per:(i + 1) * per] += 2.3
+    row_bars = {
+        "Fib": [("extracellular matrix organization", 6.1), ("collagen fibril", 3.2)],
+        "EC": [("vasculature development", 5.4), ("angiogenesis", 2.8)],
+        "Mac": [("immune response", 4.9), ("phagocytosis", 2.4)],
+        "VSMC": [("muscle contraction", 4.1)],
+        "T cell": [("T cell activation", 3.8)],
+        "B cell": [("B cell receptor signaling", 3.3)],
+    }
+    colors = dict(zip(rows, OKABE_ITO))
+    out = GEN / "heatmap_row_bars.png"
+    fig, _ = heatmap_with_row_bars(
+        Z, row_labels=rows, row_bars=row_bars,
+        block_sizes=[per] * G, row_colors=colors,
+        z_clip=2.5, figsize=(6.2, 3.0),
+    )
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def generate_all() -> dict[str, Path]:
     GEN.mkdir(parents=True, exist_ok=True)
     return {
@@ -360,6 +414,8 @@ def generate_all() -> dict[str, Path]:
         "heatmap_tile": generate_heatmap_tile(),
         "pca_score": generate_pca_plot(),
         "marker_dotplot": generate_marker_dotplot(),
+        "feature_plot": generate_feature_plot(),
+        "heatmap_row_bars": generate_heatmap_row_bars(),
         "dumbbell": generate_dumbbell(),
         "venn_diagram": generate_venn(),
         "chord_diagram": generate_chord(),
@@ -380,12 +436,14 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("bubble-plot", "Quantitative", "Scatter", "Bubble plot", generated["bubble_plot"], OUT / "build_gallery.py", "二维类别矩阵 + 第三变量大小。", "颜色和气泡大小可同时编码。", ("bubble", "matrix")),
         Example("rank-plot", "Quantitative", "Scatter", "Rank plot", generated["rank_plot"], OUT / "build_gallery.py", "候选基因、通路、feature 的排序。", "适合强调 top candidates。", ("rank", "candidate")),
         Example("dot-chart", "Quantitative", "Scatter", "Dot chart", p / "scatter/dot_chart/output/protein_dotplot/TNF_p0.png", p / "scatter/dot_chart/dot_chart.py", "蛋白/代谢物跨组织或分组点图。", "可用颜色、位置、显著性共同编码。", ("dot", "summary")),
-        Example("marker-dotplot", "Omics", "Marker / QC", "Marker dot plot", generated["marker_dotplot"], p / "dotplot.py", "单细胞 marker 表达矩阵。", "颜色=gene-scaled mean，大小=pct expressed。", ("single-cell", "marker", "dotplot")),
+        Example("marker-dotplot", "Omics", "Marker / QC", "Marker dot plot", generated["marker_dotplot"], p / "dotplot.py", "单细胞 marker 表达矩阵。", "颜色=gene-scaled mean(可换 grey-red)，大小=pct expressed，左侧彩点=cell-type 颜色。", ("single-cell", "marker", "dotplot")),
+        Example("feature-plot", "Omics", "Marker / QC", "Embedding feature plot", generated["feature_plot"], p / "embedding.py", "基因表达投影到 UMAP/tSNE 的多基因网格。", "共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。", ("single-cell", "umap", "feature")),
         Example("dumbbell", "Omics", "Comparison", "Dumbbell chart", generated["dumbbell"], p / "dumbbell.py", "Young vs Old 或处理前后均值比较。", "箭头方向编码升降，适合通讯强度或 pathway score。", ("dumbbell", "comparison")),
         Example("volcano", "Omics", "Differential", "Volcano plot", p / "volcano_plot/Volcano_plot.png", p / "volcano_plot/volcano.py", "差异分析结果，logFC × p-value。", "适合快速筛选显著上/下调。", ("volcano", "DEG")),
         Example("pca", "Omics", "Marker / QC", "PCA score plot", generated["pca_score"], p / "pca/PCA.py", "样本整体结构、批次、分组分离。", "用于 QC 和组间结构展示。", ("PCA", "QC")),
         Example("heatmap-clustered", "Omics", "Heatmap", "Clustered heatmap", p / "heatmap/heatmap_clustered/HMM 20241126/heatmap_with_colorbar_cluster.png", p / "heatmap/heatmap_clustered/heapmap_clustered.py", "矩阵聚类、表达模式、样本/基因分组。", "适合 feature 数中等的全局模式。", ("heatmap", "cluster")),
         Example("heatmap-tile", "Omics", "Heatmap", "Tile heatmap", generated["heatmap_tile"], p / "heatmap/heatmap_tile_style/heatmap_tile_style.py", "通路 × 细胞类型、组织 × feature 的紧凑矩阵。", "适合报告里快速比较方向。", ("heatmap", "tile")),
+        Example("heatmap-row-bars", "Omics", "Heatmap", "Heatmap + per-row bars", generated["heatmap_row_bars"], p / "heatmap/row_bars.py", "z-score 热图 + 每行 top 富集条(如各 cell type GO)。", "左侧行彩条 + 列块分隔，右侧横向条标注通路。", ("single-cell", "heatmap", "enrichment")),
         Example("dose-heatmap", "Omics", "Heatmap", "Dose-response heatmap", p / "dose_response/heatmap_with_colorbar.png", p / "dose_response/heatmap_with_colorbar.py", "药物浓度 × 组合条件矩阵。", "适合筛选敏感窗口。", ("dose-response", "heatmap")),
         Example("pie", "Composition", "Pie / Donut", "Pie chart", p / "pie_chart/pie/pie.png", p / "pie_chart/pie/main.py", "少量类别的组成比例。", "类别过多时优先换 bar plot。", ("pie", "composition")),
         Example("donut", "Composition", "Pie / Donut", "Donut chart", p / "pie_chart/donut/donut.png", p / "pie_chart/donut/main.py", "组成比例 + 中心注释。", "比普通 pie 更适合放总数或标签。", ("donut", "composition")),

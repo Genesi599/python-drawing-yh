@@ -90,13 +90,13 @@
 </nav>
 <main class="report-main">
 <h1 id="omics">Omics</h1>
-<p>7 种示例图。</p>
+<p>9 种示例图。</p>
 <h2 id="子类">子类</h2>
 <ul>
-<li><a href="omics-marker-qc.html">Marker / QC</a> — 2 examples</li>
+<li><a href="omics-marker-qc.html">Marker / QC</a> — 3 examples</li>
 <li><a href="omics-comparison.html">Comparison</a> — 1 examples</li>
 <li><a href="omics-differential.html">Differential</a> — 1 examples</li>
-<li><a href="omics-heatmap.html">Heatmap</a> — 3 examples</li>
+<li><a href="omics-heatmap.html">Heatmap</a> — 4 examples</li>
 </ul>
 <h2 id="全部示例">全部示例</h2>
 <div class="gallery-grid">
@@ -112,7 +112,8 @@ Marker dot plot
 单细胞 marker 表达矩阵。
 </p>
 <p>
-<em>颜色=gene-scaled mean，大小=pct expressed。</em>
+<em>颜色=gene-scaled mean(可换 grey-red)，大小=pct
+expressed，左侧彩点=cell-type 颜色。</em>
 </p>
 <div class="gallery-meta">
 Omics / Marker / QC · drawing_yh/dotplot.py
@@ -122,6 +123,31 @@ Omics / Marker / QC · drawing_yh/dotplot.py
 </div>
 <div class="gallery-links">
 <a href="../generated/marker_dotplot.png">原图</a><a href="../../drawing_yh/dotplot.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="feature-plot">
+<figure>
+<a href="../generated/feature_plot.png"><img src="../generated/feature_plot.png" alt="Embedding feature plot"></a>
+</figure>
+<div class="body">
+<h3>
+Embedding feature plot
+</h3>
+<p>
+基因表达投影到 UMAP/tSNE 的多基因网格。
+</p>
+<p>
+<em>共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。</em>
+</p>
+<div class="gallery-meta">
+Omics / Marker / QC · drawing_yh/embedding.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>umap</span> <span>feature</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/feature_plot.png">原图</a><a href="../../drawing_yh/embedding.py">源码/示例</a>
 </div>
 </div>
 </article>
@@ -249,6 +275,31 @@ drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py
 </div>
 <div class="gallery-links">
 <a href="../generated/heatmap_tile.png">原图</a><a href="../../drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="heatmap-row-bars">
+<figure>
+<a href="../generated/heatmap_row_bars.png"><img src="../generated/heatmap_row_bars.png" alt="Heatmap + per-row bars"></a>
+</figure>
+<div class="body">
+<h3>
+Heatmap + per-row bars
+</h3>
+<p>
+z-score 热图 + 每行 top 富集条(如各 cell type GO)。
+</p>
+<p>
+<em>左侧行彩条 + 列块分隔，右侧横向条标注通路。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap · drawing_yh/heatmap/row_bars.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>heatmap</span> <span>enrichment</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/heatmap_row_bars.png">原图</a><a href="../../drawing_yh/heatmap/row_bars.py">源码/示例</a>
 </div>
 </div>
 </article>
