@@ -86,7 +86,7 @@ set_rc()
 from .io import save_fig                                # noqa: E402
 from .palettes import (                                 # noqa: E402
     OKABE_ITO, DEEP_20, AGE_GRADIENT, SEX, SPECIES, THREE_GROUP,
-    to_grayscale, grayscale_distinct, preview_palette,
+    to_grayscale, grayscale_distinct, preview_palette, family_palette,
 )
 from .layout import (                                   # noqa: E402
     compute_figsize, get_text_bboxes, find_overlaps, nudge_no_overlap_y,
@@ -123,7 +123,7 @@ __all__ = [
     "save_fig",
     # palettes
     "OKABE_ITO", "DEEP_20", "AGE_GRADIENT", "SEX", "SPECIES", "THREE_GROUP",
-    "to_grayscale", "grayscale_distinct", "preview_palette",
+    "to_grayscale", "grayscale_distinct", "preview_palette", "family_palette",
     # layout
     "compute_figsize", "get_text_bboxes", "find_overlaps",
     "nudge_no_overlap_y", "autoshrink_figsize", "TextBBox",

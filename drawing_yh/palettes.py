@@ -12,7 +12,8 @@ drawing_yh.palettes — 命名色板 + 色盲 / 灰度检查
 """
 from __future__ import annotations
 
-from typing import Sequence, Tuple
+import colorsys
+from typing import List, Sequence, Tuple
 
 
 # ============================================================
@@ -81,6 +82,41 @@ def _hex_to_rgb(h: str) -> Tuple[float, float, float]:
     """`#RRGGBB` → (r, g, b),分量在 0–1。"""
     h = h.lstrip('#')
     return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+
+def family_palette(hue: float, n: int, *, hue_span: float = 0.17) -> List[Tuple[float, float, float]]:
+    """同一"家族"(共享基础 ``hue``,如一个大类 / 谱系)内 ``n`` 个子类的配色。
+
+    分层图谱(major class → subtype)常见诉求:**子类既要属于本家族色系(一眼看出大类),
+    又要彼此区分得开**。纯渐变明度的同 hue 色相邻子类太像。本函数:
+
+    - **适度加宽 hue 跨度**(``hue_span`` 默认 0.17,绕 ``hue`` 居中铺开)——拉开色相但不串到
+      隔壁家族(大类 hue 间距通常 ~0.1,0.17 跨度安全)。
+    - **相邻子类明暗 / 饱和度强交替**:偶数项偏亮 + 中饱和,奇数项偏暗 + 高饱和,使**挨着的
+      子类对比拉满**(配合 cluster_atlas 的 z-order,小群在上仍可辨)。
+
+    ``hue`` / ``hue_span`` 为 HSV 色相(0–1 环)。返回 ``n`` 个 ``(r, g, b)``(0–1)。
+
+    典型用法(每大类一基础 hue,内部用本函数铺子类)::
+
+        HUE = {"Neuron": 0.60, "Glia": 0.34, "Immune": 0.0, ...}
+        sub_color = {}
+        for mc, subs in subtypes_by_major.items():
+            for s, c in zip(subs, family_palette(HUE[mc], len(subs))):
+                sub_color[s] = c
+    """
+    cols: List[Tuple[float, float, float]] = []
+    for i in range(n):
+        t = i / max(n - 1, 1)
+        h = (hue - hue_span / 2 + hue_span * t) % 1.0
+        if i % 2 == 0:                       # 偶: 亮 + 中饱和
+            s = min(0.50 + 0.30 * t, 1.0)
+            v = max(min(0.97 - 0.22 * t, 1.0), 0.40)
+        else:                                # 奇: 暗 + 高饱和(与相邻偶项强对比)
+            s = min(0.80 + 0.20 * t, 1.0)
+            v = max(min(0.70 - 0.22 * t, 1.0), 0.38)
+        cols.append(colorsys.hsv_to_rgb(h, s, v))
+    return cols
 
 
 def to_grayscale(color: str) -> float:
