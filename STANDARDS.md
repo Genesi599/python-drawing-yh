@@ -288,7 +288,7 @@ analysis/<project>/
 ├── _report_config.py     # SLIDES / CATEGORIES,两个脚本共用
 ├── build_pages.py        # HTML 渲染入口
 ├── md_to_pptx.py         # PPT 渲染入口
-├── index.html            # redirect → pages/index.html
+├── index.html            # redirect → pages/index.html, <title> 必须是报告名
 ├── pages/
 │   ├── index.html        # landing
 │   ├── <slug>.html × N   # 每张 ≤ 一页 PPT 量
@@ -298,6 +298,9 @@ analysis/<project>/
 
 **HTML 报告特征**:dark GitHub 风 / sticky 顶 4-tab(无前缀文字)/ 左 sidebar 按当前 cat 过滤
 (landing 例外)/ 窄屏 sidebar 折 48 px 细栏不挪顶 / 每页只一层标题(用 pandoc `pagetitle`)。
+根目录 `index.html` 虽然只是 redirect,`<title>` 也必须写具体报告名 / 项目名,不要写 `redirect`;
+否则 Codex / 浏览器的本地页面列表会显示一堆同名 redirect。普通模板改 `REPORT_TITLE`,
+combined 模板复用 `PROJECT_TITLE`。
 
 **PPTX 特征**:继承母版 master / theme / 字体配色;每张 slide 顶部 = 项目标签 + 标题 + 橙色分隔线;
 有图 → 左大图 + 右 ➤ bullets(垂直居中);无图 → 全宽;表格列宽按内容长短分配;字号 14pt

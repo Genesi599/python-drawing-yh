@@ -44,21 +44,30 @@ from _combined_report_config import (
 SUPER_CSS = """
 <style>
 .super-switch {
-  display: flex; gap: 8px; justify-content: center; align-items: center;
+  display: flex; flex-wrap: wrap; gap: 6px 8px;
+  justify-content: center; align-items: center;
   margin: 0 0 14px 0; padding: 8px 10px;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
 }
 .super-switch .super-label {
+  flex: 0 0 auto;
   color: var(--muted); font-size: .78em; font-weight: 600;
   letter-spacing: .08em; margin-right: 6px; text-transform: uppercase;
 }
 .super-switch a.super-btn {
+  flex: 0 1 auto; min-width: 0; box-sizing: border-box;
   padding: 6px 22px; border-radius: 999px; color: var(--fg); font-weight: 600;
-  font-size: .95em; border: 1px solid var(--border); background: var(--bg-soft);
+  font-size: .95em; white-space: nowrap; text-align: center;
+  border: 1px solid var(--border); background: var(--bg-soft);
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
 .super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
 .super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
+@media (max-width: 900px) {
+  .super-switch { justify-content: flex-start; padding: 8px; }
+  .super-switch .super-label { flex-basis: 100%; margin-right: 0; }
+  .super-switch a.super-btn { padding: 5px 12px; font-size: .9em; }
+}
 </style>
 """
 
@@ -400,7 +409,7 @@ def main():
     redirect = (
         '<!doctype html><meta charset="utf-8">'
         '<meta http-equiv="refresh" content="0; url=pages/index.html">'
-        '<title>redirect</title><p>Redirect to <a href="pages/index.html">report</a>.</p>\n'
+        f'<title>{PROJECT_TITLE}</title><p>Redirect to <a href="pages/index.html">report</a>.</p>\n'
     )
     (HERE / "index.html").write_text(redirect, encoding="utf-8")
     print("done.")

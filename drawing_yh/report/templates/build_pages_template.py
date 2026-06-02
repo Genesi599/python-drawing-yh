@@ -25,6 +25,7 @@ from _report_config import (
 )
 
 OUT = HERE / 'pages'
+REPORT_TITLE = '项目结果报告'
 
 
 def sync_report_figs():
@@ -109,7 +110,7 @@ def main():
     redirect = (
         '<!doctype html><meta charset="utf-8">'
         '<meta http-equiv="refresh" content="0; url=pages/index.html">'
-        '<title>redirect</title>'
+        f'<title>{REPORT_TITLE}</title>'
         '<p>跳转到 <a href="pages/index.html">pages/index.html</a> …</p>\n'
     )
     (HERE / 'index.html').write_text(redirect, encoding='utf-8')
