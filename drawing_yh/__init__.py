@@ -104,6 +104,7 @@ from . import dotplot                                   # noqa: E402,F401
 from .embedding import (                                # noqa: E402
     feature_plot,
     resolve_vlim, scatter_embedding, add_embedding_axes, auto_ncols,
+    cluster_atlas, cluster_centroids,
 )
 from . import embedding                                 # noqa: E402,F401
 from .heatmap import heatmap_with_row_bars              # noqa: E402
@@ -138,6 +139,7 @@ __all__ = [
     "add_size_legend", "add_block_separators", "add_row_color_dots",
     # embedding feature-plot primitives (re-exported from drawing_yh.embedding)
     "resolve_vlim", "scatter_embedding", "add_embedding_axes", "auto_ncols",
+    "cluster_atlas", "cluster_centroids",
     # subpackages
     "dotplot",
     "embedding",

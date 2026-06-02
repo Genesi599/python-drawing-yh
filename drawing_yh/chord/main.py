@@ -70,7 +70,7 @@ def chord_diagram(
     alpha: float = 1.0,             # chord 不透明,深
     pad: float = 3.0,               # sector 间空隙(度)
     chordwidth: float = 0.5,        # chord 弯曲度(0.3 直,0.5 适中,0.7 中段窄)
-    intra_gap: float = 1.5,         # 同 sender 内 chord 子区段空隙(度)
+    intra_gap: float | None = None, # 同 sender 内 chord 子区段空隙(度);None=按 chord 总数自适应
     width: float = 0.1,             # sector arc 厚度(0-1)
     drop_zero_nodes: bool = True,
     radial_labels: bool = True,     # node label 径向(垂直 sector arc),节省版面
@@ -147,6 +147,16 @@ def chord_diagram(
     # alpha floor:legacy production scripts 传 alpha=0.42/0.55 太浅,统一 floor 到 0.85
     eff_alpha = max(alpha, 0.85)
 
+    # intra_gap 自适应:chord 多则 gap 小(否则极小 sub-region 被 gap 吃掉)
+    # 公式:总 chord 数 N → eff_gap = clip(8/N, 0.15, 1.5)
+    #   5 chord  → 1.5 度;15 → 0.53;50 → 0.16;100+ → 0.15(floor)
+    if intra_gap is None:
+        import numpy as _np
+        n_chords = int((_np.asarray(mat.values) > 0).sum())
+        eff_intra_gap = max(0.15, min(1.5, 8.0 / max(n_chords, 1)))
+    else:
+        eff_intra_gap = intra_gap
+
     def _render(_fig_sz):
         _fig, _ax = plt.subplots(figsize=(_fig_sz, _fig_sz))
         plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
@@ -159,7 +169,7 @@ def chord_diagram(
                    chordwidth=chordwidth,
                    width=width,
                    gap=0,
-                   intra_gap=intra_gap,
+                   intra_gap=eff_intra_gap,
                    rotate_names=radial_labels,
                    show=False,
                    fontsize=fontsize,

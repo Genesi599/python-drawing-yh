@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import matplotlib.patches as mpatches
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -314,6 +315,185 @@ def feature_plot(
     return fig, axes
 
 
+# ============================================================
+# categorical cluster atlas (脑膜 complete-atlas 画法模版)
+# ============================================================
+def cluster_centroids(coords, labels, *, trim: float = 0.65):
+    """每个类别的稳健质心: 先中位, 再取距质心最近 ``trim`` 分位的点重算中位
+    (抗离群细胞 / 触角丝须, 标号落在团主体)。返回 ``{label: (x, y, n)}``。
+    """
+    coords = np.asarray(coords, dtype=float)
+    labels = np.asarray(labels)
+    out = {}
+    for lab in pd.unique(labels):
+        m = labels == lab
+        x, y = coords[m, 0], coords[m, 1]
+        if x.size == 0:
+            continue
+        cx, cy = np.median(x), np.median(y)
+        d = (x - cx) ** 2 + (y - cy) ** 2
+        keep = d <= np.quantile(d, trim)
+        out[str(lab)] = (float(np.median(x[keep])), float(np.median(y[keep])), int(m.sum()))
+    return out
+
+
+def _atlas_palette(n):
+    """n 个类别的定性配色 (tab20 → tab20b → tab20c 循环, 不够再用 hsv 补)。"""
+    import matplotlib.cm as cm
+    import colorsys
+    base = []
+    for name in ("tab20", "tab20b", "tab20c"):
+        base.extend(list(cm.get_cmap(name).colors))
+    if n <= len(base):
+        return base[:n]
+    extra = [colorsys.hsv_to_rgb((i / max(1, n - len(base))) % 1.0, 0.6, 0.85)
+             for i in range(n - len(base))]
+    return base + extra
+
+
+def _draw_atlas_key(ax, order, label_ids, color_of, disp, sublabels, count_of, ncol, fs):
+    """右侧独立编号 legend: 2(或 ncol)列, 每项 = 色点 + "编号. 显示名 (计数)" + 可选副标。"""
+    ax.set_axis_off()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    rows = int(np.ceil(len(order) / ncol))
+    for idx, lab in enumerate(order):
+        col, row = idx // rows, idx % rows
+        x0 = 0.02 + col * (1.0 / ncol)
+        y = 1.0 - (row + 0.5) / rows
+        ax.scatter([x0], [y], s=22, color=color_of[lab], transform=ax.transAxes, clip_on=False)
+        txt = f"{label_ids[lab]}. {disp(lab)}"
+        if count_of is not None:
+            txt += f" ({count_of.get(lab, 0):,})"
+        ax.text(x0 + 0.035, y, txt, transform=ax.transAxes, ha="left", va="center", fontsize=fs)
+        sub = (sublabels.get(lab) if isinstance(sublabels, Mapping) else None) if sublabels else None
+        if sub:
+            ax.text(x0 + 0.035, y - 0.45 / rows, str(sub), transform=ax.transAxes,
+                    ha="left", va="top", fontsize=fs - 1.2, color="#666666")
+
+
+def cluster_atlas(
+    coords, labels, *,
+    order=None, colors=None, excluded=None, label_ids=None,
+    title=None, display=None, sublabels=None,
+    counts_in_legend=True, centroid="number", min_centroid_cells=0,
+    label_offsets=None, legend=True, legend_ncol=2, legend_fontsize=None,
+    point_size=0.75, bg_color="#BDBDBD", bg_size=0.06, bg_alpha=0.18,
+    alpha=0.78, square=True, axis_labels=("UMAP 1", "UMAP 2"),
+    font=DEFAULT_FONT_SIZE, fig_size=None, ax=None,
+):
+    """分类细胞图谱 UMAP 一键模版 (额叶 final complete-atlas 画法)。
+
+    每类一离散色, **按细胞数 z-order**(大群在底、小群在上不被盖), 团心标编号(白描边),
+    右侧 2 列编号 legend(编号→显示名 + 计数), 剔除细胞画淡灰底, 正方形等比(square)
+    + UMAP1/2 轴标。分类图谱版一键函数(对应连续值的 ``feature_plot``)。
+
+    coords : (N, 2) x/y 坐标。  labels : (N,) 每个细胞的类别 label。
+    order : 编号 / legend 顺序; ``None`` → 按细胞数降序。(画图层序始终大群在底, 与此无关)
+    colors : dict ``label->color`` 或与 order 对齐的序列; ``None`` → 自动定性配色。
+    excluded : (N,) bool, ``True`` 的细胞画淡灰底, 不参与编号 / 质心 / legend。
+    label_ids : dict ``label->编号``; ``None`` → 按 order 自动 1..k。传入则沿用(跨图谱共用全局编号)。
+    display : dict 或 callable ``label->显示名``; ``None`` → 原样(可传 celltype_fullnames)。
+    sublabels : dict ``label->副标``(如大类 / 谱系), legend 名下加一行灰字。
+    centroid : ``"number"``(默认) | ``"name"`` | ``None``。
+    min_centroid_cells : 细胞数 < 此值的类不标团心(默认 0 = 全标; 额叶用 80 跳过 tiny)。
+    label_offsets : dict ``label->(dx, dy)`` 手动微调团心标号位置(防数字相撞)。
+    point_size : 散点大小(默认 0.75 固定; 小群靠 z-order 在上层仍可见)。
+    square : ``True`` → data 范围正方形居中 + box_aspect=1。
+    返回 ``(fig, ax, label_ids)``, ``label_ids`` = ``{label: 编号}``。
+    """
+    coords = np.asarray(coords, dtype=float)
+    labels = np.asarray(labels).astype(str)
+    excluded = (np.zeros(len(labels), bool) if excluded is None
+                else np.asarray(excluded, dtype=bool))
+    kept = ~excluded
+    count_of = pd.Series(labels[kept]).value_counts().to_dict()
+    label_offsets = label_offsets or {}
+
+    if order is None:
+        order = list(pd.Series(labels[kept]).value_counts().index)
+    else:
+        order = [str(o) for o in order if (labels[kept] == str(o)).any()]
+    # 编号: 默认按 order 顺序 1..k; 传 label_ids 则用之(跨图谱沿用全局编号)
+    if label_ids is None:
+        label_ids = {lab: i + 1 for i, lab in enumerate(order)}
+    else:
+        label_ids = {lab: label_ids[lab] for lab in order if lab in label_ids}
+
+    if colors is None:
+        pal = _atlas_palette(len(order))
+        color_of = {lab: pal[i] for i, lab in enumerate(order)}
+    elif isinstance(colors, Mapping):
+        color_of = {lab: colors.get(lab, "#9A9A9A") for lab in order}
+    else:
+        color_of = {lab: colors[i] for i, lab in enumerate(order)}
+
+    def disp(lab):
+        if display is None:
+            return lab
+        return display(lab) if callable(display) else display.get(lab, lab)
+
+    if ax is None and legend:
+        nrow = int(np.ceil(len(order) / legend_ncol))
+        max_lab = max((len(str(disp(l))) for l in order), default=8)
+        key_w = 0.55 + (0.052 * max_lab + 0.45) * legend_ncol
+        main_w = fig_size[0] if fig_size else 5.2
+        fh = fig_size[1] if fig_size else max(4.4, 0.155 * nrow + 1.7)
+        fig, (ax, key_ax) = plt.subplots(
+            1, 2, figsize=(main_w + key_w, fh),
+            gridspec_kw={"width_ratios": [main_w, key_w], "wspace": 0.02})
+    elif ax is None:
+        fig, ax = plt.subplots(figsize=fig_size or (5.4, 5.0))
+        key_ax = None
+    else:
+        fig, key_ax = ax.figure, None
+
+    # 剔除细胞: 淡灰背景, 先画
+    if excluded.any():
+        ax.scatter(coords[excluded, 0], coords[excluded, 1], s=bg_size,
+                   c=bg_color, linewidths=0, alpha=bg_alpha, rasterized=True)
+    # 类别散点: 大群先画(底层 z 小), 小群在上(不被盖)
+    draw_order = sorted(order, key=lambda lab: -count_of.get(lab, 0))
+    for z, lab in enumerate(draw_order, start=2):
+        m = kept & (labels == lab)
+        if not m.any():
+            continue
+        ax.scatter(coords[m, 0], coords[m, 1], s=point_size, color=color_of[lab],
+                   linewidths=0, alpha=alpha, rasterized=True, zorder=z)
+    # 团心编号 (白描边; 跳过 tiny; 可手动微调位置)
+    if centroid:
+        for lab, (cx, cy, n) in cluster_centroids(coords[kept], labels[kept]).items():
+            if lab not in label_ids or n < min_centroid_cells:
+                continue
+            dx, dy = label_offsets.get(lab, (0.0, 0.0))
+            txt = str(label_ids[lab]) if centroid == "number" else disp(lab)
+            ax.text(cx + dx, cy + dy, txt, ha="center", va="center", fontsize=font,
+                    fontweight="bold", zorder=100,
+                    path_effects=[pe.withStroke(linewidth=2.0, foreground="white")])
+    if square:
+        xmin, xmax = coords[:, 0].min(), coords[:, 0].max()
+        ymin, ymax = coords[:, 1].min(), coords[:, 1].max()
+        xmid, ymid = (xmin + xmax) / 2, (ymin + ymax) / 2
+        span = max(xmax - xmin, ymax - ymin) * 1.04
+        ax.set_xlim(xmid - span / 2, xmid + span / 2)
+        ax.set_ylim(ymid - span / 2, ymid + span / 2)
+        ax.set_box_aspect(1)
+    ax.set_aspect("equal", adjustable="box")
+    if title:
+        ax.set_title(title, fontsize=font, pad=4)
+    ax.set_xlabel(axis_labels[0], fontsize=font)
+    ax.set_ylabel(axis_labels[1], fontsize=font)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    if key_ax is not None:
+        _draw_atlas_key(key_ax, order, label_ids, color_of, disp, sublabels,
+                        count_of if counts_in_legend else None,
+                        legend_ncol, legend_fontsize or (font - 1.2))
+    return fig, ax, label_ids
+
+
 __all__ = [
     "GREY_RED",
     "resolve_vlim",
@@ -321,4 +501,6 @@ __all__ = [
     "scatter_embedding",
     "add_embedding_axes",
     "feature_plot",
+    "cluster_centroids",
+    "cluster_atlas",
 ]

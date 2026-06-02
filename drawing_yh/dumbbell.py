@@ -47,6 +47,8 @@ def render_mean_dumbbell(
     old_col: str = "sample_mean_old",
     delta_col: str = "sample_delta_old_minus_young",
     sig_col: str = "age_sig",
+    tick_colors: list | None = None,
+    tick_segments: list | None = None,
     width: float = DOUBLE_COL_IN,
     fmt: str | None = None,
     label_pad_frac: float = 0.025,
@@ -135,7 +137,30 @@ def render_mean_dumbbell(
         )
 
     ax.set_yticks(range(len(df)))
-    ax.set_yticklabels(df[edge_col], fontsize=DEFAULT_FONT_SIZE)
+    if tick_segments is not None:
+        # 两段着色的行标签(发送名/接收名各自 lineage 色):用 offsetbox 拼成右对齐的伪 tick label
+        from matplotlib.offsetbox import TextArea, HPacker, AnnotationBbox
+        ax.set_yticklabels([])
+        ax.tick_params(axis="y", length=0)
+        for _i, _segs in enumerate(tick_segments):
+            _boxes = [
+                TextArea(_t, textprops=dict(color=_c, fontsize=DEFAULT_FONT_SIZE, fontweight="bold"))
+                for _t, _c in _segs
+            ]
+            _pack = HPacker(children=_boxes, align="baseline", pad=0, sep=0)
+            ax.add_artist(
+                AnnotationBbox(
+                    _pack, (0, _i), xycoords=("axes fraction", "data"),
+                    xybox=(-4, 0), boxcoords="offset points", box_alignment=(1.0, 0.5),
+                    frameon=False, annotation_clip=False, pad=0,
+                )
+            )
+    else:
+        ax.set_yticklabels(df[edge_col], fontsize=DEFAULT_FONT_SIZE)
+        if tick_colors is not None:
+            for _tick, _c in zip(ax.get_yticklabels(), tick_colors):
+                _tick.set_color(_c)
+                _tick.set_fontweight("bold")
     ax.set_xlabel(xlabel, fontsize=DEFAULT_FONT_SIZE)
     ax.set_xlim(0, xmax * xlim_frac + pad)
     ax.set_ylim(-0.6, len(df) - 0.4)

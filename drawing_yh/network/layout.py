@@ -73,6 +73,8 @@ def layout_meta_then_intra(
     radial_power: float = 0.55,
     inter_padding: float = 30.0,
     meta_layout: str = "spring",
+    uniform_attract_x: float = 0.40,
+    uniform_attract_y: float = 0.95,
 ) -> tuple[dict, dict]:
     """
     两阶段布局,保持模块间自然分布 + 模块内形状自然:
@@ -286,10 +288,10 @@ def layout_meta_then_intra(
             overlap = np.maximum(min_d - dist, 0.0)
             f_total = (-unit * overlap[..., None]).sum(axis=1) * 0.5
 
-            # 2) 矩形偏好中心吸引: x 弱 / y 强 → 团体水平扁平化,填满矩形画布
+            # 2) 矩形偏好中心吸引:默认 x 弱 / y 强 → 团体水平扁平化,填满矩形画布
             attract = arr.copy()
-            attract[:, 0] *= 0.40
-            attract[:, 1] *= 0.95
+            attract[:, 0] *= uniform_attract_x
+            attract[:, 1] *= uniform_attract_y
             f_total = f_total - attract
 
             # 3) 反穿越力:对重连模块 (a,b),把走廊里的第三方模块 c 推到一侧

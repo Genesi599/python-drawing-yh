@@ -95,6 +95,8 @@ def plot_modular_network(
     layout_radial_power: float = 0.55,
     layout_inter_padding: float = 30.0,
     layout_meta_layout: str = "spring",
+    layout_uniform_attract_x: float = 0.40,
+    layout_uniform_attract_y: float = 0.95,
 
     # ── halo / 节点 / 边 ──
     halo_buffer_ratio: float = 0.35,
@@ -104,18 +106,31 @@ def plot_modular_network(
     node_size: float = 5.0,
     hub_size_max: float = 26.0,
     hub_degree_percentile: float = 0.985,
+    node_overlap_padding_px: float = 0.05,
+    node_overlap_min_gap_factor: float = 0.05,
     edge_alpha: float = 0.18,
     edge_intra_mult: float = 1.0,
     edge_inter_mult: float = 0.35,
     edge_width_scale: float = 0.9,
     label_top_n: int = 60,
     label_module_hub_n: int = 0,
+    label_module_hub_size_rules: list[tuple[int, int]] | tuple[tuple[int, int], ...] | None = None,
     hub_ring_color: str = "#374151",
 
     # ── 字号 / title ──
     font_family: str = "Arial",
     font_size: str = "8px",
     text_color: str = "#0f172a",
+    module_label_position: str = "center",
+    module_label_offset_px: float = 7.0,
+    module_label_bottom_quantile: float = 0.08,
+    module_label_avoid_px: float = 6.0,
+    module_label_static: bool = True,
+    label_deoverlap_extra_pad_px: float = 1.6,
+    label_deoverlap_iterations: int = 400,
+    label_deoverlap_anchor_pull: float = 0.04,
+    label_deoverlap_push_step: float = 0.5,
+    show_network_legend: bool = False,
     show_title: bool = False,
     title: str = "Modular network",
     subtitle: str | None = None,
@@ -123,6 +138,8 @@ def plot_modular_network(
     # ── 输出 ──
     fig_width: int = 850,
     fig_height: int = 850,
+    fig_min_width: int = 800,
+    fig_min_height: int = 800,
     outpath: str | None = None,
     save_module_csv: bool = True,
 ) -> tuple[nx.Graph, dict]:
@@ -212,6 +229,8 @@ def plot_modular_network(
         radial_power=layout_radial_power,
         inter_padding=layout_inter_padding,
         meta_layout=layout_meta_layout,
+        uniform_attract_x=layout_uniform_attract_x,
+        uniform_attract_y=layout_uniform_attract_y,
     )
 
     # ── 8. 色板 ──
@@ -283,13 +302,32 @@ def plot_modular_network(
     # 每模块按 global degree 取前 N 个作为 module hub,既标 label 也画 ring
     module_hubs: set = set()
     if label_module_hub_n > 0:
+        hub_rules = None
+        if label_module_hub_size_rules:
+            hub_rules = sorted(
+                [(int(min_size), int(n_hubs)) for min_size, n_hubs in label_module_hub_size_rules],
+                key=lambda x: x[0],
+                reverse=True,
+            )
+
+        def _hub_n_for_module(_m):
+            if hub_rules:
+                for min_size, n_hubs in hub_rules:
+                    if sizes.get(_m, 0) >= min_size:
+                        return max(n_hubs, 0)
+                return 0
+            return int(label_module_hub_n)
+
         _by_mod = defaultdict(list)
         for _n, _m in module_id.items():
             if _n in G:
                 _by_mod[_m].append(_n)
         for _m, _nodes in _by_mod.items():
+            _n_hubs = _hub_n_for_module(_m)
+            if _n_hubs <= 0:
+                continue
             _sorted = sorted(_nodes, key=lambda x: -deg_map.get(x, 0))
-            for _n in _sorted[:int(label_module_hub_n)]:
+            for _n in _sorted[:_n_hubs]:
                 module_hubs.add(_n)
                 top_labeled.add(_n)
 
@@ -329,9 +367,9 @@ def plot_modular_network(
     pos = resolve_node_overlaps(
         pos, node_radius_canvas,
         iterations=80,
-        padding=_canvas_per_px * 0.05,
+        padding=_canvas_per_px * float(node_overlap_padding_px),
         shift_frac=0.35,
-        min_gap_factor=0.05,
+        min_gap_factor=float(node_overlap_min_gap_factor),
     )
 
     # ── 计算每个模块标签的 bbox,用于把高亮节点推出 bbox ──
@@ -345,6 +383,14 @@ def plot_modular_network(
     _fw_real = math.sqrt(_target_area * _aspect_real)
     _fh_real = math.sqrt(_target_area / _aspect_real)
     _canvas_per_px_real = max(_data_w_real / _fw_real, _data_h_real / _fh_real)
+
+    def _module_label_anchor(_m, _mcx, _mcy, _comp_h, _canvas_per_px_now):
+        if str(module_label_position).lower() != "below":
+            return _mcx, _mcy
+        _ys_mod = [pos[_n][1] for _n in pos if module_id.get(_n) == _m]
+        _bottom = float(np.quantile(_ys_mod, module_label_bottom_quantile)) if _ys_mod else _mcy
+        _offset = float(module_label_offset_px) * _canvas_per_px_now
+        return _mcx, _bottom - _offset - _comp_h / 2.0
 
     _id_px_bbox = fs_px(font_size)
     _fn_px_bbox = fs_px(font_size)
@@ -375,29 +421,46 @@ def plot_modular_network(
         else:
             _comp_w = _iw
             _comp_h = _ih
-        _pad_lbl = _canvas_per_px_real * 1.0
+        _pad_lbl = _canvas_per_px_real * (1.0 + float(module_label_avoid_px))
         _hw = _comp_w / 2 + _pad_lbl
         _hh = _comp_h / 2 + _pad_lbl
-        mod_lbl_rects.append((_m, mcx_ - _hw, mcy_ - _hh, mcx_ + _hw, mcy_ + _hh))
+        _lx, _ly = _module_label_anchor(_m, mcx_, mcy_, _comp_h, _canvas_per_px_real)
+        mod_lbl_rects.append((_m, _lx - _hw, _ly - _hh, _lx + _hw, _ly + _hh))
 
-    # ── 把高亮节点从 label bbox 内推出去(沿模块径向)──
-    if mod_lbl_rects and node_highlight:
+    # ── 把会标注的节点从模块名称避让区推出去 ──
+    _annotated_nodes = {n for n in pos if (str(n) in node_highlight or n in top_labeled)}
+    if mod_lbl_rects and _annotated_nodes:
         _shifted = 0
-        for n in list(pos):
-            if str(n) not in node_highlight:
+        for n in list(_annotated_nodes):
+            if n not in pos:
                 continue
             x, y = pos[n]
+            _lab = node_label_map.get(str(n), str(n))
+            _lw, _lh = estimate_label_size(_lab, _id_px_bbox, _canvas_per_px_real)
             m = module_id[n]
             cx, cy = module_centers.get(m, (0.0, 0.0))
             for (mb, xlo, ylo, xhi, yhi) in mod_lbl_rects:
-                if not (xlo <= x <= xhi and ylo <= y <= yhi):
+                _label_x0 = x - _lw / 2.0
+                _label_x1 = x + _lw / 2.0
+                _label_y0 = y + _canvas_per_px_real * 6.0 - _lh / 2.0
+                _label_y1 = y + _canvas_per_px_real * 6.0 + _lh / 2.0
+                _touches_label = (
+                    min(_label_x1, xhi) > max(_label_x0, xlo) and
+                    min(_label_y1, yhi) > max(_label_y0, ylo)
+                )
+                if not (_touches_label or (xlo <= x <= xhi and ylo <= y <= yhi)):
                     continue
-                dx, dy = x - cx, y - cy
+                lbl_cx = (xlo + xhi) / 2.0
+                lbl_cy = (ylo + yhi) / 2.0
+                dx, dy = x - lbl_cx, y - lbl_cy
                 rr = math.hypot(dx, dy)
                 if rr < 0.5:
-                    ang = (hash(str(n)) & 0xFF) * 2 * math.pi / 256
-                    dx, dy = math.cos(ang), math.sin(ang)
-                    rr = 1.0
+                    dx, dy = x - cx, y - cy
+                    rr = math.hypot(dx, dy)
+                    if rr < 0.5:
+                        ang = (hash(str(n)) & 0xFF) * 2 * math.pi / 256
+                        dx, dy = math.cos(ang), math.sin(ang)
+                        rr = 1.0
                 ux, uy = dx / rr, dy / rr
                 _all_in_mod = [pos[k] for k in pos if module_id[k] == m]
                 if _all_in_mod:
@@ -407,10 +470,18 @@ def plot_modular_network(
                     r_max = 1e9
                 step = _canvas_per_px_real * 2.0
                 nx_, ny_ = x, y
-                for _ in range(20):
+                for _ in range(60):
                     nx_ += ux * step
                     ny_ += uy * step
-                    if not (xlo <= nx_ <= xhi and ylo <= ny_ <= yhi):
+                    _nx0 = nx_ - _lw / 2.0
+                    _nx1 = nx_ + _lw / 2.0
+                    _ny0 = ny_ + _canvas_per_px_real * 6.0 - _lh / 2.0
+                    _ny1 = ny_ + _canvas_per_px_real * 6.0 + _lh / 2.0
+                    if (
+                        not (xlo <= nx_ <= xhi and ylo <= ny_ <= yhi) and
+                        not (min(_nx1, xhi) > max(_nx0, xlo) and
+                             min(_ny1, yhi) > max(_ny0, ylo))
+                    ):
                         break
                     if math.hypot(nx_ - cx, ny_ - cy) > r_max:
                         nx_ -= ux * step
@@ -420,7 +491,7 @@ def plot_modular_network(
                 _shifted += 1
                 break
         if _shifted:
-            print(f"  ► 高亮节点避让模块标签:微调 {_shifted} 个")
+            print(f"  ► 标注节点避让模块名称:微调 {_shifted} 个")
 
     # 计算每个模块的"散点阈值半径":超过此距离的非高亮节点裁掉
     SCATTER_FACTOR = 0.85
@@ -685,8 +756,8 @@ def plot_modular_network(
     aspect = data_w / max(data_h, 1e-6)
     fig_w_eff = int(round(math.sqrt(target_area * aspect)))
     fig_h_eff = int(round(math.sqrt(target_area / aspect)))
-    fig_w_eff = max(fig_w_eff, 800)
-    fig_h_eff = max(fig_h_eff, 800)
+    fig_w_eff = max(fig_w_eff, int(fig_min_width))
+    fig_h_eff = max(fig_h_eff, int(fig_min_height))
     print(f"  ► 图幅自适应: 数据宽:高={aspect:.2f} → fig {fig_w_eff}×{fig_h_eff} px")
 
     p = figure(
@@ -817,7 +888,7 @@ def plot_modular_network(
     # 2) 模块标签 (ID + 多行功能名 → 复合块)
     big_size_thr = max(20, int(sizes.most_common(1)[0][1] * 0.08))
     SMALL_MODULE_THR = 50
-    id_xs, id_ys, id_texts, id_colors = [], [], [], []
+    id_modules, id_xs, id_ys, id_texts, id_colors = [], [], [], [], []
     fn_lines_per_mod, fn_colors_per_mod = [], []
     for m, (mcx, mcy) in module_centers.items():
         func = module_function_map.get(m) or module_function_map.get(int(m))
@@ -825,6 +896,7 @@ def plot_modular_network(
         if not (big_enough or func):
             continue
         col = darken_hex(palette[m] if m < len(palette) else "#64748b", 0.35)
+        id_modules.append(m)
         id_xs.append(mcx); id_ys.append(mcy)
         id_texts.append(f"M{m}  ·  n={sizes[m]}")
         id_colors.append(col)
@@ -852,7 +924,12 @@ def plot_modular_network(
         else:
             comp_w = iw
             comp_h = ih
-        _mod_anchors.append((id_xs[k], id_ys[k]))
+        _lx, _ly = _module_label_anchor(
+            id_modules[k], id_xs[k], id_ys[k], comp_h, _canvas_per_px,
+        )
+        id_xs[k] = _lx
+        id_ys[k] = _ly
+        _mod_anchors.append((_lx, _ly))
         _mod_widths.append(comp_w); _mod_heights.append(comp_h)
 
     # 3) 拼成统一列表 → 一起去重叠
@@ -860,15 +937,62 @@ def plot_modular_network(
     _all_widths = _node_widths + _mod_widths
     _all_heights = _node_heights + _mod_heights
     _n_nodes = len(_node_anchors)
-    _is_static = [False] * _n_nodes + [True] * len(_mod_anchors)
+    _is_static = [False] * _n_nodes + [bool(module_label_static)] * len(_mod_anchors)
 
     if _all_anchors:
         _new_pos = deoverlap_labels(
             _all_anchors, _all_widths, _all_heights,
-            extra_pad=_canvas_per_px * 1.6,
-            iterations=400, anchor_pull=0.04, push_step=0.5,
+            extra_pad=_canvas_per_px * float(label_deoverlap_extra_pad_px),
+            iterations=int(label_deoverlap_iterations),
+            anchor_pull=float(label_deoverlap_anchor_pull),
+            push_step=float(label_deoverlap_push_step),
             is_static=_is_static,
         )
+        if module_label_static and _n_nodes and _mod_anchors:
+            _node_pos = list(_new_pos[:_n_nodes])
+            _mod_pos = list(_new_pos[_n_nodes:])
+            _pad_static = _canvas_per_px * float(label_deoverlap_extra_pad_px)
+            _mod_rects = []
+            for _p, _w, _h in zip(_mod_pos, _mod_widths, _mod_heights):
+                _mod_rects.append((
+                    _p[0] - _w / 2.0 - _pad_static,
+                    _p[1] - _h / 2.0 - _pad_static,
+                    _p[0] + _w / 2.0 + _pad_static,
+                    _p[1] + _h / 2.0 + _pad_static,
+                ))
+            _shifted_lbl = 0
+            for _i, _p in enumerate(_node_pos):
+                _w = _node_widths[_i]
+                _h = _node_heights[_i]
+                _x, _y = _p
+                for _ in range(30):
+                    _moved = False
+                    _x0 = _x - _w / 2.0
+                    _x1 = _x + _w / 2.0
+                    _y0 = _y - _h / 2.0
+                    _y1 = _y + _h / 2.0
+                    for _rx0, _ry0, _rx1, _ry1 in _mod_rects:
+                        _ix = min(_x1, _rx1) - max(_x0, _rx0)
+                        _iy = min(_y1, _ry1) - max(_y0, _ry0)
+                        if _ix <= 0 or _iy <= 0:
+                            continue
+                        _dx_left = _rx0 - _x1
+                        _dx_right = _rx1 - _x0
+                        _dy_down = _ry0 - _y1
+                        _dy_up = _ry1 - _y0
+                        _moves = [(_dx_left, 0), (_dx_right, 0), (0, _dy_down), (0, _dy_up)]
+                        _mx, _my = min(_moves, key=lambda v: abs(v[0]) + abs(v[1]))
+                        _x += _mx
+                        _y += _my
+                        _moved = True
+                        _shifted_lbl += 1
+                        break
+                    if not _moved:
+                        break
+                _node_pos[_i] = (_x, _y)
+            if _shifted_lbl:
+                print(f"  ► 节点标签避让模块名称:微调 {_shifted_lbl} 次")
+            _new_pos = _node_pos + _mod_pos
 
         # 用 label 实际位置 + bbox 扩展 figure 范围,避免文字被切
         _lbl_x_lo = min(_new_pos[k][0] - _all_widths[k] / 2 for k in range(len(_new_pos)))
@@ -893,8 +1017,8 @@ def plot_modular_network(
             _new_aspect = _new_dw / max(_new_dh, 1e-6)
             _new_fw = int(round(math.sqrt(target_area * _new_aspect)))
             _new_fh = int(round(math.sqrt(target_area / _new_aspect)))
-            _new_fw = max(_new_fw, 800)
-            _new_fh = max(_new_fh, 800)
+            _new_fw = max(_new_fw, int(fig_min_width))
+            _new_fh = max(_new_fh, int(fig_min_height))
             p.width = _new_fw
             p.height = _new_fh
 
@@ -970,6 +1094,90 @@ def plot_modular_network(
                 ))
 
         print(f"  ► 文字去重叠完成 (统一处理 {_n_nodes} 节点标签 + {len(id_xs)} 模块标签)")
+
+    if show_network_legend:
+        _lx0 = float(p.x_range.start)
+        _lx1 = float(p.x_range.end)
+        _ly0 = float(p.y_range.start)
+        _ly1 = float(p.y_range.end)
+        _legend_cpp = max((_lx1 - _lx0) / float(p.width), (_ly1 - _ly0) / float(p.height))
+        _entries = [
+            ("node", "Protein", node_type_colors.get("Protein", "#7aa3d4")),
+            ("node", "Metabolite", node_type_colors.get("Metabolite", "#f0b07a")),
+            ("ring", "Age-up", UP_COLOR),
+            ("ring", "Age-down", DOWN_COLOR),
+            ("ring", "Module hub", hub_ring_color),
+            ("line", "Positive r", POS_COLOR),
+            ("line", "Negative r", NEG_COLOR),
+        ]
+        _legend_px = fs_px(font_size)
+        _label_w = max(estimate_label_size(t, _legend_px, _legend_cpp)[0] for _, t, _ in _entries)
+        _line_h = _legend_cpp * 14.0
+        _pad = _legend_cpp * 7.0
+        _box_w = _pad * 3.0 + _legend_cpp * 14.0 + _label_w
+        _box_h = _pad * 2.0 + _line_h * (len(_entries) + 1)
+        _right = _lx1 - _legend_cpp * 8.0
+        _top = _ly1 - _legend_cpp * 8.0
+        _left = _right - _box_w
+        _bottom = _top - _box_h
+        _sym_x = _left + _pad
+        _text_x = _left + _pad + _legend_cpp * 16.0
+
+        p.quad(
+            left=[_left], right=[_right], bottom=[_bottom], top=[_top],
+            fill_color="white", fill_alpha=0.82,
+            line_color="#d1d5db", line_alpha=0.75, line_width=0.5,
+        )
+
+        _title_y = _top - _pad - _line_h * 0.15
+        _label_ys = [_top - _pad - _line_h * (i + 1.15) for i in range(len(_entries))]
+        _title_src = ColumnDataSource(dict(x=[_left + _pad], y=[_title_y], text=["Legend"]))
+        p.add_layout(LabelSet(
+            x="x", y="y", text="text", source=_title_src,
+            text_font_size=font_size, text_font_style="bold",
+            text_color=text_color, text_align="left", text_baseline="middle",
+            text_font=Value(font_family),
+        ))
+
+        _node_ys = [_label_ys[i] for i, e in enumerate(_entries) if e[0] == "node"]
+        _node_cols = [e[2] for e in _entries if e[0] == "node"]
+        if _node_ys:
+            p.scatter(
+                x=[_sym_x] * len(_node_ys), y=_node_ys, size=7,
+                marker="circle", fill_color=_node_cols, fill_alpha=1.0,
+                line_color="#475569", line_alpha=0.9, line_width=0.4,
+            )
+
+        _ring_ys = [_label_ys[i] for i, e in enumerate(_entries) if e[0] == "ring"]
+        _ring_cols = [e[2] for e in _entries if e[0] == "ring"]
+        if _ring_ys:
+            p.scatter(
+                x=[_sym_x] * len(_ring_ys), y=_ring_ys, size=11,
+                marker="circle", fill_color=_ring_cols, fill_alpha=0.12,
+                line_color=_ring_cols, line_alpha=0.95, line_width=1.3,
+            )
+
+        _line_ys = [_label_ys[i] for i, e in enumerate(_entries) if e[0] == "line"]
+        _line_cols = [e[2] for e in _entries if e[0] == "line"]
+        if _line_ys:
+            p.segment(
+                x0=[_sym_x - _legend_cpp * 5.0] * len(_line_ys),
+                x1=[_sym_x + _legend_cpp * 5.0] * len(_line_ys),
+                y0=_line_ys, y1=_line_ys,
+                line_color=_line_cols, line_alpha=0.85, line_width=1.2,
+            )
+
+        _legend_text_src = ColumnDataSource(dict(
+            x=[_text_x] * len(_entries),
+            y=_label_ys,
+            text=[e[1] for e in _entries],
+        ))
+        p.add_layout(LabelSet(
+            x="x", y="y", text="text", source=_legend_text_src,
+            text_font_size=font_size, text_font_style="normal",
+            text_color=text_color, text_align="left", text_baseline="middle",
+            text_font=Value(font_family),
+        ))
 
     # ── 保存 ──
     if outpath is not None:

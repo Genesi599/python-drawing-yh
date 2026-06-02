@@ -221,7 +221,7 @@ def _resolve_blocks(block_per_gene, gene_order) -> list | None:
 def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
                  max_row_label, max_gene_label, legend_loc, fig_size,
                  max_pct=100.0, size_scale=2.4, size_base=4.0,
-                 autosize_dots=True):
+                 autosize_dots=True, cbar_label=COLORBAR_LABEL):
     """按内容算 dot plot 布局(英寸预算 → figure 分数)+ 点尺寸。
 
     ``autosize_dots=True``(默认):**版面以文字为准** —— pitch 取相邻刻度文字刚好不
@@ -253,8 +253,19 @@ def _grid_layout(n_genes, n_rows, *, font, has_row_colors, has_title,
         bottom_in += _BOTTOM_LEGEND_IN
     grid_w = pitch * max(n_genes, 1)
     grid_h = pitch * max(n_rows, 1)
+    # 内容最小尺寸: 网格区(pitch×数量, pitch 已含 text-safe 行高)+ 各边距。
+    # 防文字重叠: 即便调用方传了更小的 fig_size, 也钳到此下限(不许缩到刻度文字重叠)。
+    content_w = left_in + grid_w + right_in
+    content_h = top_in + grid_h + bottom_in
+    if legend_loc == "right":
+        # 右侧两个竖排图例名("Pct expressed" 在 size 带 / cbar_label 在 colorbar 带, 中心间距≈0.46 fraction)
+        # 图太矮会上下相撞 → 给图高下限: 两名半高之和 < 间距, 留 1.35x 余量(防短图<2亚型时图例名重叠)
+        legend_min_h = (len("Pct expressed") + len(str(cbar_label))) * cw / 2.0 / 0.46 * 1.35
+        content_h = max(content_h, legend_min_h)
     if fig_size is None:
-        fig_size = (left_in + grid_w + right_in, top_in + grid_h + bottom_in)
+        fig_size = (content_w, content_h)
+    else:
+        fig_size = (max(float(fig_size[0]), content_w), max(float(fig_size[1]), content_h))
     fig_w, fig_h = float(fig_size[0]), float(fig_size[1])
     left = min(max(left_in / fig_w, 0.04), 0.6)
     right = max(min(1.0 - right_in / fig_w, 0.97), left + 0.15)
@@ -351,6 +362,7 @@ def marker_dotplot(
     row_colors=None,
     row_color_size: float = 60.0,
     pad: float = 0.6,
+    grid: bool = False,
     cbar_label: str = COLORBAR_LABEL,
     size_pcts: Sequence[int] | None = None,
     size_scale: float = 1.6,
@@ -412,6 +424,8 @@ def marker_dotplot(
         Marker area (pt^2) for the ``row_colors`` dots.
     pad
         Axis padding (cells of margin around the grid). Default 0.6.
+    grid
+        Draw light grid lines behind the dots. Default ``False`` (no grid).
     cbar_label
         Colour-bar label. Default ``"Gene-scaled mean"``.
     ax
@@ -473,7 +487,7 @@ def marker_dotplot(
         max_row_label=max_row_label, max_gene_label=max_gene_label,
         legend_loc=legend_loc, fig_size=layout_size,
         max_pct=max_pct, size_scale=size_scale, size_base=size_base,
-        autosize_dots=autosize_dots,
+        autosize_dots=autosize_dots, cbar_label=cbar_label,
     )
     if ax is None:
         fig, ax = plt.subplots(figsize=fig_size)
@@ -498,7 +512,8 @@ def marker_dotplot(
         ax.set_title(title, fontsize=font, pad=4)
     ax.set_xlabel(xlabel, fontsize=font)
     ax.set_ylabel(ylabel if ylabel is not None else row_col, fontsize=font)
-    ax.grid(color=GRID_COLOR, linewidth=GRID_LW, alpha=GRID_ALPHA)
+    if grid:  # 默认不画网格线 (grid=True 时才画)
+        ax.grid(color=GRID_COLOR, linewidth=GRID_LW, alpha=GRID_ALPHA)
     ax.tick_params(axis="both", length=0, labelsize=font)
     for spine in ax.spines.values():
         spine.set_visible(False)
