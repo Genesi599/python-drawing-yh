@@ -45,6 +45,7 @@ from .core import (
     combined_template_path,
     pptx_template_path,
     serve_nocache_template_path,
+    watch_build_template_path,
 )
 
 __all__ = [
@@ -61,4 +62,5 @@ __all__ = [
     "combined_template_path",
     "pptx_template_path",
     "serve_nocache_template_path",
+    "watch_build_template_path",
 ]

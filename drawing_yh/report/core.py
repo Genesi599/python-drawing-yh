@@ -125,6 +125,18 @@ def serve_nocache_template_path() -> Path:
     return Path(str(resources.files(__package__).joinpath('templates', 'serve_nocache_template.py')))
 
 
+def watch_build_template_path() -> Path:
+    """Return path to the bundled `watch_build_template.py`(文件监听自动 rebuild)。
+
+    监听 REPORT.md / _report_config.py / report_figs/ 变动,自动重跑 build_pages.py,
+    实现改 md → 浏览器自动看到最新 HTML。配合 serve_nocache.py 使用。
+
+    用法:`cp $(... watch_build_template_path())  watch_build.py` →
+        `python watch_build.py`(监听当前目录)。依赖 `pip install watchdog`。
+    """
+    return Path(str(resources.files(__package__).joinpath('templates', 'watch_build_template.py')))
+
+
 def combined_config_template_path() -> Path:
     """Return path to `_combined_report_config_template.py`(三层报告配置)。
 
