@@ -251,6 +251,53 @@ def publish(
 
 
 # ------------------------------------------------------------------
+# Image toolbar — inline JS injected by render(img_toolbar=True)
+# ------------------------------------------------------------------
+_IMG_TOOLBAR_SCRIPT = """\
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('img').forEach(function (img) {
+    if (img.closest('.img-toolbar-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'img-toolbar-wrap';
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    var tb = document.createElement('div');
+    tb.className = 'img-toolbar';
+    var cpBtn = document.createElement('button');
+    cpBtn.textContent = '复制';
+    cpBtn.title = 'Copy image to clipboard';
+    cpBtn.onclick = function () {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.toBlob(function (blob) {
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function () {
+          cpBtn.textContent = '✓';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        }).catch(function () {
+          cpBtn.textContent = '失败';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        });
+      }, 'image/png');
+    };
+    var dlBtn = document.createElement('button');
+    dlBtn.textContent = '下载';
+    dlBtn.title = 'Download image';
+    dlBtn.onclick = function () {
+      var a = document.createElement('a');
+      a.href = img.src;
+      a.download = img.src.split('/').pop().split('?')[0] || 'image.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    tb.appendChild(cpBtn); tb.appendChild(dlBtn);
+    wrap.appendChild(tb);
+  });
+});
+</script>
+"""
+
+# ------------------------------------------------------------------
 # pandoc wrapper
 # ------------------------------------------------------------------
 def _have_pandoc() -> bool:
@@ -269,6 +316,7 @@ def render(
     header_html: str | None = None,
     footer_html: str | None = None,
     copy_css: bool = True,
+    img_toolbar: bool = True,
     extra_args: Sequence[str] = (),
 ) -> Path:
     """Render Markdown → standalone HTML via pandoc.
@@ -306,6 +354,10 @@ def render(
         opened over ``http://`` (browsers refuse cross-origin ``file://`` CSS).
         Disable only if you want to share a CSS file across many outputs and
         manage the link path yourself.
+    img_toolbar : bool, default True
+        When ``True``, inject an inline ``<script>`` that adds hover copy /
+        download buttons to every ``<img>`` on the page.  Requires the
+        ``.img-toolbar-wrap`` / ``.img-toolbar`` CSS classes in the stylesheet.
     extra_args : Sequence[str], optional
         Additional pandoc CLI args appended verbatim.
 
@@ -371,6 +423,11 @@ def render(
     inc_before = _spill(header_html)
     inc_after  = _spill(footer_html)
 
+    # 4b. image toolbar script (inline <script> injected after body)
+    inc_toolbar = None
+    if img_toolbar:
+        inc_toolbar = _spill(_IMG_TOOLBAR_SCRIPT)
+
     # 5. build command
     cmd: list[str] = ['pandoc', str(src_path), '-o', str(out_html), '-c', str(css_p)]
     if standalone:
@@ -386,6 +443,8 @@ def render(
         cmd += ['--include-before-body', str(inc_before)]
     if inc_after:
         cmd += ['--include-after-body', str(inc_after)]
+    if inc_toolbar:
+        cmd += ['--include-after-body', str(inc_toolbar)]
     cmd += list(extra_args)
 
     try:

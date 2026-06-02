@@ -178,3 +178,45 @@ main.report-main { display: block; max-width: 980px; margin: 0 auto; }
   text-decoration: none;
 }
 .report-nav > a:not(.current):hover { background: #e7edf3; }
+
+/* ============================================================
+ * Image toolbar — hover overlay with copy & download buttons
+ * ============================================================ */
+.img-toolbar-wrap {
+  position: relative;
+  display: block;
+  margin: 1em auto;
+  max-width: 100%;
+  width: fit-content;
+}
+.img-toolbar-wrap > img {
+  margin: 0;
+}
+.img-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+.img-toolbar-wrap:hover .img-toolbar {
+  opacity: 1;
+}
+.img-toolbar button {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+  backdrop-filter: blur(4px);
+}
+.img-toolbar button:hover {
+  background: rgba(255,255,255,1);
+  border-color: var(--accent);
+}
