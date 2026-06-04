@@ -169,10 +169,11 @@ def clustermap_annot(
 
     n_rows, n_cols = data_z.shape
 
-    # 字号默认走 rcParams(包级 8pt)
+    # 按 STANDARDS:所有文字 = rcParams['font.size'](包级 8pt)
+    # "所有文字一致(刻度、轴名、annotation、title)"
     base_font = float(mpl.rcParams.get("font.size", 8))
     if annot_fontsize is None:
-        annot_fontsize = max(5.0, base_font - 1.5)
+        annot_fontsize = base_font
     if xtick_fontsize is None:
         xtick_fontsize = float(mpl.rcParams.get("xtick.labelsize", base_font))
     if ytick_fontsize is None:
@@ -260,7 +261,7 @@ def clustermap_annot(
         # ---------- 多 colorbar 排布 ----------
         n_groups = len(group_specs)
         cb_left, cb_bot, cb_w, cb_h = cbar_pos
-        cb_label_fs = max(5.0, base_font - 2)
+        cb_label_fs = base_font   # STANDARDS:cbar label / tick 同 base_font
         for k, (sub_vmin, sub_vmax, cmap_g, cols, label) in enumerate(group_specs):
             if cbar_layout == "top-row":
                 # row_dendrogram 之上的空闲区,横向并排
@@ -358,13 +359,15 @@ def clustermap_annot(
             coll.set_linewidth(1.0)
 
     if cbar_label and g.ax_cbar is not None:
-        g.ax_cbar.set_ylabel(cbar_label, fontsize=max(5.0, base_font - 1))
-        g.ax_cbar.tick_params(labelsize=max(5.0, base_font - 1))
+        # STANDARDS:cbar label / tick 同 base_font
+        g.ax_cbar.set_ylabel(cbar_label, fontsize=base_font)
+        g.ax_cbar.tick_params(labelsize=base_font)
 
     if title:
         # cbar 在 top-row(y≈0.93)时把 title 顶到 0.985 避免重叠;其它布局 y=1.00
+        # STANDARDS:title 用 base_font(不放大、不缩小)
         title_y = 0.985 if (col_cmap_groups is not None and cbar_layout == "top-row") else 1.00
-        g.fig.suptitle(title, fontsize=base_font + 1.5, y=title_y)
+        g.fig.suptitle(title, fontsize=base_font, y=title_y)
 
     if return_grid:
         return g.fig, g
