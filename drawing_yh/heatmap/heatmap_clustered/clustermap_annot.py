@@ -80,6 +80,7 @@ def clustermap_annot(
     vmin: Optional[float] = None,
     vmax: Optional[float] = None,
     center: Optional[float] = None,
+    col_cmap_groups: Optional[Sequence[Tuple[Sequence[int], str]]] = None,
     annot_fmt: Union[str, Callable[[float], str]] = ".2f",
     annot_fontsize: Optional[float] = None,
     annot_dark_threshold: float = 0.55,
@@ -109,7 +110,12 @@ def clustermap_annot(
         默认行聚类、列不聚类(列 = 固定 features)。
     linkage_method, metric : str
         ``scipy.cluster.hierarchy.linkage`` 参数。
-    cmap, vmin, vmax, center : matplotlib heatmap 标准参数。
+    cmap, vmin, vmax, center : matplotlib heatmap 标准参数(单 cmap 模式)。
+    col_cmap_groups : list of (col_indices, cmap_name), optional
+        **每组列独立 cmap**(覆盖 ``cmap``)。例:
+        ``[([0], "Purples"), ([1, 2], "Reds")]`` 第 1 列 Purples、后两列 Reds。
+        每组独立计算 vmin/vmax(该组所有 cells 的实际范围)。给定时 colorbar
+        切换为每组一条横向小色条,堆叠在 ``cbar_pos`` 起点附近。
     annot_fmt : str or callable
         格内文本 format。字符串 → ``format(v, fmt)``;callable → ``f(v) -> str``。
     annot_fontsize : float, optional
@@ -197,10 +203,57 @@ def clustermap_annot(
     z_ord = data_z.iloc[row_idx, col_idx]
     r_ord = data_raw.iloc[row_idx, col_idx]
 
+    ax = g.ax_heatmap
+
+    # ---------- per-group cmap(可选):重画 heatmap 各列组 ----------
+    # 每个 cell 的"色阶 scale"用于决定 annot 文字颜色(白/黑)。默认单 cmap 模式
+    # scale 是全局 vmin/vmax 的绝对最大;per-group 模式 scale 按列查表。
+    if col_cmap_groups is not None:
+        # 移除 sns.clustermap 默认 QuadMesh + 默认 cbar
+        for coll in list(ax.collections):
+            coll.remove()
+        if g.ax_cbar is not None:
+            g.ax_cbar.remove()
+        # per-column scale lookup(用于 annot 颜色)
+        col_scale = np.ones(n_cols)
+        cbar_count = 0
+        for cols, cmap_g in col_cmap_groups:
+            cols = list(cols)
+            sub = z_ord.iloc[:, cols].values
+            sub_vmin = float(sub.min())
+            sub_vmax = float(sub.max())
+            for j_logical in cols:
+                # j_logical = 原始列序(未经 col_cluster reorder);此处 col_cluster=False 默认
+                # 找到 j_logical 在 reordered 序里的位置
+                pos = list(col_idx).index(j_logical) if col_cluster else j_logical
+                ax.imshow(z_ord.iloc[:, [pos]].values,
+                          cmap=cmap_g, aspect="auto",
+                          extent=[pos, pos + 1, n_rows, 0],
+                          vmin=sub_vmin, vmax=sub_vmax,
+                          interpolation="nearest", zorder=1)
+                col_scale[pos] = max(abs(sub_vmin), abs(sub_vmax)) or 1.0
+            # per-group 小色条:横向、堆在 cbar_pos 起点向下
+            cb_left, cb_bot, cb_w, cb_h = cbar_pos
+            bar_h = max(0.012, cb_h / max(len(col_cmap_groups), 1) * 0.55)
+            bar_gap = bar_h * 0.6
+            bar_ax = g.fig.add_axes([cb_left, cb_bot - cbar_count * (bar_h + bar_gap),
+                                      max(cb_w, 0.10), bar_h])
+            sm = plt.cm.ScalarMappable(cmap=cmap_g,
+                                       norm=mpl.colors.Normalize(vmin=sub_vmin, vmax=sub_vmax))
+            cb = plt.colorbar(sm, cax=bar_ax, orientation="horizontal")
+            label_cols = ", ".join(str(data_z.columns[c]) for c in cols)
+            cb.set_label(label_cols, fontsize=max(5.0, base_font - 2))
+            cb.ax.tick_params(labelsize=max(5.0, base_font - 2))
+            cbar_count += 1
+        # 还原 ax_heatmap 范围(imshow 后可能被覆盖)
+        ax.set_xlim(0, n_cols); ax.set_ylim(n_rows, 0)
+    else:
+        col_scale = None
+
     # 格内文本
     vmin_eff = vmin if vmin is not None else float(data_z.values.min())
     vmax_eff = vmax if vmax is not None else float(data_z.values.max())
-    scale = max(abs(vmin_eff), abs(vmax_eff)) or 1.0
+    scale_global = max(abs(vmin_eff), abs(vmax_eff)) or 1.0
 
     def _fmt(v):
         if callable(annot_fmt):
@@ -209,7 +262,6 @@ def clustermap_annot(
             return format(int(v), annot_fmt)
         return format(float(v), annot_fmt)
 
-    ax = g.ax_heatmap
     for i in range(z_ord.shape[0]):
         for j in range(z_ord.shape[1]):
             z = z_ord.iat[i, j]
@@ -219,7 +271,8 @@ def clustermap_annot(
                     continue
             except TypeError:
                 pass
-            norm = abs(z) / scale
+            s = col_scale[j] if col_scale is not None else scale_global
+            norm = abs(z) / s
             color = "white" if norm > annot_dark_threshold else "black"
             ax.text(j + 0.5, i + 0.5, _fmt(r),
                     ha="center", va="center",
