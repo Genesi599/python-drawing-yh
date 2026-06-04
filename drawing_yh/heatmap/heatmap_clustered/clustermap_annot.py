@@ -81,6 +81,8 @@ def clustermap_annot(
     vmax: Optional[float] = None,
     center: Optional[float] = None,
     col_cmap_groups: Optional[Sequence[Tuple[Sequence[int], str]]] = None,
+    col_group_gap: float = 0.0,
+    cbar_layout: str = "top-row",
     annot_fmt: Union[str, Callable[[float], str]] = ".2f",
     annot_fontsize: Optional[float] = None,
     annot_dark_threshold: float = 0.55,
@@ -114,8 +116,15 @@ def clustermap_annot(
     col_cmap_groups : list of (col_indices, cmap_name), optional
         **每组列独立 cmap**(覆盖 ``cmap``)。例:
         ``[([0], "Purples"), ([1, 2], "Reds")]`` 第 1 列 Purples、后两列 Reds。
-        每组独立计算 vmin/vmax(该组所有 cells 的实际范围)。给定时 colorbar
-        切换为每组一条横向小色条,堆叠在 ``cbar_pos`` 起点附近。
+        每组独立计算 vmin/vmax(该组所有 cells 的实际范围)。
+    col_group_gap : float, default 0.0
+        ``col_cmap_groups`` 模式下列组之间的视觉间隙(以列宽为单位)。0 = 列贴紧,
+        ``0.3`` 表示组间留 0.3 个列宽空白(便于一眼区分维度)。
+    cbar_layout : {'top-row', 'left-stack', 'bottom-row'}, default 'top-row'
+        ``col_cmap_groups`` 模式下多色条的排布:
+        - ``top-row``: 顶部横排(默认,不挡 row_colors / yticks)
+        - ``left-stack``: 左上堆叠(老行为)
+        - ``bottom-row``: 底部横排
     annot_fmt : str or callable
         格内文本 format。字符串 → ``format(v, fmt)``;callable → ``f(v) -> str``。
     annot_fontsize : float, optional
@@ -208,7 +217,21 @@ def clustermap_annot(
     # ---------- per-group cmap(可选):重画 heatmap 各列组 ----------
     # 每个 cell 的"色阶 scale"用于决定 annot 文字颜色(白/黑)。默认单 cmap 模式
     # scale 是全局 vmin/vmax 的绝对最大;per-group 模式 scale 按列查表。
+    col_x_start = None  # col_logical -> 该列 imshow 起点 x(支持组间 gap)
     if col_cmap_groups is not None:
+        # 计算每列的 x 起点(允许组间 gap)
+        col_x_start = {}
+        x_cursor = 0.0
+        # 用 col_idx(reorder 后)走索引,但 col_cluster=False 时与 logical 一致
+        for k, (cols, _) in enumerate(col_cmap_groups):
+            if k > 0:
+                x_cursor += col_group_gap
+            for c in cols:
+                pos = list(col_idx).index(c) if col_cluster else c
+                col_x_start[pos] = x_cursor
+                x_cursor += 1.0
+        total_width = x_cursor
+
         # 移除 sns.clustermap 默认 QuadMesh + 默认 cbar
         for coll in list(ax.collections):
             coll.remove()
@@ -216,39 +239,78 @@ def clustermap_annot(
             g.ax_cbar.remove()
         # per-column scale lookup(用于 annot 颜色)
         col_scale = np.ones(n_cols)
-        cbar_count = 0
+        group_specs = []  # (sub_vmin, sub_vmax, cmap_g, cols, label)
         for cols, cmap_g in col_cmap_groups:
             cols = list(cols)
             sub = z_ord.iloc[:, cols].values
             sub_vmin = float(sub.min())
             sub_vmax = float(sub.max())
             for j_logical in cols:
-                # j_logical = 原始列序(未经 col_cluster reorder);此处 col_cluster=False 默认
-                # 找到 j_logical 在 reordered 序里的位置
                 pos = list(col_idx).index(j_logical) if col_cluster else j_logical
+                x0 = col_x_start[pos]
                 ax.imshow(z_ord.iloc[:, [pos]].values,
                           cmap=cmap_g, aspect="auto",
-                          extent=[pos, pos + 1, n_rows, 0],
+                          extent=[x0, x0 + 1, n_rows, 0],
                           vmin=sub_vmin, vmax=sub_vmax,
                           interpolation="nearest", zorder=1)
                 col_scale[pos] = max(abs(sub_vmin), abs(sub_vmax)) or 1.0
-            # per-group 小色条:横向、堆在 cbar_pos 起点向下
-            cb_left, cb_bot, cb_w, cb_h = cbar_pos
-            bar_h = max(0.012, cb_h / max(len(col_cmap_groups), 1) * 0.55)
-            bar_gap = bar_h * 0.6
-            bar_ax = g.fig.add_axes([cb_left, cb_bot - cbar_count * (bar_h + bar_gap),
-                                      max(cb_w, 0.10), bar_h])
+            group_specs.append((sub_vmin, sub_vmax, cmap_g, cols,
+                                ", ".join(str(data_z.columns[c]) for c in cols)))
+
+        # ---------- 多 colorbar 排布 ----------
+        n_groups = len(group_specs)
+        cb_left, cb_bot, cb_w, cb_h = cbar_pos
+        cb_label_fs = max(5.0, base_font - 2)
+        for k, (sub_vmin, sub_vmax, cmap_g, cols, label) in enumerate(group_specs):
+            if cbar_layout == "top-row":
+                # row_dendrogram 之上的空闲区,横向并排
+                # (避开 suptitle 在 y=0.985、避开 heatmap 顶端在 y≈0.88)
+                bar_w = 0.16
+                bar_h_pix = 0.013
+                gap = 0.030
+                # 从左到右排列;左起留 2% 边距
+                left = 0.02 + k * (bar_w + gap)
+                bar_ax = g.fig.add_axes([left, 0.935, bar_w, bar_h_pix])
+                orient = "horizontal"
+            elif cbar_layout == "bottom-row":
+                bar_w = 0.11
+                bar_h_pix = 0.012
+                gap = 0.018
+                right = 0.99
+                left = right - (k + 1) * (bar_w + gap)
+                bar_ax = g.fig.add_axes([left, 0.02, bar_w, bar_h_pix])
+                orient = "horizontal"
+            else:  # left-stack(老行为,兼容)
+                bar_h_each = max(0.012, cb_h / max(n_groups, 1) * 0.55)
+                bar_gap = bar_h_each * 0.6
+                bar_ax = g.fig.add_axes([cb_left,
+                                         cb_bot - k * (bar_h_each + bar_gap),
+                                         max(cb_w, 0.10), bar_h_each])
+                orient = "horizontal"
             sm = plt.cm.ScalarMappable(cmap=cmap_g,
                                        norm=mpl.colors.Normalize(vmin=sub_vmin, vmax=sub_vmax))
-            cb = plt.colorbar(sm, cax=bar_ax, orientation="horizontal")
-            label_cols = ", ".join(str(data_z.columns[c]) for c in cols)
-            cb.set_label(label_cols, fontsize=max(5.0, base_font - 2))
-            cb.ax.tick_params(labelsize=max(5.0, base_font - 2))
-            cbar_count += 1
-        # 还原 ax_heatmap 范围(imshow 后可能被覆盖)
-        ax.set_xlim(0, n_cols); ax.set_ylim(n_rows, 0)
+            cb = plt.colorbar(sm, cax=bar_ax, orientation=orient)
+            # top-row / bottom-row 横向 cbar 把 label 放上方,避免跟主热图接近
+            if cbar_layout in ("top-row", "bottom-row"):
+                cb.ax.xaxis.set_label_position("top")
+            cb.set_label(label, fontsize=cb_label_fs, labelpad=2)
+            cb.ax.tick_params(labelsize=cb_label_fs)
+
+        # 还原 ax_heatmap 范围 + 重设 xtick 到列中心(含 gap)
+        ax.set_xlim(0, total_width); ax.set_ylim(n_rows, 0)
+        # 把 xtick 移到带 gap 的列中心
+        tick_pos = []
+        tick_lbl = []
+        for j_disp in range(n_cols):
+            x0 = col_x_start[j_disp]
+            tick_pos.append(x0 + 0.5)
+            tick_lbl.append(str(z_ord.columns[j_disp]))
+        ax.set_xticks(tick_pos)
+        ax.set_xticklabels(tick_lbl)
     else:
         col_scale = None
+        total_width = n_cols
+        col_x_start = {j: float(j) for j in range(n_cols)}
 
     # 格内文本
     vmin_eff = vmin if vmin is not None else float(data_z.values.min())
@@ -274,7 +336,8 @@ def clustermap_annot(
             s = col_scale[j] if col_scale is not None else scale_global
             norm = abs(z) / s
             color = "white" if norm > annot_dark_threshold else "black"
-            ax.text(j + 0.5, i + 0.5, _fmt(r),
+            x_text = col_x_start[j] + 0.5
+            ax.text(x_text, i + 0.5, _fmt(r),
                     ha="center", va="center",
                     fontsize=annot_fontsize, color=color)
 
@@ -299,7 +362,9 @@ def clustermap_annot(
         g.ax_cbar.tick_params(labelsize=max(5.0, base_font - 1))
 
     if title:
-        g.fig.suptitle(title, fontsize=base_font + 1.5, y=1.00)
+        # cbar 在 top-row(y≈0.93)时把 title 顶到 0.985 避免重叠;其它布局 y=1.00
+        title_y = 0.985 if (col_cmap_groups is not None and cbar_layout == "top-row") else 1.00
+        g.fig.suptitle(title, fontsize=base_font + 1.5, y=title_y)
 
     if return_grid:
         return g.fig, g
