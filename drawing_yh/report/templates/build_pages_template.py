@@ -88,9 +88,23 @@ def write_slide(slug: str, body_md: str, title: str):
     print(f'  → {out.relative_to(HERE)}  ({out.stat().st_size:,} B)')
 
 
+def prune_orphan_pages(valid_slugs: set):
+    """删掉 pages/ 里不在当前 SLIDES(+ landing index)的 .html 孤儿。
+    防止改 slug 命名规则 / 删 slide 后旧文件残留,造成"两套报告"并存
+    (serve_nocache 直接 serve 目录,孤儿页仍能被手敲 URL / 浏览器历史访问到)。"""
+    keep = valid_slugs | {'index'}
+    removed = []
+    for f in OUT.glob('*.html'):
+        if f.stem not in keep:
+            f.unlink(); removed.append(f.name)
+    if removed:
+        print(f'  pruned {len(removed)} orphan page(s): {", ".join(sorted(removed))}')
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     sync_report_figs()                  # ★ build 前先同步最新图
+    prune_orphan_pages({slug for slug, *_ in SLIDES})   # ★ 清旧命名/删节残留,保证只有一套
     chunks = load_chunks(fix_img_for_pages=True)
 
     print('rendering slides →', OUT)
