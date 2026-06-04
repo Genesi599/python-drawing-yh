@@ -44,7 +44,8 @@ clustermap_annot — 带格内值标注 + 行/列色块的聚类热图(通用版
 """
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence, Tuple, Union
+from itertools import groupby
+from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -72,6 +73,8 @@ def clustermap_annot(
     *,
     row_colors: Optional[Union[Sequence, pd.Series, pd.DataFrame]] = None,
     col_colors: Optional[Union[Sequence, pd.Series, pd.DataFrame]] = None,
+    row_groups: Optional[Union[Sequence, pd.Series]] = None,
+    row_group_labels: Optional[Mapping] = None,
     row_cluster: bool = True,
     col_cluster: bool = False,
     linkage_method: str = "ward",
@@ -108,6 +111,12 @@ def clustermap_annot(
         驱动**格内文本**的同 shape 矩阵;None 时与 ``data_z`` 同源。
     row_colors, col_colors : array-like / Series / DataFrame, optional
         ``Series`` → 单条色块;``DataFrame`` → 多列色块(seaborn 原生)。
+    row_groups : Series-like, optional
+        每行的 group id(用于在 row_colors 旁标群名)。dendrogram 重排后,
+        函数会找连续同 group 的段并在每段中心写 ``row_group_labels[gid]``。
+    row_group_labels : dict {gid: label}, optional
+        与 ``row_groups`` 配套。给定时在 row_colors 色块左侧 / dendrogram 区
+        标群名(沿 y 轴对齐到段中心,水平方向 ha='right')。
     row_cluster, col_cluster : bool
         默认行聚类、列不聚类(列 = 固定 features)。
     linkage_method, metric : str
@@ -357,6 +366,31 @@ def clustermap_annot(
             continue
         for coll in d_ax.collections:
             coll.set_linewidth(1.0)
+
+    # ---------- row_groups 标签:dendrogram 重排后每段中心标群名 ----------
+    if row_groups is not None and row_group_labels:
+        rg_ord = (row_groups.iloc[row_idx].values
+                  if isinstance(row_groups, pd.Series)
+                  else np.asarray(row_groups)[row_idx])
+        y_cursor = 0
+        segments = []  # (gid, start_row, end_row_exclusive)
+        for gid, gp in groupby(rg_ord):
+            L = sum(1 for _ in gp)
+            segments.append((gid, y_cursor, y_cursor + L))
+            y_cursor += L
+        # row_colors 色块的 figure 坐标;若无 row_colors 则用 row_dendrogram 旁
+        anchor_ax = g.ax_row_colors if g.ax_row_colors is not None else g.ax_row_dendrogram
+        if anchor_ax is not None:
+            pos = anchor_ax.get_position()
+            n_tot = len(rg_ord)
+            for gid, s, e in segments:
+                center_row = (s + e) / 2.0
+                # seaborn ax_row_colors y 轴默认顶=0 → 底=n_rows
+                fig_y = pos.y1 - (center_row / n_tot) * (pos.y1 - pos.y0)
+                fig_x = pos.x0 - 0.005  # 略左于 row_colors
+                g.fig.text(fig_x, fig_y,
+                           str(row_group_labels.get(gid, "")),
+                           ha="right", va="center", fontsize=base_font)
 
     if cbar_label and g.ax_cbar is not None:
         # STANDARDS:cbar label / tick 同 base_font
