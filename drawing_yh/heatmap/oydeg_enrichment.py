@@ -32,6 +32,11 @@ def cap_gene(gene: str) -> str:
     return gene if gene.isupper() else gene.capitalize()
 
 
+def _wrap_label(label: str, width: int = 14) -> str:
+    label = str(label).replace("_", " ")
+    return "\n".join(textwrap.wrap(label, width)) or label
+
+
 def _resolve_values(values, columns=None, row_labels=None):
     if isinstance(values, pd.DataFrame):
         df = values.copy()
@@ -175,7 +180,7 @@ def _build_enrichment_layout(
     gene_formatter: Callable[[str], str],
     gene_wrap: int,
 ):
-    head_h, sub_h, term_h, gene_h, term_gap, gap = 1.0, 0.7, 0.85, 0.65, 0.25, 0.55
+    head_h, sub_h, term_h, gene_h, term_gap, gap = 1.05, 0.78, 0.88, 0.70, 0.28, 0.60
     layout, slot = [], 0.0
     for block in right_blocks:
         header_y = slot
@@ -243,14 +248,15 @@ def plot_oydeg_heatmap_enrichment(
     colorbar_label: str = "log2FC",
     no_terms_label: str = "no significant pathway",
     max_genes_per_term: int = 8,
-    gene_wrap: int = 70,
+    gene_wrap: int = 85,
     gene_formatter: Callable[[str], str] = cap_gene,
     fig_width: float | None = None,
     figsize: tuple[float, float] | None = None,
-    slot_height: float = 0.16,
+    slot_height: float = 0.185,
     block_gap_frac: float = 0.015,
-    dot_dx: float = 0.05,
+    dot_dx: float = 0.060,
     font_sizes: Mapping[str, float] | None = None,
+    compact_height: bool = True,
 ):
     """Draw an OY-DEG heatmap with labeled genes and enrichment blocks.
 
@@ -290,25 +296,30 @@ def plot_oydeg_heatmap_enrichment(
     )
 
     fs = {
-        "title": 8.0, "xtick": 7.0, "block": 6.5, "cbar": 7.0, "ctick": 6.0,
-        "label": 6.0, "head": 8.0, "sub": 7.0, "term": 6.5, "gene": 5.5,
-        "note": 6.5, "axis": 7.0, "btick": 6.0,
+        "title": 8.0, "xtick": 8.0, "block": 8.0, "cbar": 8.0, "ctick": 8.0,
+        "label": 8.0, "head": 8.0, "sub": 8.0, "term": 8.0, "gene": 8.0,
+        "note": 8.0, "axis": 8.0, "btick": 8.0,
     }
     if font_sizes:
         fs.update(font_sizes)
 
     if figsize is None:
-        fig_h = max(4.5, total_slots * slot_height, n_disp * slot_height * 0.95)
-        fig_w = fig_width if fig_width is not None else 11.0 + ncol * 0.3
+        label_h = max(len(label_genes), 1) * slot_height * 0.72
+        row_h = 0.0 if compact_height else n_disp * slot_height * 0.95
+        fig_h = max(4.5, total_slots * slot_height, label_h, row_h)
+        fig_w = fig_width if fig_width is not None else 13.0
         figsize = (fig_w, fig_h)
     fig = plt.figure(figsize=figsize)
 
-    hm_w = max(0.10, ncol * 0.012)
-    ax_heat = fig.add_axes([0.05, 0.055, hm_w, 0.90])
-    ax_labels = fig.add_axes([0.05 + hm_w + 0.015, 0.055, 0.17, 0.90])
-    bar_x0 = 0.05 + hm_w + 0.015 + 0.19
-    ax_enrich = fig.add_axes([bar_x0, 0.055, 0.99 - bar_x0 - 0.01, 0.90])
-    cax = fig.add_axes([0.05, 0.022, 0.10, 0.010])
+    ax_heat = fig.add_axes([0.06, 0.055, 0.13, 0.90])
+    ax_labels = fig.add_axes([0.19, 0.055, 0.18, 0.90])
+    dot_x0 = 0.25
+    name_x = dot_x0 + ncol * dot_dx + 0.02
+    max_gene_chars = max((len(gene_formatter(g)) for g in label_genes), default=6)
+    bar_x0 = 0.19 + name_x * 0.18 + max_gene_chars * (fs["label"] * 0.62 / 72) / figsize[0] + 0.015
+    bar_x0 = min(max(bar_x0, 0.36), 0.62)
+    ax_enrich = fig.add_axes([bar_x0, 0.055, 0.13, 0.90])
+    cax = fig.add_axes([0.205, 0.022, 0.11, 0.010])
 
     ax_heat.imshow(mat_disp, aspect="auto", cmap=cmap_obj, norm=norm,
                    extent=[0, ncol, n_disp, 0], interpolation="nearest")
@@ -320,17 +331,40 @@ def plot_oydeg_heatmap_enrichment(
     ax_heat.set_yticks([])
     for i in range(1, ncol):
         ax_heat.axvline(i, color="#ffffff", lw=0.4, zorder=3)
-    for block in heat_blocks:
+    for block_i, block in enumerate(heat_blocks):
         bc = darken(block.get("color", "#777777"), 0.62)
         s, e = block["s_disp"], block["e_disp"]
         ax_heat.plot([0, 0], [s, e], color=bc, lw=0.9, zorder=4, clip_on=False)
         ax_heat.plot([ncol, ncol], [s, e], color=bc, lw=0.9, zorder=4, clip_on=False)
-        if block.get("label"):
-            ax_heat.text(-0.08 * ncol, (s + e) / 2, str(block["label"]),
-                         va="center", ha="right", fontsize=fs["block"], fontweight="bold",
-                         color=bc, clip_on=False)
+        if block_i == 0:
+            ax_heat.plot([0, ncol], [s, s], color=bc, lw=0.9, zorder=4, clip_on=False)
+        if block_i == len(heat_blocks) - 1:
+            ax_heat.plot([0, ncol], [e, e], color=bc, lw=0.9, zorder=4, clip_on=False)
     for spine in ax_heat.spines.values():
         spine.set_visible(False)
+
+    centers = [(block["s_disp"] + block["e_disp"]) / 2 for block in heat_blocks]
+    labels = [_wrap_label(block.get("label", "")) for block in heat_blocks]
+    line_row = max((fs["block"] * 1.5 / 72) / (0.90 * figsize[1]) * n_disp, 1e-6)
+    adjusted = list(centers)
+    for i in range(1, len(adjusted)):
+        sep = line_row * ((labels[i - 1].count("\n") + 1) + (labels[i].count("\n") + 1)) / 2 + 0.4 * line_row
+        if adjusted[i] < adjusted[i - 1] + sep:
+            adjusted[i] = adjusted[i - 1] + sep
+    if adjusted and adjusted[-1] > n_disp:
+        adjusted = [y - (adjusted[-1] - n_disp) for y in adjusted]
+    col_per_frac = ncol / 0.13
+    stub_x, diag_x, label_x = -0.010 * col_per_frac, -0.030 * col_per_frac, -0.035 * col_per_frac
+    for block, center, y, label in zip(heat_blocks, centers, adjusted, labels):
+        if not label:
+            continue
+        bc = darken(block.get("color", "#777777"), 0.62)
+        if abs(y - center) > 0.3 * line_row:
+            ax_heat.plot([0, stub_x, diag_x], [center, center, y], color=bc, lw=0.6,
+                         alpha=0.85, clip_on=False, zorder=4, solid_capstyle="round",
+                         solid_joinstyle="round")
+        ax_heat.text(label_x, y, label, va="center", ha="right", fontsize=fs["block"],
+                     fontweight="bold", color=bc, clip_on=False, linespacing=0.9)
     ax_heat.set_xlim(0, ncol)
     ax_heat.set_ylim(n_disp, 0)
     if heatmap_title:
@@ -346,26 +380,32 @@ def plot_oydeg_heatmap_enrichment(
     ax_labels.set_ylim(n_disp, 0)
     ax_labels.axis("off")
     nl = max(len(label_genes), 1)
+    header_marker_size, grid_marker_size, tri_marker_size, leader_lw = 26, 16, 34, 0.9
+    for j, col in enumerate(cols):
+        x = dot_x0 + j * dot_dx
+        ax_labels.scatter(x, -0.006 * n_disp, s=header_marker_size, marker="s",
+                          color=column_colors.get(col, "#777777"), edgecolors="#ffffff",
+                          linewidths=0.3, clip_on=False, zorder=3)
     for i, gene in enumerate(label_genes):
         ly = (i + 0.5) * n_disp / nl
         ri = row_of[gene]
         fc0 = mat[ri, rep_col[ri]]
         color = cmap_obj(norm(float(np.clip(fc0, -fc_clip, fc_clip)))) if not np.isnan(fc0) else "#aaaaaa"
-        ax_labels.plot([0.02, 0.09, 0.17, 0.22],
+        ax_labels.plot([0.00, 0.06, 0.16, 0.22],
                        [disp_idx[ri] + 0.5, disp_idx[ri] + 0.5, ly, ly],
-                       color=color, lw=0.45, alpha=0.85, zorder=1, solid_capstyle="round")
+                       color=color, lw=leader_lw, alpha=0.85, zorder=1,
+                       solid_capstyle="round", solid_joinstyle="round")
         for j, col in enumerate(cols):
-            x = 0.22 + j * dot_dx
-            ax_labels.scatter(x, ly, s=12, marker="s", color="#efefef",
-                              edgecolors="none", zorder=2)
+            x = dot_x0 + j * dot_dx
+            ax_labels.scatter(x, ly, s=grid_marker_size, marker="s", color="#efefef",
+                              edgecolors="none", zorder=2, clip_on=False)
             status = _status_for(gene_status, gene, col)
             if status:
-                ax_labels.scatter(x, ly, s=8, marker=("^" if status == "up" else "v"),
+                ax_labels.scatter(x, ly, s=tri_marker_size, marker=("^" if status == "up" else "v"),
                                   color=column_colors.get(col, "#777777"),
-                                  edgecolors="none", zorder=3)
-        name_x = 0.22 + ncol * dot_dx + 0.02
+                                  edgecolors="none", zorder=3, clip_on=False)
         ax_labels.text(name_x, ly, gene_formatter(gene), va="center", ha="left",
-                       fontsize=fs["label"], color="#222222")
+                       fontsize=fs["label"], color="#222222", clip_on=False)
 
     ax_enrich.set_xlim(0, max_nlp * 1.05)
     ax_enrich.set_ylim(total_slots, -1.0)
@@ -374,14 +414,14 @@ def plot_oydeg_heatmap_enrichment(
         ax_enrich.axhline(block["header_y"] - 0.6, color="#cccccc", lw=0.5, zorder=1)
         ax_enrich.text(0, block["header_y"], str(block["label"]),
                        va="center", ha="left", fontsize=fs["head"], fontweight="bold",
-                       color=darken(block["color"], 0.62), zorder=5)
+                       color=darken(block["color"], 0.62), zorder=5, clip_on=False)
         if block["note_y"] is not None:
             ax_enrich.text(xt, block["note_y"], no_terms_label, va="center", ha="left",
                            fontsize=fs["note"], color="#999999", fontstyle="italic")
         for group in block["glayout"]:
             ax_enrich.text(xt, group["sub_y"], group["dlabel"],
                            va="center", ha="left", fontsize=fs["sub"], fontweight="bold",
-                           color=darken(group["dcolor"], 0.7))
+                           color=darken(group["dcolor"], 0.7), clip_on=False)
             for item in group["items"]:
                 term = item["t"]
                 y = item["term_y"]
@@ -391,11 +431,11 @@ def plot_oydeg_heatmap_enrichment(
                 db = str(term.get("db", "")).strip()
                 label = f"{term.get('term', '')} ({db})" if db else str(term.get("term", ""))
                 ax_enrich.text(xt, y, label, va="center", ha="left",
-                               fontsize=fs["term"], color="black", fontweight="bold")
+                               fontsize=fs["term"], color="black", fontweight="bold", clip_on=False)
                 for gy, line in item["glines"]:
                     ax_enrich.text(xt, gy, line, va="center", ha="left",
                                    fontsize=fs["gene"], color=darken(group["dcolor"]),
-                                   fontstyle="italic")
+                                   fontstyle="italic", clip_on=False)
     ax_enrich.set_xlabel(right_xlabel, fontsize=fs["axis"])
     ax_enrich.spines[["top", "right", "left"]].set_visible(False)
     ax_enrich.tick_params(left=False, labelleft=False, labelsize=fs["btick"])

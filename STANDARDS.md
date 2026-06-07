@@ -186,16 +186,16 @@ fig, (ax_heat, ax_bars) = heatmap_with_row_bars(
 )
 ```
 
-**OY-DEG heatmap + enrichment**(左 log2FC 热图 + 中间动态 gene labels/方向点 + 右 Up/Down 富集块;只负责画,DEG筛选、富集和term去重由分析流程准备):
+**OY-DEG heatmap + enrichment**(左 log2FC 热图 + 中间动态 gene labels/方向点 + 右 Up/Down 富集块;热图 block 通常按 source cell type / subtype 分组,块内上调行先于下调行;只负责画,DEG筛选、富集和term去重由分析流程准备):
 
 ```python
 from drawing_yh import plot_oydeg_heatmap_enrichment
 
 fig, axes = plot_oydeg_heatmap_enrichment(
     values,                         # DataFrame: rows=ordered genes, columns=cell types
-    heat_blocks=[                   # row index blocks, already ordered
-        {"label": "Fib Up", "color": "#4E79A7", "s": 0, "e": 30},
-        {"label": "Fib Down", "color": "#4E79A7", "s": 30, "e": 58},
+    heat_blocks=[                   # source blocks; up/down order is encoded in row order
+        {"label": "Fib", "color": "#4E79A7", "s": 0, "e": 58},
+        {"label": "EC", "color": "#59A14F", "s": 58, "e": 104},
     ],
     label_genes=["COL1A1", "DCN", "MMP2"],
     gene_status={"COL1A1": {"Fib": "up"}, "DCN": {"Fib": "down"}},
@@ -207,7 +207,7 @@ fig, axes = plot_oydeg_heatmap_enrichment(
             {"term": "Extracellular Matrix Organization", "nlp": 4.2, "db": "G", "genes": ["COL1A1", "MMP2"]},
         ])],
     }],
-    heatmap_title="Top aging DEGs (log2FC)",
+    heatmap_title="All aging DEGs (log2FC)",
     right_title="KEGG + GO enrichment per subtype",
 )
 ```

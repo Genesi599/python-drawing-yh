@@ -424,12 +424,9 @@ def generate_oydeg_enrichment_heatmap() -> Path:
     values.loc["CSF1R", "Mac"] = 0.9
 
     heat_blocks = [
-        {"label": "Fib Up", "color": colors["Fib"], "s": 0, "e": 3},
-        {"label": "Fib Down", "color": colors["Fib"], "s": 3, "e": 5},
-        {"label": "EC Up", "color": colors["EC"], "s": 5, "e": 8},
-        {"label": "EC Down", "color": colors["EC"], "s": 8, "e": 10},
-        {"label": "Mac Up", "color": colors["Mac"], "s": 10, "e": 13},
-        {"label": "Mac Down", "color": colors["Mac"], "s": 13, "e": 15},
+        {"label": "Fib", "color": colors["Fib"], "s": 0, "e": 5},
+        {"label": "EC", "color": colors["EC"], "s": 5, "e": 10},
+        {"label": "Mac", "color": colors["Mac"], "s": 10, "e": 15},
         {"label": "Shared", "color": "#8b949e", "s": 15, "e": 20},
     ]
     gene_status = {}
