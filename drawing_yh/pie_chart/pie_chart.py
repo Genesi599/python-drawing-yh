@@ -219,3 +219,125 @@ def plot_pie(
             print(f"Saved: {p}")
 
     return fig, ax
+
+
+def nested_pie(
+    groups,
+    *,
+    ax=None,
+    figsize: tuple        = (7.0, 7.0),
+    inner_radius: float   = 0.42,    # 中心空洞半径(donut hole)
+    inner_width: float    = 0.26,    # 内环厚度
+    outer_width: float    = 0.30,    # 外环厚度
+    gap: float            = 0.0,     # 内外环之间留白
+    startangle: float     = 90,
+    counterclock: bool    = False,
+    edgecolor: str        = 'white',
+    edgewidth: float      = 0.6,
+    inner_label_min_pct: float = 4.0,   # 内环扇区 ≥ 此占比才标 label
+    inner_label_size: float    = 7.5,
+    inner_label_color: str     = '#2b2b2b',
+    center_text: str      = '',
+    center_text_size: float = 11,
+):
+    """
+    两层嵌套环图(sunburst 风格,纯 matplotlib —— 静态导出可控,不依赖 plotly/kaleido)。
+
+    内环 = `groups` 的各大类;外环 = 每个 group 的 `children`,在父扇区角度内细分。
+    内外环角度自动对齐(每个 group 的子项数值之和即父值),因此外环每段都落在它所属
+    大类的扇区下方,等价于一层 drill-down 的 sunburst。
+
+    Parameters
+    ----------
+    groups : list[dict]
+        有序大类列表,每项:
+            {'label': str,                       # 大类名(内环 label)
+             'color': hex,                       # 内环扇区颜色
+             'value': num,                       # 可省略,默认 = 子项数值之和
+             'children': [{'label':str, 'value':num, 'color':hex}, ...]}
+        children 为空时该大类外环留一段同色实环。
+    inner_radius, inner_width, outer_width, gap : float
+        半径 / 环厚控制(数据坐标,饼图坐标系单位 ≈1)。
+    inner_label_min_pct : float
+        内环扇区占总数比例 ≥ 此值才在环带中点标大类名(避免薄扇区文字挤叠)。
+    center_text : str
+        中心空洞文字(常用于放总数,如 'n = 2,480')。
+
+    Returns
+    -------
+    dict : {'fig', 'ax', 'inner_wedges', 'outer_wedges',
+            'inner_values', 'outer_segments'}
+        outer_segments = [(group_label, child_label, value, color), ...] 与 outer_wedges 对齐。
+
+    Notes
+    -----
+    · 外环不直接标 label(段数多易糊),调用方用 children 的 color 配一份侧边 legend。
+    · 图例 / 标题 / 中心额外注释由调用方在返回的 ax 上叠加,本函数只负责双环本体。
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+
+    inner_values, inner_colors, inner_labels = [], [], []
+    outer_values, outer_colors, outer_segments = [], [], []
+    for g in groups:
+        children = g.get('children', []) or []
+        val = g.get('value')
+        if val is None:
+            val = sum(c['value'] for c in children) if children else 0
+        if val <= 0:
+            continue
+        inner_values.append(val)
+        inner_colors.append(g['color'])
+        inner_labels.append(g.get('label', ''))
+        if children:
+            for c in children:
+                if c['value'] <= 0:
+                    continue
+                outer_values.append(c['value'])
+                outer_colors.append(c['color'])
+                outer_segments.append((g.get('label', ''), c.get('label', ''),
+                                       c['value'], c['color']))
+        else:
+            # 无子项:外环用父颜色补一段,保持角度守恒
+            outer_values.append(val)
+            outer_colors.append(g['color'])
+            outer_segments.append((g.get('label', ''), '', val, g['color']))
+
+    total = float(sum(inner_values)) or 1.0
+    wp = dict(edgecolor=edgecolor, linewidth=edgewidth)
+
+    inner_wedges, _ = ax.pie(
+        inner_values, colors=inner_colors,
+        radius=inner_radius + inner_width,
+        startangle=startangle, counterclock=counterclock,
+        wedgeprops=dict(width=inner_width, **wp),
+    )
+    outer_wedges, _ = ax.pie(
+        outer_values, colors=outer_colors,
+        radius=inner_radius + inner_width + gap + outer_width,
+        startangle=startangle, counterclock=counterclock,
+        wedgeprops=dict(width=outer_width, **wp),
+    )
+
+    # 内环 label:环带中点,水平,仅够大的扇区
+    import math as _m
+    r_lab = inner_radius + inner_width / 2.0
+    for w, lab, val in zip(inner_wedges, inner_labels, inner_values):
+        if not lab or val / total * 100 < inner_label_min_pct:
+            continue
+        ang = _m.radians((w.theta1 + w.theta2) / 2.0)
+        ax.text(r_lab * _m.cos(ang), r_lab * _m.sin(ang), lab,
+                ha='center', va='center', rotation_mode='anchor',
+                fontsize=inner_label_size, color=inner_label_color,
+                fontweight='bold')
+
+    if center_text:
+        ax.text(0, 0, center_text, ha='center', va='center',
+                fontsize=center_text_size, fontweight='bold', color='#2b2b2b')
+
+    ax.set_aspect('equal')
+    return dict(fig=fig, ax=ax, inner_wedges=inner_wedges,
+                outer_wedges=outer_wedges, inner_values=inner_values,
+                outer_segments=outer_segments)
