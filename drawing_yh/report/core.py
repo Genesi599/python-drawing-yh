@@ -316,6 +316,25 @@ def _have_pandoc() -> bool:
     return shutil.which('pandoc') is not None
 
 
+_EMOJI_MAP: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'retina|视网膜|眼', re.I), '👁'),
+    (re.compile(r'bone.?marrow|骨髓|bmif', re.I), '🦴'),
+    (re.compile(r'brain|脑|meninges|脑膜|frontal|额叶', re.I), '🧠'),
+    (re.compile(r'b.?cell|b细胞|b_cell', re.I), '🧫'),
+    (re.compile(r'thymus|胸腺', re.I), '🫀'),
+    (re.compile(r'neutrophil|中性粒', re.I), '🩸'),
+    (re.compile(r'aging|衰老', re.I), '⏳'),
+]
+_EMOJI_DEFAULT = '🔬'
+
+
+def _emoji_for_title(title: str) -> str:
+    for pattern, emoji in _EMOJI_MAP:
+        if pattern.search(title):
+            return emoji
+    return _EMOJI_DEFAULT
+
+
 def render(
     md,
     out_html: str | Path | None = None,
@@ -325,6 +344,7 @@ def render(
     toc_depth: int = 3,
     standalone: bool = True,
     title: str | None = None,
+    favicon_emoji: str | None = None,
     header_html: str | None = None,
     footer_html: str | None = None,
     copy_css: bool = True,
@@ -366,6 +386,10 @@ def render(
         opened over ``http://`` (browsers refuse cross-origin ``file://`` CSS).
         Disable only if you want to share a CSS file across many outputs and
         manage the link path yourself.
+    favicon_emoji : str, optional
+        Emoji character used as the browser-tab favicon (data-URI SVG).
+        When omitted, ``_emoji_for_title(title)`` auto-selects from keywords in
+        *title*.  Pass an empty string ``""`` to suppress the favicon entirely.
     img_toolbar : bool, default True
         When ``True``, inject an inline ``<script>`` that adds hover copy /
         download buttons to every ``<img>`` on the page.  Requires the
@@ -440,6 +464,19 @@ def render(
     if img_toolbar:
         inc_toolbar = _spill(_IMG_TOOLBAR_SCRIPT)
 
+    # 4c. emoji favicon injected into <head> via --include-in-header
+    inc_favicon = None
+    _emoji = favicon_emoji if favicon_emoji is not None else (
+        _emoji_for_title(title) if title else _EMOJI_DEFAULT
+    )
+    if _emoji:
+        _svg = (
+            f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
+            f"<text y='.9em' font-size='90'>{_emoji}</text></svg>"
+        )
+        _favicon_html = f'<link rel="icon" href="data:image/svg+xml,{_svg}">\n'
+        inc_favicon = _spill(_favicon_html)
+
     # 5. build command
     cmd: list[str] = ['pandoc', str(src_path), '-o', str(out_html), '-c', str(css_p)]
     if standalone:
@@ -451,6 +488,8 @@ def render(
         # 如果调用方真的想让 pandoc 把 title 渲染到正文顶部,可以用 extra_args
         # 自己塞 ['--metadata', 'title=…']。
         cmd += ['--metadata', f'pagetitle={title}']
+    if inc_favicon:
+        cmd += ['--include-in-header', str(inc_favicon)]
     if inc_before:
         cmd += ['--include-before-body', str(inc_before)]
     if inc_after:
