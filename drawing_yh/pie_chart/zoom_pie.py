@@ -35,13 +35,16 @@ def generate_shades(base_color: str, n: int, l_range=(0.55, 0.82)) -> list:
     return shades
 
 
-def _merge_small(values, labels, colors, threshold_pct, keep_index=None, other_color='#BBBBBB'):
+def _merge_small(values, labels, colors, threshold_pct, keep_index=None,
+                 other_color='#BBBBBB', always_other=()):
+    """合并小扇区到 'Others';`always_other` 里的标签(如 'Unknown')无论大小都并入 Others。"""
     total    = sum(values)
     kept     = []
     other_v  = 0.0
     new_keep = None
+    always   = set(always_other)
     for i, (v, l, c) in enumerate(zip(values, labels, colors)):
-        if i == keep_index or v / total * 100 >= threshold_pct:
+        if i == keep_index or (l not in always and v / total * 100 >= threshold_pct):
             if i == keep_index:
                 new_keep = len(kept)
             kept.append((v, l, c))
@@ -529,6 +532,7 @@ def plot_multi_zoom_pie(
     out_path: str           = None,
     show_leader_lines: bool = True,
     detail_counterclock: bool = False,   # 卫星细分饼扇区方向:False=顺时针(从大到小自顶部向右)
+    merge_to_other: tuple   = ('Unknown',),   # 这些标签无论大小都并入 Others,不单独成块
 ):
     """中央亚定位总览饼 + 多个大类的卫星细分饼(各用该类颜色渐变 shade + 爆炸引线)。
 
@@ -599,7 +603,8 @@ def plot_multi_zoom_pie(
         shades = generate_shades(base, len(dv))
         m_v, m_l, m_c, _ = _merge_small(
             list(dv), list(dl), shades, merge_threshold,
-            other_color=generate_shades(base, 1, l_range=(0.88, 0.88))[0])
+            other_color=generate_shades(base, 1, l_range=(0.88, 0.88))[0],
+            always_other=merge_to_other)
         # 大→小排序(Others 殿后)
         oi = next((i for i, l in enumerate(m_l) if l == 'Others'), None)
         order = sorted([i for i in range(len(m_v)) if i != oi], key=lambda i: m_v[i], reverse=True)
