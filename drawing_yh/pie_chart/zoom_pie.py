@@ -478,15 +478,23 @@ def _draw_connector(fig, ax_src, wedge, ax_dst, base_color, alpha, n_arc=60):
     axis = axis / max(np.linalg.norm(axis), 1e-9)
     perp = np.array([-axis[1], axis[0]])
 
-    def pick_tan(P):
+    # 把扇区两条边按 perp(垂直于 中央→卫星 轴)投影分"上/下",各连到卫星圆对应
+    # 的上/下切点 —— 窄端在扇区、宽端张开到卫星圆的清爽光束。不靠"扇区跨在轴两侧"
+    # 的假设,因此小而偏轴的扇区(如 Nucleus)也不会退化成扭曲细带。
+    def tan_on_side(P, upper):
         Ta, Tb = _tan_points(P, C_d, R_d)
-        sP = np.sign(np.dot(P - C_s, perp)) or 1.0
-        return Ta if np.sign(np.dot(Ta - C_d, perp)) == sP else Tb
+        pa, pb = np.dot(Ta - C_d, perp), np.dot(Tb - C_d, perp)
+        return Ta if (pa >= pb) == upper else Tb
 
-    T_lo = pick_tan(p_lo)
-    T_hi = pick_tan(p_hi)
-    a_lo = np.arctan2(*(T_lo - C_d)[::-1])
-    a_hi = np.arctan2(*(T_hi - C_d)[::-1])
+    if np.dot(p_lo - C_s, perp) <= np.dot(p_hi - C_s, perp):
+        P_low, P_high = p_lo, p_hi
+    else:
+        P_low, P_high = p_hi, p_lo
+    T_low  = tan_on_side(P_low,  upper=False)
+    T_high = tan_on_side(P_high, upper=True)
+
+    a_lo = np.arctan2(*(T_low - C_d)[::-1])
+    a_hi = np.arctan2(*(T_high - C_d)[::-1])
     ang_near = np.arctan2(*(-axis)[::-1])     # 卫星指回中央的方向 = 面向源的近弧
 
     def norm(a): return (a + np.pi) % (2 * np.pi) - np.pi
@@ -496,7 +504,7 @@ def _draw_connector(fig, ax_src, wedge, ax_dst, base_color, alpha, n_arc=60):
     arc = min(cand, key=lambda arr: abs(norm(arr[len(arr) // 2] - ang_near)))
     arc_pts = [C_d + R_d * np.array([np.cos(a), np.sin(a)]) for a in arc]
 
-    shape = [d2f(p) for p in ([p_lo] + arc_pts + [p_hi])]
+    shape = [d2f(p) for p in ([P_low] + arc_pts + [P_high])]
     fig.add_artist(Polygon(shape, closed=True, facecolor=base_color, alpha=alpha,
                            edgecolor=base_color, linewidth=0.8,
                            transform=fig.transFigure, zorder=0))
