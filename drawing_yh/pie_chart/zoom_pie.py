@@ -440,3 +440,183 @@ def plot_zoom_pie(
             print(f"Saved: {p}")
 
     return fig, ax_left, ax_right
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 多 zoom:中央总览 + N 个卫星细分饼(各用母类色渐变 + 爆炸引线),一张图看全
+# ════════════════════════════════════════════════════════════════════════════
+
+def _tan_points(P, C, r):
+    """点 P 到圆(心 C 半径 r)的两个切点。"""
+    dv = P - C
+    d = np.linalg.norm(dv)
+    if d <= r * 1.001:
+        u = dv / max(d, 1e-9)
+        return C + r * u, C + r * u
+    beta  = np.arctan2(dv[1], dv[0])
+    delta = np.arccos(np.clip(r / d, -1, 1))
+    return (C + r * np.array([np.cos(beta + delta), np.sin(beta + delta)]),
+            C + r * np.array([np.cos(beta - delta), np.sin(beta - delta)]))
+
+
+def _draw_connector(fig, ax_src, wedge, ax_dst, base_color, alpha, n_arc=60):
+    """从 ax_src 里某扇区(wedge)连到 ax_dst 里整张卫星饼,画半透明爆炸多边形。
+    方向无关:切点按"与卫星轴的同侧"选,圆弧取面向源那一侧,任意方位都不打结。"""
+    def d2d(ax, xy): return np.array(ax.transData.transform(xy))
+    def d2f(xy):     return np.array(fig.transFigure.inverted().transform(xy))
+
+    th1 = np.radians(wedge.theta1); th2 = np.radians(wedge.theta2)
+    if th2 < th1:
+        th1, th2 = th2, th1
+    C_s = d2d(ax_src, [0, 0])
+    p_lo = d2d(ax_src, [np.cos(th1), np.sin(th1)])
+    p_hi = d2d(ax_src, [np.cos(th2), np.sin(th2)])
+    C_d  = d2d(ax_dst, [0, 0])
+    R_d  = np.linalg.norm(d2d(ax_dst, [1, 0]) - C_d)
+
+    axis = C_d - C_s
+    axis = axis / max(np.linalg.norm(axis), 1e-9)
+    perp = np.array([-axis[1], axis[0]])
+
+    def pick_tan(P):
+        Ta, Tb = _tan_points(P, C_d, R_d)
+        sP = np.sign(np.dot(P - C_s, perp)) or 1.0
+        return Ta if np.sign(np.dot(Ta - C_d, perp)) == sP else Tb
+
+    T_lo = pick_tan(p_lo)
+    T_hi = pick_tan(p_hi)
+    a_lo = np.arctan2(*(T_lo - C_d)[::-1])
+    a_hi = np.arctan2(*(T_hi - C_d)[::-1])
+    ang_near = np.arctan2(*(-axis)[::-1])     # 卫星指回中央的方向 = 面向源的近弧
+
+    def norm(a): return (a + np.pi) % (2 * np.pi) - np.pi
+    d_inc = norm(a_hi - a_lo)
+    cand = [np.linspace(a_lo, a_lo + d_inc, n_arc),
+            np.linspace(a_lo, a_lo + d_inc - 2 * np.pi * (1 if d_inc >= 0 else -1), n_arc)]
+    arc = min(cand, key=lambda arr: abs(norm(arr[len(arr) // 2] - ang_near)))
+    arc_pts = [C_d + R_d * np.array([np.cos(a), np.sin(a)]) for a in arc]
+
+    shape = [d2f(p) for p in ([p_lo] + arc_pts + [p_hi])]
+    fig.add_artist(Polygon(shape, closed=True, facecolor=base_color, alpha=alpha,
+                           edgecolor=base_color, linewidth=0.8,
+                           transform=fig.transFigure, zorder=0))
+
+
+def plot_multi_zoom_pie(
+    major_values: list,
+    major_labels: list,
+    details: dict,                       # {major_label: (detail_values, detail_labels)}
+    major_colors: list      = None,
+    detail_titles: dict     = None,      # {major_label: 卫星标题};缺省用 major_label
+    title: str              = '',
+    show_pct: bool          = True,
+    show_count: bool        = True,
+    merge_threshold: float  = 3.0,
+    font_size: float        = 8,
+    label_distance: float   = 1.18,
+    connect_alpha: float    = 0.16,
+    figsize: tuple          = (13.5, 9.5),
+    out_path: str           = None,
+    show_leader_lines: bool = True,
+):
+    """中央亚定位总览饼 + 多个大类的卫星细分饼(各用该类颜色渐变 shade + 爆炸引线)。
+
+    `details` 里给哪些 major 类,就给哪些类画卫星(最多 4 个,放四角);卫星按各自
+    扇区方位最优分配到四角,引线不交叉。是 plot_zoom_pie 的多 zoom 版。
+    """
+    n_major = len(major_values)
+    if major_colors is None:
+        major_colors = [DEFAULT_COLORS[i % len(DEFAULT_COLORS)] for i in range(n_major)]
+    detail_titles = detail_titles or {}
+
+    fig = plt.figure(figsize=figsize, facecolor='white')
+    ax_c = fig.add_axes([0.365, 0.305, 0.27, 0.39]); ax_c.set_zorder(3)
+    ax_c.patch.set_visible(False)
+
+    c_wedges, c_texts, c_angles = _draw_pie_on_ax(
+        ax_c, major_values, major_labels, major_colors,
+        show_pct=show_pct, show_count=show_count, pct_distance=0.70,
+        label_distance=label_distance, startangle=90, font_size=font_size,
+        title='', min_pct_for_label=0,
+    )
+    fig.canvas.draw()
+    _fix_label_overlaps(fig, ax_c, c_texts, margin=7.0)
+    if show_leader_lines:
+        _draw_leader_lines(ax_c, c_wedges, c_texts, c_angles,
+                           rim=1.0 if label_distance > 1.0 else label_distance)
+    for t in c_texts:
+        t.set_zorder(11)
+
+    # 四角卫星框 + 其相对中央的视觉方位(用 px 算,figsize 非方也准)
+    corner_rects = {
+        'UL': [0.005, 0.515, 0.255, 0.40], 'UR': [0.740, 0.515, 0.255, 0.40],
+        'LL': [0.005, 0.055, 0.255, 0.40], 'LR': [0.740, 0.055, 0.255, 0.40],
+    }
+    fig.canvas.draw()
+    C_c_px = np.array(ax_c.transData.transform([0, 0]))
+
+    def rect_center_px(r):
+        x = (r[0] + r[2] / 2) * fig.get_size_inches()[0] * fig.dpi
+        y = (r[1] + r[3] / 2) * fig.get_size_inches()[1] * fig.dpi
+        return np.array([x, y])
+    corner_ang = {k: np.arctan2(*(rect_center_px(r) - C_c_px)[::-1])
+                  for k, r in corner_rects.items()}
+
+    # 每个细分大类的扇区中点视觉方位
+    det_labels = [l for l in major_labels if l in details]
+    wedge_of = {l: c_wedges[major_labels.index(l)] for l in det_labels}
+    def wedge_ang(w):
+        mid = np.radians((w.theta1 + w.theta2) / 2)
+        v = np.array(ax_c.transData.transform([np.cos(mid), np.sin(mid)])) - C_c_px
+        return np.arctan2(v[1], v[0])
+    det_ang = {l: wedge_ang(wedge_of[l]) for l in det_labels}
+
+    # 最优分配:遍历角分配排列,最小化 Σ 角差,引线不交叉
+    import itertools
+    corners = list(corner_rects.keys())
+    def angdiff(a, b): return abs((a - b + np.pi) % (2 * np.pi) - np.pi)
+    best, best_cost = None, 1e9
+    for combo in itertools.permutations(corners, len(det_labels)):
+        cost = sum(angdiff(det_ang[l], corner_ang[c]) for l, c in zip(det_labels, combo))
+        if cost < best_cost:
+            best_cost, best = cost, combo
+    assign = dict(zip(det_labels, best))
+
+    for loc in det_labels:
+        dv, dl = details[loc]
+        base = major_colors[major_labels.index(loc)]
+        shades = generate_shades(base, len(dv))
+        m_v, m_l, m_c, _ = _merge_small(
+            list(dv), list(dl), shades, merge_threshold,
+            other_color=generate_shades(base, 1, l_range=(0.88, 0.88))[0])
+        # 大→小排序(Others 殿后)
+        oi = next((i for i, l in enumerate(m_l) if l == 'Others'), None)
+        order = sorted([i for i in range(len(m_v)) if i != oi], key=lambda i: m_v[i], reverse=True)
+        if oi is not None:
+            order.append(oi)
+        m_v = [m_v[i] for i in order]; m_l = [m_l[i] for i in order]; m_c = [m_c[i] for i in order]
+
+        ax_s = fig.add_axes(corner_rects[assign[loc]]); ax_s.set_zorder(2)
+        s_wedges, s_texts, s_angles = _draw_pie_on_ax(
+            ax_s, m_v, m_l, m_c, show_pct=show_pct, show_count=show_count,
+            pct_distance=0.68, label_distance=label_distance, startangle=90,
+            font_size=font_size, title=detail_titles.get(loc, loc), min_pct_for_label=0)
+        fig.canvas.draw()
+        _fix_label_overlaps(fig, ax_s, s_texts, margin=7.0)
+        if show_leader_lines:
+            _draw_leader_lines(ax_s, s_wedges, s_texts, s_angles,
+                               rim=1.0 if label_distance > 1.0 else label_distance)
+        _draw_connector(fig, ax_c, wedge_of[loc], ax_s, base, connect_alpha)
+
+    if title:
+        fig.suptitle(title, fontsize=font_size + 3, fontweight='bold', y=0.985)
+
+    if out_path:
+        out_path = Path(out_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        for suffix in ['.png', '.pdf', '.svg']:
+            p = out_path.with_suffix(suffix)
+            dpi = 600 if suffix == '.png' else None
+            fig.savefig(p, dpi=dpi, bbox_inches='tight', facecolor='white')
+            print(f"Saved: {p}")
+    return fig
