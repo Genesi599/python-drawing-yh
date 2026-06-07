@@ -23,6 +23,7 @@
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="dark.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
 </head>
 <body>
 
@@ -81,6 +82,7 @@
   <a href="#heatmap-clustered">  Clustered heatmap</a>
   <a href="#heatmap-tile">  Tile heatmap</a>
   <a href="#heatmap-row-bars">  Heatmap + per-row bars</a>
+  <a href="#oydeg-enrichment-heatmap">  OY-DEG heatmap + enrichment</a>
   <a href="#dose-heatmap">  Dose-response heatmap</a>
 </aside>
 <div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn current" href="omics.html">Omics</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
@@ -94,7 +96,7 @@
 </nav>
 <main class="report-main">
 <h1 id="heatmap">Heatmap</h1>
-<p>Omics / Heatmap — 4 种示例图。</p>
+<p>Omics / Heatmap — 5 种示例图。</p>
 <div class="gallery-grid">
 <article class="gallery-card" id="heatmap-clustered">
 <figure>
@@ -173,6 +175,32 @@ Omics / Heatmap · drawing_yh/heatmap/row_bars.py
 </div>
 </div>
 </article>
+<article class="gallery-card" id="oydeg-enrichment-heatmap">
+<figure>
+<a href="../generated/oydeg_enrichment_heatmap.png"><img src="../generated/oydeg_enrichment_heatmap.png" alt="OY-DEG heatmap + enrichment"></a>
+</figure>
+<div class="body">
+<h3>
+OY-DEG heatmap + enrichment
+</h3>
+<p>
+Old vs Young DEG log2FC 热图 + 动态 gene labels + Up/Down 富集块。
+</p>
+<p>
+<em>输入为已整理矩阵、block、label genes 和 enrichment
+blocks；DEG/enrichment 计算留在分析流程。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap · drawing_yh/heatmap/oydeg_enrichment.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>DEG</span> <span>enrichment</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/oydeg_enrichment_heatmap.png">原图</a><a href="../../drawing_yh/heatmap/oydeg_enrichment.py">源码/示例</a>
+</div>
+</div>
+</article>
 <article class="gallery-card" id="dose-heatmap">
 <figure>
 <a href="../../drawing_yh/dose_response/heatmap_with_colorbar.png"><img src="../../drawing_yh/dose_response/heatmap_with_colorbar.png" alt="Dose-response heatmap"></a>
@@ -200,5 +228,46 @@ Omics / Heatmap · drawing_yh/dose_response/heatmap_with_colorbar.py
 </article>
 </div>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('img').forEach(function (img) {
+    if (img.closest('.img-toolbar-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'img-toolbar-wrap';
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    var tb = document.createElement('div');
+    tb.className = 'img-toolbar';
+    var cpBtn = document.createElement('button');
+    cpBtn.textContent = '复制';
+    cpBtn.title = 'Copy image to clipboard';
+    cpBtn.onclick = function () {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.toBlob(function (blob) {
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function () {
+          cpBtn.textContent = '✓';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        }).catch(function () {
+          cpBtn.textContent = '失败';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        });
+      }, 'image/png');
+    };
+    var dlBtn = document.createElement('button');
+    dlBtn.textContent = '下载';
+    dlBtn.title = 'Download image';
+    dlBtn.onclick = function () {
+      var a = document.createElement('a');
+      a.href = img.src;
+      a.download = img.src.split('/').pop().split('?')[0] || 'image.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    tb.appendChild(cpBtn); tb.appendChild(dlBtn);
+    wrap.appendChild(tb);
+  });
+});
+</script>
 </body>
 </html>

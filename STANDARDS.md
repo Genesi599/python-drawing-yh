@@ -145,6 +145,7 @@ preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰
 | Marker dot plot | `marker_dotplot(data, row_order, gene_order, …)` | long 表(row / gene / avg / pct) |
 | Embedding feature plot | `feature_plot(coords, values, …)` | coords (N,2) + 值矩阵 / dict / DataFrame |
 | 热图 + 每行富集条 | `heatmap_with_row_bars(Z, row_labels, …)` | Z 矩阵 + 每行 `[(term, value)]` |
+| OY-DEG 热图 + 富集块 | `plot_oydeg_heatmap_enrichment(values, …)` | log2FC 矩阵 + heat blocks + label genes + enrichment blocks |
 
 **Dot plot**(默认 grey-red,scseq 配色;`cmap="viridis"` 切 viridis;图例默认右侧竖排——colorbar 柱与 size 点列共用中线、纵向对齐,两组数字左缘对齐,名称竖排在最右成列,`legend_loc="bottom"` 回底部横排;布局按内容算英寸预算——网格按 pitch、边距按标签长度、右侧固定图例带,边距 / 图例随 figsize 自适应,不写死 figure 分数):
 
@@ -182,6 +183,32 @@ fig, (ax_heat, ax_bars) = heatmap_with_row_bars(
     block_sizes=per_group_marker_counts,   # 列块竖线
     row_colors=celltype_colors,            # 左侧彩条 + 柱色
     z_clip=2.0,
+)
+```
+
+**OY-DEG heatmap + enrichment**(左 log2FC 热图 + 中间动态 gene labels/方向点 + 右 Up/Down 富集块;只负责画,DEG筛选、富集和term去重由分析流程准备):
+
+```python
+from drawing_yh import plot_oydeg_heatmap_enrichment
+
+fig, axes = plot_oydeg_heatmap_enrichment(
+    values,                         # DataFrame: rows=ordered genes, columns=cell types
+    heat_blocks=[                   # row index blocks, already ordered
+        {"label": "Fib Up", "color": "#4E79A7", "s": 0, "e": 30},
+        {"label": "Fib Down", "color": "#4E79A7", "s": 30, "e": 58},
+    ],
+    label_genes=["COL1A1", "DCN", "MMP2"],
+    gene_status={"COL1A1": {"Fib": "up"}, "DCN": {"Fib": "down"}},
+    column_colors={"Fib": "#4E79A7", "EC": "#59A14F"},
+    right_blocks=[{
+        "label": "Fib",
+        "color": "#4E79A7",
+        "groups": [("Up in old", "#C0392B", [
+            {"term": "Extracellular Matrix Organization", "nlp": 4.2, "db": "G", "genes": ["COL1A1", "MMP2"]},
+        ])],
+    }],
+    heatmap_title="Top aging DEGs (log2FC)",
+    right_title="KEGG + GO enrichment per subtype",
 )
 ```
 

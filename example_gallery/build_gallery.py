@@ -404,6 +404,92 @@ def generate_heatmap_row_bars() -> Path:
     return out
 
 
+def generate_oydeg_enrichment_heatmap() -> Path:
+    from drawing_yh import plot_oydeg_heatmap_enrichment
+
+    columns = ["Fib", "EC", "Mac"]
+    colors = dict(zip(columns, [OKABE_ITO[0], OKABE_ITO[2], OKABE_ITO[1]]))
+    genes = [
+        "COL1A1", "COL3A1", "POSTN", "MMP2", "CXCL12",
+        "PECAM1", "VWF", "KDR", "SOX18", "CLDN5",
+        "C1QA", "LST1", "TYROBP", "APOE", "MERTK",
+        "DCN", "LUM", "RGS5", "FLT1", "CSF1R",
+    ]
+    values = pd.DataFrame(0.0, index=genes, columns=columns)
+    values.loc[genes[0:5], "Fib"] = [1.8, 1.5, 1.2, -1.1, -0.8]
+    values.loc[genes[5:10], "EC"] = [1.6, 1.4, 1.1, -1.2, -0.9]
+    values.loc[genes[10:15], "Mac"] = [1.7, 1.3, 1.1, -1.0, -0.8]
+    values.loc["DCN", ["Fib", "EC"]] = [0.9, 0.4]
+    values.loc["FLT1", ["EC", "Mac"]] = [0.8, 0.3]
+    values.loc["CSF1R", "Mac"] = 0.9
+
+    heat_blocks = [
+        {"label": "Fib Up", "color": colors["Fib"], "s": 0, "e": 3},
+        {"label": "Fib Down", "color": colors["Fib"], "s": 3, "e": 5},
+        {"label": "EC Up", "color": colors["EC"], "s": 5, "e": 8},
+        {"label": "EC Down", "color": colors["EC"], "s": 8, "e": 10},
+        {"label": "Mac Up", "color": colors["Mac"], "s": 10, "e": 13},
+        {"label": "Mac Down", "color": colors["Mac"], "s": 13, "e": 15},
+        {"label": "Shared", "color": "#8b949e", "s": 15, "e": 20},
+    ]
+    gene_status = {}
+    for gene in genes:
+        gene_status[gene] = {}
+        for col in columns:
+            val = values.loc[gene, col]
+            if val > 0:
+                gene_status[gene][col] = "up"
+            elif val < 0:
+                gene_status[gene][col] = "down"
+    right_blocks = [
+        {
+            "label": "Fib",
+            "color": colors["Fib"],
+            "groups": [
+                ("Up in old", "#C0392B", [
+                    {"term": "Extracellular Matrix Organization", "nlp": 3.4, "db": "G", "genes": ["COL1A1", "COL3A1", "POSTN", "MMP2"]},
+                ]),
+                ("Down in old", "#2166AC", [
+                    {"term": "Chemokine Signaling", "nlp": 1.8, "db": "K", "genes": ["CXCL12"]},
+                ]),
+            ],
+        },
+        {
+            "label": "EC",
+            "color": colors["EC"],
+            "groups": [
+                ("Up in old", "#C0392B", [
+                    {"term": "Vasculature Development", "nlp": 2.8, "db": "G", "genes": ["PECAM1", "VWF", "KDR", "SOX18"]},
+                ]),
+            ],
+        },
+        {
+            "label": "Mac",
+            "color": colors["Mac"],
+            "groups": [
+                ("Up in old", "#C0392B", [
+                    {"term": "Phagosome", "nlp": 2.5, "db": "K", "genes": ["C1QA", "TYROBP", "APOE", "MERTK"]},
+                ]),
+            ],
+        },
+    ]
+    out = GEN / "oydeg_enrichment_heatmap.png"
+    fig, _ = plot_oydeg_heatmap_enrichment(
+        values,
+        heat_blocks=heat_blocks,
+        label_genes=["COL1A1", "POSTN", "CXCL12", "PECAM1", "KDR", "CLDN5", "C1QA", "TYROBP", "APOE", "FLT1"],
+        gene_status=gene_status,
+        column_colors=colors,
+        right_blocks=right_blocks,
+        heatmap_title="Top aging DEGs (log2FC)",
+        right_title="KEGG + GO enrichment",
+        figsize=(6.9, 5.2),
+    )
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def generate_all() -> dict[str, Path]:
     GEN.mkdir(parents=True, exist_ok=True)
     return {
@@ -416,6 +502,7 @@ def generate_all() -> dict[str, Path]:
         "marker_dotplot": generate_marker_dotplot(),
         "feature_plot": generate_feature_plot(),
         "heatmap_row_bars": generate_heatmap_row_bars(),
+        "oydeg_enrichment_heatmap": generate_oydeg_enrichment_heatmap(),
         "dumbbell": generate_dumbbell(),
         "venn_diagram": generate_venn(),
         "chord_diagram": generate_chord(),
@@ -444,6 +531,7 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("heatmap-clustered", "Omics", "Heatmap", "Clustered heatmap", p / "heatmap/heatmap_clustered/HMM 20241126/heatmap_with_colorbar_cluster.png", p / "heatmap/heatmap_clustered/heapmap_clustered.py", "矩阵聚类、表达模式、样本/基因分组。", "适合 feature 数中等的全局模式。", ("heatmap", "cluster")),
         Example("heatmap-tile", "Omics", "Heatmap", "Tile heatmap", generated["heatmap_tile"], p / "heatmap/heatmap_tile_style/heatmap_tile_style.py", "通路 × 细胞类型、组织 × feature 的紧凑矩阵。", "适合报告里快速比较方向。", ("heatmap", "tile")),
         Example("heatmap-row-bars", "Omics", "Heatmap", "Heatmap + per-row bars", generated["heatmap_row_bars"], p / "heatmap/row_bars.py", "z-score 热图 + 每行 top 富集条(如各 cell type GO)。", "左侧行彩条 + 列块分隔，右侧横向条标注通路。", ("single-cell", "heatmap", "enrichment")),
+        Example("oydeg-enrichment-heatmap", "Omics", "Heatmap", "OY-DEG heatmap + enrichment", generated["oydeg_enrichment_heatmap"], p / "heatmap/oydeg_enrichment.py", "Old vs Young DEG log2FC 热图 + 动态 gene labels + Up/Down 富集块。", "输入为已整理矩阵、block、label genes 和 enrichment blocks；DEG/enrichment 计算留在分析流程。", ("single-cell", "DEG", "enrichment")),
         Example("dose-heatmap", "Omics", "Heatmap", "Dose-response heatmap", p / "dose_response/heatmap_with_colorbar.png", p / "dose_response/heatmap_with_colorbar.py", "药物浓度 × 组合条件矩阵。", "适合筛选敏感窗口。", ("dose-response", "heatmap")),
         Example("pie", "Composition", "Pie / Donut", "Pie chart", p / "pie_chart/pie/pie.png", p / "pie_chart/pie/main.py", "少量类别的组成比例。", "类别过多时优先换 bar plot。", ("pie", "composition")),
         Example("donut", "Composition", "Pie / Donut", "Donut chart", p / "pie_chart/donut/donut.png", p / "pie_chart/donut/main.py", "组成比例 + 中心注释。", "比普通 pie 更适合放总数或标签。", ("donut", "composition")),

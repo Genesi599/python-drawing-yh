@@ -107,7 +107,7 @@ from .embedding import (                                # noqa: E402
     cluster_atlas, cluster_centroids,
 )
 from . import embedding                                 # noqa: E402,F401
-from .heatmap import heatmap_with_row_bars, clustermap_annot              # noqa: E402
+from .heatmap import heatmap_with_row_bars, clustermap_annot, plot_oydeg_heatmap_enrichment  # noqa: E402
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
 
@@ -134,6 +134,7 @@ __all__ = [
     "marker_dotplot",
     "feature_plot",
     "heatmap_with_row_bars",
+    "plot_oydeg_heatmap_enrichment",
     "clustermap_annot",
     # dot-plot style primitives (re-exported from drawing_yh.dotplot)
     "dot_sizes", "pad_axes", "style_colorbar",
