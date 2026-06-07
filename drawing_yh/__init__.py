@@ -107,7 +107,9 @@ from .embedding import (                                # noqa: E402
     cluster_atlas, cluster_centroids,
 )
 from . import embedding                                 # noqa: E402,F401
-from .heatmap import heatmap_with_row_bars, clustermap_annot, plot_oydeg_heatmap_enrichment  # noqa: E402
+from .heatmap import (heatmap_with_row_bars, clustermap_annot,  # noqa: E402
+                      plot_oydeg_heatmap_enrichment,
+                      plot_enrichment_dotplot, pick_enrich_terms)
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
 from .umap_overlay import (                             # noqa: E402
@@ -117,6 +119,11 @@ from .umap_overlay import (                             # noqa: E402
 from . import umap_overlay                              # noqa: E402,F401
 from .bubble import bubble_plot, two_tone_ticklabels    # noqa: E402
 from . import bubble                                    # noqa: E402,F401
+from .proportion_strip import (                         # noqa: E402
+    DEFAULT_AGE_COLORS,
+    fraction_by_age_panel, fraction_by_age_figure,
+)
+from . import proportion_strip                          # noqa: E402,F401
 
 __all__ = [
     # version
@@ -142,6 +149,8 @@ __all__ = [
     "feature_plot",
     "heatmap_with_row_bars",
     "plot_oydeg_heatmap_enrichment",
+    "plot_enrichment_dotplot",
+    "pick_enrich_terms",
     "clustermap_annot",
     # dot-plot style primitives (re-exported from drawing_yh.dotplot)
     "dot_sizes", "pad_axes", "style_colorbar",
@@ -162,4 +171,8 @@ __all__ = [
     # bubble plot
     "bubble_plot", "two_tone_ticklabels",
     "bubble",
+    # proportion strip (boxplot + dots)
+    "DEFAULT_AGE_COLORS",
+    "fraction_by_age_panel", "fraction_by_age_figure",
+    "proportion_strip",
 ]
