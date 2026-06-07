@@ -124,6 +124,8 @@ from .proportion_strip import (                         # noqa: E402
     fraction_by_age_panel, fraction_by_age_figure,
 )
 from . import proportion_strip                          # noqa: E402,F401
+from .tile_heatmap import tile_heatmap                  # noqa: E402
+from .lollipop import lollipop_plot                     # noqa: E402
 
 __all__ = [
     # version
@@ -175,4 +177,8 @@ __all__ = [
     "DEFAULT_AGE_COLORS",
     "fraction_by_age_panel", "fraction_by_age_figure",
     "proportion_strip",
+    # tile heatmap (TF-style square-cell)
+    "tile_heatmap",
+    # lollipop / stem plot
+    "lollipop_plot",
 ]
