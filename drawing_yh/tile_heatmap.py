@@ -53,6 +53,8 @@ def _compute_figsize(
 def tile_heatmap(
     matrix: pd.DataFrame,
     *,
+    row_labels: Sequence[str] | None = None,
+    col_labels: Sequence[str] | None = None,
     cmap: str = "RdBu_r",
     diverging: bool = True,
     vmax: float | None = None,
@@ -78,6 +80,9 @@ def tile_heatmap(
     ----------
     matrix : pd.DataFrame
         Rows = TF names, columns = cell-type labels. Values = signed effect.
+    row_labels, col_labels : sequence of str, optional
+        Display labels for rows/columns. If omitted, ``matrix.index`` and
+        ``matrix.columns`` are used.
     pvalue_matrix : pd.DataFrame, optional
         Same index/columns as *matrix*. Cells with padj < 0.05/0.01/0.001
         get *, **, *** annotations.
@@ -88,8 +93,18 @@ def tile_heatmap(
         (e.g. ``[n_up]`` to separate up/down TF groups).
     """
     n_rows, n_cols = matrix.shape
-    col_labels = [str(c) for c in matrix.columns]
-    row_labels = [str(r) for r in matrix.index]
+    if row_labels is None:
+        row_labels = [str(r) for r in matrix.index]
+    else:
+        row_labels = [str(r) for r in row_labels]
+    if col_labels is None:
+        col_labels = [str(c) for c in matrix.columns]
+    else:
+        col_labels = [str(c) for c in col_labels]
+    if len(row_labels) != n_rows:
+        raise ValueError("row_labels length must match matrix rows.")
+    if len(col_labels) != n_cols:
+        raise ValueError("col_labels length must match matrix columns.")
 
     if figsize is None:
         figsize = _compute_figsize(
