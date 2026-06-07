@@ -64,7 +64,8 @@ def _draw_pie_on_ax(ax, values, labels, colors,
                     show_pct, show_count, pct_distance, label_distance,
                     startangle, font_size, title,
                     min_pct_for_label=3.0,
-                    suppress_label_indices=None):
+                    suppress_label_indices=None,
+                    counterclock=True):
     values   = np.array(values, dtype=float)
     total    = values.sum()
     pcts     = values / total * 100
@@ -91,6 +92,7 @@ def _draw_pie_on_ax(ax, values, labels, colors,
         pctdistance=pct_distance,
         labeldistance=label_distance,
         startangle=startangle,
+        counterclock=counterclock,
         wedgeprops=dict(linewidth=1.0, edgecolor='white'),
         textprops=dict(fontsize=font_size, fontfamily='Arial'),
     )
@@ -526,6 +528,7 @@ def plot_multi_zoom_pie(
     figsize: tuple          = (13.5, 9.5),
     out_path: str           = None,
     show_leader_lines: bool = True,
+    detail_counterclock: bool = False,   # 卫星细分饼扇区方向:False=顺时针(从大到小自顶部向右)
 ):
     """中央亚定位总览饼 + 多个大类的卫星细分饼(各用该类颜色渐变 shade + 爆炸引线)。
 
@@ -608,7 +611,8 @@ def plot_multi_zoom_pie(
         s_wedges, s_texts, s_angles = _draw_pie_on_ax(
             ax_s, m_v, m_l, m_c, show_pct=show_pct, show_count=show_count,
             pct_distance=0.68, label_distance=label_distance, startangle=90,
-            font_size=font_size, title=detail_titles.get(loc, loc), min_pct_for_label=0)
+            font_size=font_size, title=detail_titles.get(loc, loc), min_pct_for_label=0,
+            counterclock=detail_counterclock)
         fig.canvas.draw()
         _fix_label_overlaps(fig, ax_s, s_texts, margin=7.0)
         if show_leader_lines:
