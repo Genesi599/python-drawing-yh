@@ -110,6 +110,13 @@ from . import embedding                                 # noqa: E402,F401
 from .heatmap import heatmap_with_row_bars, clustermap_annot, plot_oydeg_heatmap_enrichment  # noqa: E402
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
+from .umap_overlay import (                             # noqa: E402
+    DA_CMAP, GRAY_NA,
+    draw_da_umap_panel, build_key_lines, umap_value_panels,
+)
+from . import umap_overlay                              # noqa: E402,F401
+from .bubble import bubble_plot, two_tone_ticklabels    # noqa: E402
+from . import bubble                                    # noqa: E402,F401
 
 __all__ = [
     # version
@@ -148,4 +155,11 @@ __all__ = [
     "report",
     # network
     "hub_spoke",
+    # umap value-overlay
+    "DA_CMAP", "GRAY_NA",
+    "draw_da_umap_panel", "build_key_lines", "umap_value_panels",
+    "umap_overlay",
+    # bubble plot
+    "bubble_plot", "two_tone_ticklabels",
+    "bubble",
 ]
