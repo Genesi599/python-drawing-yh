@@ -278,13 +278,20 @@ cp $(python -c "from drawing_yh import report; print(report.config_template_path
 cp $(python -c "from drawing_yh import report; print(report.slide_template_path())")  build_pages.py
 cp $(python -c "from drawing_yh import report; print(report.pptx_template_path())")   md_to_pptx.py
 
-# 2) 改 _report_config.py 的 SLIDES + CATEGORIES;改 md_to_pptx.py 顶端 4 个常量
-#    (PROJECT_LABEL / TEMPLATE / OUT / 标题页文案)
+# 2) 改 _report_config.py 的 SLIDES + CATEGORIES;按需改 PPT_SLIDES 控制 PPT 选页 / 多图布局
+#    改 md_to_pptx.py 顶端 4 个常量(PROJECT_LABEL / TEMPLATE / OUT / 标题页文案)
 
 # 3) 跑
 python build_pages.py     # → pages/*.html(只跑 HTML)
 python md_to_pptx.py      # → REPORT.pptx(只跑 PPT,不连带刷 HTML)
 ```
+
+**PPTX 模板能力**:
+
+- 图片同时支持 HTML `<img src="...">` 和 Markdown `![caption](path)`。
+- PPT 图片从 `report_figs/`、报告目录、`FIGURE_SRC`、`PPT_IMAGE_DIRS` 查找;SVG/PDF 需有同名 PNG/JPG fallback。
+- `_report_config.py` 可用 `PPT_SLIDES` 覆盖 PPT 选页、排序、中文 bullets、多图横排或 2×2 grid。
+- 导出结束会打印 diagnostics,列出缺图、非 raster 图、被截断的多图/表格等。
 
 **三层目录 combined 工作流**(多个已存在子报告合成一个网页):
 

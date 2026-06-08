@@ -6,7 +6,7 @@ _report_config_template.py — REPORT.md 共享配置 + markdown 切分。
 复制到项目目录改名 `_report_config.py`,改这三处即可:
   1. SLIDES        —— 你的 H2/H3 标题清单 + 显示 label + 分类
   2. CATEGORIES    —— 顶部 4-tab 分类
-  3. (`SRC` / 图片目录名 默认 'report_figs',按需调整)
+  3. (`SRC` / `FIGURE_SRC` / `PPT_SLIDES`,按需调整)
 
 `build_pages.py`(出 HTML)和 `md_to_pptx.py`(出 PPTX)都从这里 import,
 **纯 import 不会触发任何渲染**,放心用。
@@ -19,6 +19,8 @@ SRC  = HERE / 'REPORT.md'
 # 数据层 figure 目录(production scripts 输出到这里);build_pages.py 跑前自动 sync
 # 同名图过来到 HERE/report_figs/。None 禁用 sync(图手动管理)。
 FIGURE_SRC = None    # e.g. Path(r'D:\Projects\<project>\<sub>\figure')
+# PPTX 导出时额外查找图片的目录。默认已查 HERE/report_figs、HERE 和 FIGURE_SRC。
+PPT_IMAGE_DIRS = []  # e.g. [Path(r'D:\Projects\<project>\<sub>\figure')]
 
 # ==================================================================
 # SLIDES:每张幻灯 1 行 ----------------------------------------------
@@ -43,6 +45,27 @@ CATEGORIES = [
     ('findings', '4 个 Finding'),
     ('appendix', '附录'),
 ]
+
+# ==================================================================
+# PPT_SLIDES:可选。控制 md_to_pptx.py 的选页、排序和多图布局 --------
+# ==================================================================
+# 默认 {}:按 SLIDES 顺序全部导出;每页有多张图时自动用多图布局。
+# dict:保留 SLIDES 顺序,只覆盖指定 slug 的 PPT 行为。
+# list:完全指定 PPT 输出顺序和子集;元素可为 slug 字符串或 dict。
+PPT_SLIDES = {
+    # 'find_A': {
+    #     'layout': 'multi_images',          # 'auto' | 'image_left' | 'multi_images' | 'grid'
+    #     'images': ['fig_a', 'fig_b'],      # 可选:只取这些 stem 的图
+    #     'bullets': ['第一条中文讲述要点', '第二条中文讲述要点'],
+    #     'width_weights': [0.45, 0.55],     # 仅横排多图时生效
+    # },
+}
+
+# 也可以改成 list 作为精选 deck:
+# PPT_SLIDES = [
+#     'intro_summary',
+#     {'slug': 'find_A', 'label': 'Finding A · 双图', 'layout': 'multi_images'},
+# ]
 
 # ==================================================================
 # 以下框架代码不用改 ------------------------------------------------

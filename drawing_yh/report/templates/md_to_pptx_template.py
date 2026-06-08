@@ -11,7 +11,8 @@ md_to_pptx_template.py — REPORT.md → native PPTX,继承一份 PPTX 母版的
   4. main() 里的 title_slide 标题 + 副标题文案
 
 布局:每张 slide 顶部 = 项目标签 + slide 标题 + 橙色分隔线;body 自动选择
-  - 有图(`<img>`):左大图 + 右 ➤ bullets(垂直居中)
+  - 有图(`<img>` 或 `![caption](path)`):左大图 + 右 ➤ bullets(垂直居中)
+  - 多图:默认并排 / 2×2 排布,也可用 `_report_config.PPT_SLIDES` 指定
   - 无图:全宽 ➤ bullets / 表
 约定:有图 slide 不放表;表格列宽按内容长短分配;字号 16pt(表 14pt header / 11–14pt body);
       内容超 → 自动截字号 / 截行 / 丢次要 list,**不**显式提示。
@@ -20,6 +21,7 @@ md_to_pptx_template.py — REPORT.md → native PPTX,继承一份 PPTX 母版的
 """
 import re, sys
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.enum.shapes import MSO_SHAPE
@@ -37,6 +39,18 @@ OUT      = Path(r'D:/path/to/output/REPORT.pptx')          # 输出
 # 共享配置(纯 import 不触发任何渲染副作用)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _report_config import HERE, SLIDES, load_chunks   # noqa: E402
+try:
+    from _report_config import FIGURE_SRC              # noqa: E402
+except ImportError:
+    FIGURE_SRC = None
+try:
+    from _report_config import PPT_IMAGE_DIRS          # noqa: E402
+except ImportError:
+    PPT_IMAGE_DIRS = []
+try:
+    from _report_config import PPT_SLIDES              # noqa: E402
+except ImportError:
+    PPT_SLIDES = {}
 
 # 母版 16:9(13.33 × 7.5 in),hardcode 避免 module-level 创建 Presentation
 SLIDE_W = Inches(13.333)
@@ -44,6 +58,37 @@ SLIDE_H = Inches(7.500)
 
 # prs / 各 layout 在 main() 里加载,通过 _PRS_CTX 给 add_content_slide 用
 _PRS_CTX: dict = {}     # {'blank_layout': layout 对象}
+_PPT_CTX: dict = {}     # 当前 slide 上下文,用于诊断
+_PPT_DIAG: dict[str, list[str]] = {
+    'missing_chunks': [],
+    'missing_images': [],
+    'unsupported_images': [],
+    'fallback_images': [],
+    'truncated_images': [],
+    'dropped_tables': [],
+}
+
+SUPPORTED_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'}
+RASTER_FALLBACK_EXTS = ('.png', '.jpg', '.jpeg')
+
+
+def _diag(kind: str, msg: str):
+    bucket = _PPT_DIAG.setdefault(kind, [])
+    if msg not in bucket:
+        bucket.append(msg)
+
+
+def _print_diagnostics():
+    any_warn = False
+    for kind, rows in _PPT_DIAG.items():
+        if not rows:
+            continue
+        any_warn = True
+        print(f'PPT diagnostics [{kind}]:')
+        for row in rows:
+            print(f'  - {row}')
+    if not any_warn:
+        print('PPT diagnostics: no warnings')
 
 
 def _load_template() -> Presentation:
@@ -55,6 +100,25 @@ def _load_template() -> Presentation:
         prs.part.drop_rel(sld_id.rId)
         sld_id_lst.remove(sld_id)
     return prs
+
+
+_HTML_IMG_RE = re.compile(r'<img\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']', re.I)
+_MD_IMG_RE = re.compile(r'!\[[^\]]*\]\(([^)]+)\)')
+
+
+def _extract_md_image_src(part: str) -> str | None:
+    m = _MD_IMG_RE.search(part)
+    if not m:
+        return None
+    raw = m.group(1).strip()
+    if raw.startswith('<') and raw.endswith('>'):
+        raw = raw[1:-1].strip()
+    # 去掉可选 title: ![](fig.png "caption")
+    m_title = re.match(r'([^\s]+)\s+["\'][^"\']*["\']$', raw)
+    if m_title:
+        raw = m_title.group(1)
+    return raw or None
+
 
 # ------------------------------------------------------------------
 # 2. Markdown chunk → 块结构(para / list / table / image / code)
@@ -79,9 +143,13 @@ def parse_chunk(md: str):
         if part.startswith('|') and re.search(r'\n\|', part):
             blocks.append({'type': 'table', 'md': part})
         elif re.match(r'<img\s', part, re.I):
-            m = re.search(r'src="([^"]+)"', part)
+            m = _HTML_IMG_RE.search(part)
             if m:
                 blocks.append({'type': 'image', 'src': m.group(1)})
+        elif re.match(r'!\[', part):
+            src = _extract_md_image_src(part)
+            if src:
+                blocks.append({'type': 'image', 'src': src})
         elif part.startswith('```'):
             inner = re.sub(r'^```\w*\n?', '', part)
             inner = re.sub(r'\n?```$', '', inner)
@@ -98,17 +166,93 @@ def parse_chunk(md: str):
 # ------------------------------------------------------------------
 # 3. Helper:在 slide 上的 (cur_y) 位置追加各种块
 # ------------------------------------------------------------------
-def resolve_image(src: str) -> Path | None:
-    """REPORT.md 里的 'report_figs/foo.png' / '../report_figs/foo.png' 等都解析。"""
-    name = Path(src).name
-    candidates = [
-        HERE / 'report_figs' / name,
-        Path(r'D:/Projects/Bone_Marrow_Aging/cellchat_x_BMIF/figure') / name,
-        Path(r'D:/Projects/Bone_Marrow_Aging/cellchat_x_BMIF/report_figs') / name,
-    ]
+def _iter_image_dirs():
+    dirs = [HERE / 'report_figs', HERE]
+    if FIGURE_SRC:
+        dirs.append(Path(FIGURE_SRC))
+    for d in PPT_IMAGE_DIRS or []:
+        dirs.append(Path(d))
+    seen = set()
+    for d in dirs:
+        try:
+            key = str(d.resolve())
+        except OSError:
+            key = str(d)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield d
+
+
+def _clean_src(src: str) -> str:
+    src = unquote(str(src).strip())
+    src = src.split('#', 1)[0].split('?', 1)[0]
+    if src.startswith('<') and src.endswith('>'):
+        src = src[1:-1].strip()
+    return src
+
+
+def _candidate_paths(src: str, *, raster_only: bool):
+    clean = _clean_src(src)
+    if not clean:
+        return []
+    parsed = urlparse(clean)
+    if parsed.scheme in {'http', 'https'}:
+        return []
+
+    p = Path(clean)
+    names = [p.name]
+    if raster_only:
+        names = [p.with_suffix(ext).name for ext in RASTER_FALLBACK_EXTS]
+
+    candidates = []
+    if p.is_absolute():
+        candidates.append(p)
+        if raster_only:
+            candidates.extend(p.with_suffix(ext) for ext in RASTER_FALLBACK_EXTS)
+    else:
+        candidates.append((HERE / p).resolve())
+        for d in _iter_image_dirs():
+            for name in names:
+                candidates.append(d / name)
+
+    out = []
+    seen = set()
     for c in candidates:
+        s = str(c)
+        if s not in seen:
+            out.append(c)
+            seen.add(s)
+    return out
+
+
+def resolve_image(src: str) -> Path | None:
+    """解析本地 raster 图片。SVG/PDF 等非 raster 需要同名 PNG/JPG fallback。"""
+    slug = _PPT_CTX.get('slug', '?')
+    clean = _clean_src(src)
+    parsed = urlparse(clean)
+    if parsed.scheme in {'http', 'https'}:
+        _diag('unsupported_images', f'{slug}: remote image is not embedded in PPTX: {src}')
+        return None
+
+    exact_existing = []
+    for c in _candidate_paths(clean, raster_only=False):
         if c.exists():
+            exact_existing.append(c)
+            if c.suffix.lower() in SUPPORTED_IMAGE_EXTS:
+                return c
+
+    for c in _candidate_paths(clean, raster_only=True):
+        if c.exists() and c.suffix.lower() in SUPPORTED_IMAGE_EXTS:
+            if exact_existing:
+                _diag('fallback_images', f'{slug}: used raster fallback {c.name} for {Path(clean).name}')
             return c
+
+    if exact_existing:
+        names = ', '.join(p.name for p in exact_existing)
+        _diag('unsupported_images', f'{slug}: {names} found but PPTX needs PNG/JPG/BMP/GIF/TIFF')
+    else:
+        _diag('missing_images', f'{slug}: {src}')
     return None
 
 
@@ -363,8 +507,13 @@ def add_md_table(slide, md_block: str, x, y, w, *, max_h=None, font_pt=14, min_f
                 kept.append(ell[:n_cols])
             # ③ 还是装不下(光 header 都超):整个放弃
             if _cells_h_in(kept, col_widths_in, chosen_font) > max_h_in:
+                _diag('dropped_tables', f"{_PPT_CTX.get('slug', '?')}: table dropped; even header does not fit")
                 return Inches(0)
             final_cells = kept
+            n_kept_data = len(final_cells) - 2 if final_cells and final_cells[-1][0] == '…' else len(final_cells) - 1
+            n_dropped = max(0, total_rows - 1 - n_kept_data)
+            if n_dropped:
+                _diag('dropped_tables', f"{_PPT_CTX.get('slug', '?')}: table truncated, omitted {n_dropped} rows")
 
     n_rows = len(final_cells)
     h = Inches(_cells_h_in(final_cells, col_widths_in, chosen_font))
@@ -390,7 +539,7 @@ def add_md_table(slide, md_block: str, x, y, w, *, max_h=None, font_pt=14, min_f
 
 def add_image(slide, img_path: Path, x, y, max_w, max_h):
     """嵌图,先用 Pillow 读真实像素,等比 fit 到 (max_w × max_h),
-    一次 add_picture 给定确切宽高 —— 不留孤儿 relationship。"""
+    再在盒子内居中;一次 add_picture 给定确切宽高 —— 不留孤儿 relationship。"""
     with Image.open(img_path) as im:
         iw, ih = im.size
     aspect = ih / iw if iw else 1
@@ -399,7 +548,9 @@ def add_image(slide, img_path: Path, x, y, max_w, max_h):
     if th > int(max_h):
         th = int(max_h)
         tw = int(th / aspect)
-    pic = slide.shapes.add_picture(str(img_path), x, y, width=tw, height=th)
+    cx = int(x + (max_w - tw) / 2)
+    cy = int(y + (max_h - th) / 2)
+    pic = slide.shapes.add_picture(str(img_path), cx, cy, width=tw, height=th)
     return pic.height
 
 
@@ -429,27 +580,49 @@ RIGHT_TXT_X  = Inches(7.95)
 RIGHT_TXT_W  = Inches(5.10)         # ~38% slide width
 
 
-def layout_image_left(slide, images, others):
+def _collect_text_blocks(blocks):
+    bullets, tables, codes = [], [], []
+    for blk in blocks:
+        if blk['type'] == 'para':
+            bullets.append(blk['text'])
+        elif blk['type'] == 'list':
+            bullets.extend(blk['items'])
+        elif blk['type'] == 'table':
+            tables.append(blk)
+        elif blk['type'] == 'code':
+            codes.append(blk)
+    return bullets, tables, codes
+
+
+def layout_image_left(slide, images, others, *, bullets_override=None, text_heavy=False):
     """有图 → 左 7.5 in 大图,右 5.1 in 箭头要点 + 表格。"""
-    # 1. 左主图
-    main_img = resolve_image(images[0]['src'])
+    left_img_w = Inches(7.20) if text_heavy else LEFT_IMG_W
+    right_txt_x = Inches(7.55) if text_heavy else RIGHT_TXT_X
+    right_txt_w = Inches(5.35) if text_heavy else RIGHT_TXT_W
+    bullet_font_size = 14 if text_heavy else 16
+
+    # 1. 左主图:取第一张可解析图片,非 raster 自动尝试同名 PNG/JPG fallback
+    main_img = None
+    for im in images:
+        main_img = resolve_image(im['src'])
+        if main_img:
+            break
     if main_img:
         avail_h = BODY_BOTTOM - BODY_TOP
-        add_image(slide, main_img, LEFT_IMG_X, BODY_TOP, LEFT_IMG_W, avail_h)
+        add_image(slide, main_img, LEFT_IMG_X, BODY_TOP, left_img_w, avail_h)
 
     # 2. 右栏:把 para + list 全收编成 ➤ bullets,table 紧跟其后
-    bullets, tables, codes = [], [], []
-    for blk in others:
-        if blk['type'] == 'para':   bullets.append(blk['text'])
-        elif blk['type'] == 'list': bullets.extend(blk['items'])
-        elif blk['type'] == 'table': tables.append(blk)
-        elif blk['type'] == 'code':  codes.append(blk)
+    if bullets_override is not None:
+        bullets = list(bullets_override)
+        tables, codes = [], []
+    else:
+        bullets, tables, codes = _collect_text_blocks(others)
 
     # 右栏内容:**有图的 slide 一律不放表**(易冲突 / 拥挤)。
     # 表里的数据用 bullets 凝练,或读者去网页 / REPORT.md 看
     avail = BODY_BOTTOM - BODY_TOP                       # ~6.25 in
     avail_in = avail / 914400
-    rt_w_in  = RIGHT_TXT_W / 914400
+    rt_w_in  = right_txt_w / 914400
 
     fit_table = None
     dropped_n = len(tables)
@@ -459,19 +632,19 @@ def layout_image_left(slide, images, others):
         # 留底部 ~0.3 in 给"省略"注脚
         anchor_h = avail - (Inches(0.35) if dropped_n else Inches(0))
         # 截断超长 bullet
-        items_fit, _ = fit_bullets(bullets, rt_w_in, anchor_h / 914400, font_size=16)
-        add_arrow_bullets_centered(slide, items_fit, RIGHT_TXT_X, BODY_TOP,
-                                    RIGHT_TXT_W, anchor_h, font_size=16)
+        items_fit, _ = fit_bullets(bullets, rt_w_in, anchor_h / 914400, font_size=bullet_font_size)
+        add_arrow_bullets_centered(slide, items_fit, right_txt_x, BODY_TOP,
+                                    right_txt_w, anchor_h, font_size=bullet_font_size)
         cur_y = BODY_BOTTOM - (Inches(0.35) if dropped_n else Inches(0))
 
     # 2b) bullets + 1 张表 → bullets 顶上,表跟下面
     elif fit_table is not None:
         cur_y = BODY_TOP
         if bullets:
-            cur_y += add_arrow_bullets(slide, bullets, RIGHT_TXT_X, cur_y, RIGHT_TXT_W,
-                                        font_size=16, max_h=avail * 0.35) + Inches(0.1)
+            cur_y += add_arrow_bullets(slide, bullets, right_txt_x, cur_y, right_txt_w,
+                                        font_size=bullet_font_size, max_h=avail * 0.35) + Inches(0.1)
         rem = BODY_BOTTOM - cur_y - Inches(0.4 if dropped_n else 0.05)
-        cur_y += add_md_table(slide, fit_table['md'], RIGHT_TXT_X, cur_y, RIGHT_TXT_W,
+        cur_y += add_md_table(slide, fit_table['md'], right_txt_x, cur_y, right_txt_w,
                                max_h=rem, font_pt=14, min_font_pt=11) + Inches(0.05)
 
     # 2c) 没 bullets 也没能放的表
@@ -481,11 +654,58 @@ def layout_image_left(slide, images, others):
     # 4) 代码块(如果还有空间,塞右下)
     for cb in codes:
         if cur_y >= BODY_BOTTOM - Inches(0.4): break
-        cur_y += add_code(slide, cb['text'], RIGHT_TXT_X, cur_y, RIGHT_TXT_W) + Inches(0.05)
+        cur_y += add_code(slide, cb['text'], right_txt_x, cur_y, right_txt_w) + Inches(0.05)
 
-    # 3. 第 2+ 张图(若有):塞到左下方主图之下,或者干脆跳过
-    # 大多数 slide 1 张图就够;find_A 这种 2 张的暂时只显第 1 张,正文里有 venn 图就给 venn 让位
-    # (后续要的话可以做"主图换 venn / 加缩略图")
+    dropped = max(0, len(images) - 1)
+    if dropped:
+        _diag('truncated_images', f"{_PPT_CTX.get('slug', '?')}: {dropped} extra image(s) ignored by image_left layout")
+
+
+def add_multi_image_slide(prs, label: str, img_paths: list[Path], *, bullets=None,
+                          width_weights=None, layout='auto'):
+    """多图页:2 张横排;3-4 张走 2×2;超过 4 张只放前 4 张并诊断。"""
+    slide = prs.slides.add_slide(_PRS_CTX['blank_layout'])
+    add_header(slide, label)
+    imgs = [p for p in img_paths if p]
+    if not imgs:
+        return
+    if len(imgs) > 4:
+        _diag('truncated_images', f"{_PPT_CTX.get('slug', '?')}: used first 4 of {len(imgs)} images")
+        imgs = imgs[:4]
+
+    right_w = Inches(2.35) if bullets else Inches(0)
+    right_x = SLIDE_W - BODY_RIGHT - right_w
+    left_x = BODY_LEFT
+    top_y = BODY_TOP
+    avail_w = right_x - left_x - (Inches(0.12) if bullets else Inches(0))
+    avail_h = BODY_BOTTOM - BODY_TOP
+    gap = Inches(0.16)
+    n = len(imgs)
+
+    if layout == 'grid' or n in (3, 4):
+        cols = 2
+        rows = 2 if n > 2 else 1
+        cell_w = (avail_w - gap * (cols - 1)) / cols
+        cell_h = (avail_h - gap * (rows - 1)) / rows
+        for idx, ip in enumerate(imgs):
+            row, col = divmod(idx, cols)
+            add_image(slide, ip, left_x + col * (cell_w + gap), top_y + row * (cell_h + gap),
+                      cell_w, cell_h)
+    else:
+        total_w = avail_w - gap * (n - 1)
+        if width_weights and len(width_weights) == n and sum(width_weights) > 0:
+            weights = [float(w) / sum(width_weights) for w in width_weights]
+            widths = [total_w * w for w in weights]
+        else:
+            widths = [total_w / n] * n
+        x = left_x
+        for ip, w in zip(imgs, widths):
+            add_image(slide, ip, x, top_y, w, avail_h)
+            x += w + gap
+
+    if bullets:
+        add_arrow_bullets_centered(slide, bullets, right_x, BODY_TOP, right_w,
+                                   BODY_BOTTOM - BODY_TOP, font_size=15)
 
 
 def _estimate_height_in(blk, w_in: float = 12.73) -> float:
@@ -540,6 +760,7 @@ def layout_full_width(slide, blocks):
                                             font_size=16, max_h=rem) + Inches(0.04)
         elif blk['type'] == 'table':
             if seen_tbl >= 2:
+                _diag('dropped_tables', f"{_PPT_CTX.get('slug', '?')}: extra table dropped")
                 dropped_tbl += 1
                 continue
             h_used = add_md_table(slide, blk['md'], BODY_LEFT, cur_y, BODY_W,
@@ -554,16 +775,113 @@ def layout_full_width(slide, blocks):
 
 
 
-def add_content_slide(prs, label: str, md_chunk: str):
-    slide = prs.slides.add_slide(_PRS_CTX['blank_layout'])
-    add_header(slide, label)
+def _images_of_chunk(md_chunk: str) -> list[dict]:
+    _, blocks = parse_chunk(md_chunk)
+    return [b for b in blocks if b['type'] == 'image']
 
+
+def _resolved_images(images: list[dict]) -> list[Path]:
+    out = []
+    for b in images:
+        ip = resolve_image(b['src'])
+        if ip:
+            out.append(ip)
+    return out
+
+
+def _normalise_slide_opts(opts):
+    if opts is None:
+        return {}
+    if isinstance(opts, str):
+        return {'layout': opts}
+    return dict(opts)
+
+
+def _slug_slide_spec(slug: str, label: str, cat_key: str):
+    opts = _normalise_slide_opts(PPT_SLIDES.get(slug) if isinstance(PPT_SLIDES, dict) else None)
+    return {
+        'slug': slug,
+        'chunk': slug,
+        'label': opts.pop('label', label),
+        'category': cat_key,
+        **opts,
+    }
+
+
+def _iter_ppt_specs():
+    """默认按 SLIDES 输出;若 PPT_SLIDES 是 list,则完全按该 list 选页和排序。"""
+    if isinstance(PPT_SLIDES, list):
+        for item in PPT_SLIDES:
+            if isinstance(item, str):
+                # 用 SLIDES 里的 label/category 补齐
+                for slug, _, label, cat_key in SLIDES:
+                    if slug == item:
+                        yield _slug_slide_spec(slug, label, cat_key)
+                        break
+                else:
+                    yield {'slug': item, 'chunk': item, 'label': item, 'category': None}
+            elif isinstance(item, dict):
+                spec = dict(item)
+                spec.setdefault('slug', spec.get('chunk'))
+                spec.setdefault('chunk', spec['slug'])
+                spec.setdefault('label', spec['slug'])
+                yield spec
+        return
+
+    for slug, _, label, cat_key in SLIDES:
+        yield _slug_slide_spec(slug, label, cat_key)
+
+
+def _select_named_images(images: list[dict], names) -> list[dict]:
+    if not names:
+        return images
+    wanted = {Path(str(n)).stem for n in names}
+    out = []
+    for b in images:
+        stem = Path(_clean_src(b['src'])).stem
+        if stem in wanted:
+            out.append(b)
+    return out
+
+
+def add_content_slide(prs, label: str, md_chunk: str, *, spec=None):
+    spec = spec or {}
     _, blocks = parse_chunk(md_chunk)
     images = [b for b in blocks if b['type'] == 'image']
     others = [b for b in blocks if b['type'] != 'image']
+    images = _select_named_images(images, spec.get('images'))
+    bullets_override = spec.get('bullets')
+    text_heavy = bool(spec.get('text_heavy', False))
+    layout = spec.get('layout', 'auto')
+
+    if images and (
+        layout in {'multi_images', 'two_images', 'grid'}
+        or (layout == 'auto' and len(images) > 1 and spec.get('auto_multi', True))
+    ):
+        img_paths = _resolved_images(images)
+        add_multi_image_slide(
+            prs,
+            label,
+            img_paths,
+            bullets=bullets_override,
+            width_weights=spec.get('width_weights'),
+            layout='grid' if layout == 'grid' else 'auto',
+        )
+        return
+
+    slide = prs.slides.add_slide(_PRS_CTX['blank_layout'])
+    add_header(slide, label)
 
     if images:
-        layout_image_left(slide, images, others)
+        layout_image_left(
+            slide,
+            images,
+            others,
+            bullets_override=bullets_override,
+            text_heavy=text_heavy,
+        )
+    elif bullets_override is not None:
+        layout_full_width(slide, [{'type': 'list', 'items': list(bullets_override)}])
     else:
         layout_full_width(slide, others)
 
@@ -584,9 +902,17 @@ def main():
         sub = title_slide.placeholders[1]
         sub.text = '<作者> · <单位>\n<日期>'
 
-    # 5b. 16 张 content slide
-    for slug, _, dlabel, _ in SLIDES:
-        add_content_slide(prs, dlabel, chunks[slug])
+    # 5b. content slides
+    for spec in _iter_ppt_specs():
+        slug = spec['slug']
+        chunk_key = spec.get('chunk', slug)
+        _PPT_CTX.clear()
+        _PPT_CTX.update({'slug': slug, 'chunk': chunk_key})
+        md_chunk = chunks.get(chunk_key)
+        if md_chunk is None:
+            _diag('missing_chunks', f'{slug}: chunk {chunk_key!r} not found')
+            continue
+        add_content_slide(prs, spec.get('label', slug), md_chunk, spec=spec)
 
     # 5c. 保存(被 PowerPoint 锁住时落到带时间戳的备用名)
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -601,6 +927,7 @@ def main():
     print(f'Wrote: {target}')
     print(f'  slides: {len(prs.slides)}')
     print(f'  size:   {target.stat().st_size:,} B')
+    _print_diagnostics()
 
 
 if __name__ == '__main__':
