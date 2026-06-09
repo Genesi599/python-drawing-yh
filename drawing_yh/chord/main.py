@@ -65,6 +65,7 @@ def chord_diagram(
     matrix: pd.DataFrame,
     color_map: dict | None = None,
     *,
+    order: list | None = None,      # 显式 sector 顺序(如按谱系分组);None=按 node 名字母序(旧行为)
     figsize: tuple = (2.5, 2.5),    # 起始 figsize,autoshrink 会从这缩到 labels 刚好不重叠
     fontsize: int = 9,              # 固定 fontsize(不自动缩,由 figsize 调整防重叠)
     alpha: float = 1.0,             # chord 不透明,深
@@ -122,7 +123,12 @@ def chord_diagram(
 
     # 1. 对齐 + drop zero
     mat = matrix.copy()
-    all_nodes = sorted(set(mat.index) | set(mat.columns))
+    _univ = set(mat.index) | set(mat.columns)
+    if order is not None:
+        # 显式顺序优先(谱系分组等);order 里没列到的 node 按字母补到末尾
+        all_nodes = [n for n in order if n in _univ] + [n for n in sorted(_univ) if n not in set(order)]
+    else:
+        all_nodes = sorted(_univ)
     mat = mat.reindex(index=all_nodes, columns=all_nodes, fill_value=0.0)
     if drop_zero_nodes:
         keep = [n for n in all_nodes if mat.loc[n].sum() > 0 or mat[n].sum() > 0]
