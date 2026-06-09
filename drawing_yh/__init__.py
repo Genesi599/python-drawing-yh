@@ -110,7 +110,8 @@ from . import embedding                                 # noqa: E402,F401
 from .heatmap import (heatmap_with_row_bars, clustermap_annot,  # noqa: E402
                       plot_oydeg_heatmap_enrichment,
                       plot_enrichment_dotplot, pick_enrich_terms,
-                      plot_rescue_arrow_heatmap)
+                      plot_rescue_arrow_heatmap,
+                      plot_staircase_rescue_heatmap)
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
 from .volcano_plot import volcano                       # noqa: E402
@@ -154,6 +155,7 @@ __all__ = [
     "heatmap_with_row_bars",
     "plot_oydeg_heatmap_enrichment",
     "plot_rescue_arrow_heatmap",
+    "plot_staircase_rescue_heatmap",
     "plot_enrichment_dotplot",
     "pick_enrich_terms",
     "clustermap_annot",
