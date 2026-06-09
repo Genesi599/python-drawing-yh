@@ -310,6 +310,30 @@ document.addEventListener('DOMContentLoaded', function () {
 """
 
 # ------------------------------------------------------------------
+# Image lightbox — inline JS injected by render(img_lightbox=True)
+# ------------------------------------------------------------------
+_IMG_LIGHTBOX_SCRIPT = """\
+<script>
+document.addEventListener('click', function (e) {
+  if (e.target.tagName !== 'IMG' || e.target.closest('.img-toolbar')) return;
+  var m = document.createElement('div');
+  m.className = 'img-lightbox';
+  var img = document.createElement('img');
+  img.src = e.target.src;
+  img.alt = e.target.alt || '';
+  m.appendChild(img);
+  m.addEventListener('click', function () { m.remove(); });
+  document.body.appendChild(m);
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.img-lightbox').forEach(function (m) { m.remove(); });
+  }
+});
+</script>
+"""
+
+# ------------------------------------------------------------------
 # pandoc wrapper
 # ------------------------------------------------------------------
 def _have_pandoc() -> bool:
@@ -349,6 +373,7 @@ def render(
     footer_html: str | None = None,
     copy_css: bool = True,
     img_toolbar: bool = True,
+    img_lightbox: bool = True,
     extra_args: Sequence[str] = (),
 ) -> Path:
     """Render Markdown → standalone HTML via pandoc.
@@ -394,6 +419,10 @@ def render(
         When ``True``, inject an inline ``<script>`` that adds hover copy /
         download buttons to every ``<img>`` on the page.  Requires the
         ``.img-toolbar-wrap`` / ``.img-toolbar`` CSS classes in the stylesheet.
+    img_lightbox : bool, default True
+        When ``True``, inject an inline ``<script>`` that opens a fullscreen
+        modal overlay when any ``<img>`` is clicked.  Click overlay or press
+        ESC to dismiss.  Toolbar buttons are unaffected.
     extra_args : Sequence[str], optional
         Additional pandoc CLI args appended verbatim.
 
@@ -464,6 +493,11 @@ def render(
     if img_toolbar:
         inc_toolbar = _spill(_IMG_TOOLBAR_SCRIPT)
 
+    # 4b2. image lightbox script (inline <script> injected after body)
+    inc_lightbox = None
+    if img_lightbox:
+        inc_lightbox = _spill(_IMG_LIGHTBOX_SCRIPT)
+
     # 4c. emoji favicon injected into <head> via --include-in-header
     inc_favicon = None
     _emoji = favicon_emoji if favicon_emoji is not None else (
@@ -496,6 +530,8 @@ def render(
         cmd += ['--include-after-body', str(inc_after)]
     if inc_toolbar:
         cmd += ['--include-after-body', str(inc_toolbar)]
+    if inc_lightbox:
+        cmd += ['--include-after-body', str(inc_lightbox)]
     cmd += list(extra_args)
 
     try:

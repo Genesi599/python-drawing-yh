@@ -290,3 +290,26 @@ main.report-main {
   background: rgba(0,0,0,0.9);
   border-color: rgba(255,255,255,0.45);
 }
+
+/* ============================================================
+ * Image lightbox — click-to-zoom fullscreen modal
+ * ============================================================ */
+main img, .slide img, article img, .img-toolbar-wrap > img { cursor: zoom-in; }
+.img-lightbox {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-out;
+  padding: 20px;
+  animation: imgLightboxFadeIn 0.15s ease;
+}
+.img-lightbox img {
+  max-width: 95vw; max-height: 95vh;
+  object-fit: contain;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  cursor: zoom-out;
+}
+@keyframes imgLightboxFadeIn {
+  from { opacity: 0 } to { opacity: 1 }
+}

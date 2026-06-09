@@ -23,7 +23,7 @@
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="dark.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 </head>
 <body>
 
@@ -396,6 +396,24 @@ document.addEventListener('DOMContentLoaded', function () {
     tb.appendChild(cpBtn); tb.appendChild(dlBtn);
     wrap.appendChild(tb);
   });
+});
+</script>
+<script>
+document.addEventListener('click', function (e) {
+  if (e.target.tagName !== 'IMG' || e.target.closest('.img-toolbar')) return;
+  var m = document.createElement('div');
+  m.className = 'img-lightbox';
+  var img = document.createElement('img');
+  img.src = e.target.src;
+  img.alt = e.target.alt || '';
+  m.appendChild(img);
+  m.addEventListener('click', function () { m.remove(); });
+  document.body.appendChild(m);
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.img-lightbox').forEach(function (m) { m.remove(); });
+  }
 });
 </script>
 </body>

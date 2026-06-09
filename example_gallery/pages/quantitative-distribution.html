@@ -23,6 +23,7 @@
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="dark.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
 </head>
 <body>
 
@@ -145,5 +146,64 @@ Quantitative / Distribution · drawing_yh/violin_plot/violin_function.py
 </article>
 </div>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('img').forEach(function (img) {
+    if (img.closest('.img-toolbar-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'img-toolbar-wrap';
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    var tb = document.createElement('div');
+    tb.className = 'img-toolbar';
+    var cpBtn = document.createElement('button');
+    cpBtn.textContent = '复制';
+    cpBtn.title = 'Copy image to clipboard';
+    cpBtn.onclick = function () {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.toBlob(function (blob) {
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function () {
+          cpBtn.textContent = '✓';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        }).catch(function () {
+          cpBtn.textContent = '失败';
+          setTimeout(function () { cpBtn.textContent = '复制'; }, 1200);
+        });
+      }, 'image/png');
+    };
+    var dlBtn = document.createElement('button');
+    dlBtn.textContent = '下载';
+    dlBtn.title = 'Download image';
+    dlBtn.onclick = function () {
+      var a = document.createElement('a');
+      a.href = img.src;
+      a.download = img.src.split('/').pop().split('?')[0] || 'image.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    tb.appendChild(cpBtn); tb.appendChild(dlBtn);
+    wrap.appendChild(tb);
+  });
+});
+</script>
+<script>
+document.addEventListener('click', function (e) {
+  if (e.target.tagName !== 'IMG' || e.target.closest('.img-toolbar')) return;
+  var m = document.createElement('div');
+  m.className = 'img-lightbox';
+  var img = document.createElement('img');
+  img.src = e.target.src;
+  img.alt = e.target.alt || '';
+  m.appendChild(img);
+  m.addEventListener('click', function () { m.remove(); });
+  document.body.appendChild(m);
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.img-lightbox').forEach(function (m) { m.remove(); });
+  }
+});
+</script>
 </body>
 </html>
