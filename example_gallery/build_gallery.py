@@ -723,6 +723,7 @@ def _render_report_page(md: str, out_html: Path, title: str, header_html: str) -
         css=report.css_path("dark"),
         toc=False,
         title=title,
+        favicon_emoji="🎨",
         header_html=header_html,
         footer_html="</main>",
         extra_args=["--resource-path", str(OUT)],

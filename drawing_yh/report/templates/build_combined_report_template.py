@@ -39,6 +39,10 @@ from _combined_report_config import (
     ROUTE_OVERRIDES,
     SOURCE_REPORTS,
 )
+try:
+    from _combined_report_config import FAVICON_EMOJI as _FAVICON_EMOJI
+except ImportError:
+    _FAVICON_EMOJI = None
 
 
 SUPER_CSS = """
@@ -343,8 +347,8 @@ def render_slide(cslug, body_md, title, super_key, tag, cat, sources, cfgs, cslu
     header = extra_css + "\n" + sidebar + "\n" + super_switch(super_key) + "\n" + nav + '\n<main class="report-main">'
     body = rewrite_page_links(rewrite_image_paths(body_md, tag), tag, pages)
     out = report.render(body, out_html=OUT / f"{cslug}.html", css=css, title=title,
-                        toc=False, header_html=header, footer_html="</main>",
-                        extra_args=["--resource-path", str(HERE)])
+                        toc=False, favicon_emoji=_FAVICON_EMOJI, header_html=header,
+                        footer_html="</main>", extra_args=["--resource-path", str(HERE)])
     print(f"  -> {out.relative_to(HERE)} ({out.stat().st_size:,} B)")
 
 

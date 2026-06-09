@@ -23,6 +23,10 @@ from _report_config import (
     HERE, SLIDES, CATEGORIES, cat_of, first_in_category, cat_label_of, load_chunks,
     FIGURE_SRC,
 )
+try:
+    from _report_config import FAVICON_EMOJI as _FAVICON_EMOJI
+except ImportError:
+    _FAVICON_EMOJI = None
 
 OUT = HERE / 'pages'
 REPORT_TITLE = '项目结果报告'
@@ -81,6 +85,7 @@ def write_slide(slug: str, body_md: str, title: str):
         css=CSS,
         title=title,
         toc=False,
+        favicon_emoji=_FAVICON_EMOJI,
         header_html=header,
         footer_html='</main>',
         extra_args=['--resource-path', str(HERE)],
