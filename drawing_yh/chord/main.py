@@ -66,6 +66,7 @@ def chord_diagram(
     color_map: dict | None = None,
     *,
     order: list | None = None,      # 显式 sector 顺序(如按谱系分组);None=按 node 名字母序(旧行为)
+    top_nodes: list | None = None,  # 这些 node 涉及的 chord 提到最上层(避免被其它 chord 遮挡)
     figsize: tuple = (2.5, 2.5),    # 起始 figsize,autoshrink 会从这缩到 labels 刚好不重叠
     fontsize: int = 9,              # 固定 fontsize(不自动缩,由 figsize 调整防重叠)
     alpha: float = 1.0,             # chord 不透明,深
@@ -179,7 +180,8 @@ def chord_diagram(
                    rotate_names=radial_labels,
                    show=False,
                    fontsize=fontsize,
-                   alpha=eff_alpha)
+                   alpha=eff_alpha,
+                   top_nodes=set(top_nodes) if top_nodes else None)
         return _fig, _ax
 
     # 通用 autoshrink — sectors 少时 min_size 大一点防 chord 被 labels 压扁

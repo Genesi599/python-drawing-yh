@@ -271,11 +271,14 @@ def chord_diagram(mat, names=None, order=None, width=0.1, pad=2., gap=0.03,
             start1, end1, start2, end2 = pos[(i, j)]
 
             if mat[i, j] > 0 or (not directed and mat[j, i] > 0):
+                # PATCHED: top_nodes(kwargs)涉及的 chord 提到上层,避免被其它 chord 遮挡
+                _top = kwargs.get("top_nodes") or set()
+                _zo = 6 if (names is not None and (names[i] in _top or names[j] in _top)) else 2
                 chord_arc(
                     start1, end1, start2, end2, radius=1 - width - gap, gap=gap,
                     chordwidth=chordwidth, color=chord_color, cend=cend,
                     alpha=alpha, ax=ax, use_gradient=use_gradient,
-                    extent=extent, directed=directed)
+                    extent=extent, directed=directed, zorder=_zo)
 
                 # PATCHED: receiver 端 sector arc 内侧画 sender_color stripe
                 # 视觉效果:receiver 内 ring 出现一圈 sender 颜色,标识每条进来的 chord 来自哪个 sender
@@ -496,7 +499,7 @@ def ideogram_arc(start, end, radius=1., width=0.2, color="r", alpha=0.7,
 
 def chord_arc(start1, end1, start2, end2, radius=1.0, gap=0.03, pad=2,
               chordwidth=0.7, ax=None, color="r", cend="r", alpha=0.7,
-              use_gradient=False, extent=360, directed=False):
+              use_gradient=False, extent=360, directed=False, zorder=1):
     '''
     Draw a chord between two regions (arcs) of the chord diagram.
 
@@ -642,7 +645,7 @@ def chord_arc(start1, end1, start2, end2, radius=1.0, gap=0.03, pad=2,
 
             # make the patch
             patch = patches.PathPatch(path, facecolor="none",
-                                      edgecolor="none", lw=LW)
+                                      edgecolor="none", lw=LW, zorder=zorder)
             ax.add_patch(patch)  # this is required to clip the gradient
 
             # make the grid
@@ -650,10 +653,10 @@ def chord_arc(start1, end1, start2, end2, radius=1.0, gap=0.03, pad=2,
             meshgrid = np.meshgrid(x, y)
 
             gradient(points[0], points[1], min_angle, color, cend, meshgrid,
-                     patch, ax, alpha)
+                     patch, ax, alpha, zorder=zorder)
         else:
             patch = patches.PathPatch(path, facecolor=color, alpha=alpha,
-                                      edgecolor=color, lw=LW)
+                                      edgecolor=color, lw=LW, zorder=zorder)
 
             idx = 16
 

@@ -21,7 +21,7 @@ def linear_gradient(cstart, cend, n=10):
 
 
 def gradient(start, end, min_angle, color1, color2, meshgrid, mask, ax,
-             alpha):
+             alpha, zorder=1):
     '''
     Create a linear gradient from `start` to `end`, which is translationally
     invarient in the orthogonal direction.
@@ -50,6 +50,6 @@ def gradient(start, end, min_angle, color1, color2, meshgrid, mask, ax,
     cmap = LinearSegmentedColormap.from_list("gradient", color_list, N=n_bin)
 
     im = ax.imshow(Z, interpolation='bilinear', cmap=cmap,
-                   origin='lower', extent=[-1, 1, -1, 1], alpha=alpha)
+                   origin='lower', extent=[-1, 1, -1, 1], alpha=alpha, zorder=zorder)
 
     im.set_clip_path(mask)
