@@ -112,6 +112,7 @@ from .heatmap import (heatmap_with_row_bars, clustermap_annot,  # noqa: E402
                       plot_enrichment_dotplot, pick_enrich_terms)
 from . import report                                    # noqa: E402,F401
 from .network import hub_spoke                          # noqa: E402
+from .volcano_plot import volcano                       # noqa: E402
 from .umap_overlay import (                             # noqa: E402
     DA_CMAP, GRAY_NA,
     draw_da_umap_panel, build_key_lines, umap_value_panels,
