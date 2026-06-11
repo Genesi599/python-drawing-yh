@@ -248,6 +248,94 @@ def _build_enrichment_columns(right_blocks, ncols, **kw):
     return out, max_nlp
 
 
+def _lay_terms_from(terms_raw, start_y, *, max_genes_per_term, gene_formatter,
+                    gene_wrap, term_wrap):
+    """从 start_y 往下排一组 term(可换行的 term 标签 + 基因行),返回 (items, end_y)。"""
+    term_h, gene_h, term_gap, lbl_line_h = 0.88, 0.70, 0.28, 0.66
+    slot = start_y
+    items = []
+    for t in (_term_dict(x) for x in terms_raw):
+        db = str(t.get("db", "")).strip()
+        lbl = f"{t.get('term', '')} ({db})" if db else str(t.get("term", ""))
+        lbl_lines = textwrap.wrap(lbl, term_wrap) or [lbl]
+        term_y = slot
+        slot += term_h + (len(lbl_lines) - 1) * lbl_line_h
+        genes = [str(x) for x in t.get("genes", []) if str(x)]
+        shown = genes[:max_genes_per_term]
+        extra = len(genes) - len(shown)
+        gtext = ", ".join(gene_formatter(x) for x in shown) + (f" (+{extra})" if extra else "")
+        glines = []
+        for line in (textwrap.wrap(gtext, gene_wrap) or [""]):
+            if line.strip():
+                glines.append((slot, line)); slot += gene_h
+        slot += term_gap
+        items.append(dict(term_y=term_y, lbl_lines=lbl_lines, glines=glines, t=t))
+    return items, slot
+
+
+def _build_updown_layout(right_blocks, *, max_genes_per_term, gene_formatter,
+                         gene_wrap, term_wrap):
+    """每个 block 的 up / down 两组并排放(左 up / 右 down),块高 = head + max(up,down)。"""
+    head_h, sub_h, gap = 1.05, 0.78, 0.55
+    layout, slot = [], 0.0
+    for block in right_blocks:
+        header_y = slot
+        slot += head_h
+        sides, any_term = [], False
+        for group in block.get("groups", [])[:2]:
+            dlabel, dcolor, terms_raw = group
+            any_term = any_term or bool(terms_raw)
+            items, end_y = _lay_terms_from(
+                terms_raw, slot + sub_h, max_genes_per_term=max_genes_per_term,
+                gene_formatter=gene_formatter, gene_wrap=gene_wrap, term_wrap=term_wrap)
+            sides.append(dict(dlabel=dlabel, dcolor=dcolor, sub_y=slot, items=items, end_y=end_y))
+        block_end = max([s["end_y"] for s in sides], default=slot)
+        note_y = None
+        if not any_term:
+            note_y = slot; block_end = slot + 0.85
+        layout.append(dict(label=block.get("label", ""), color=block.get("color", "#777777"),
+                           header_y=header_y, sides=sides, note_y=note_y))
+        slot = block_end + gap
+    total = max(slot, 1.0)
+    max_nlp = max([float(it["t"].get("nlp", 0.0))
+                   for b in layout for s in b["sides"] for it in s["items"]] + [1.5])
+    return layout, total, max_nlp
+
+
+def _render_updown(ax_up, ax_down, layout, total_slots, max_nlp, *, fs, no_terms_label):
+    """up 组渲染到 ax_up,down 组到 ax_down,header 跨在 ax_up 左缘,两轴 y 同步。"""
+    for ax in (ax_up, ax_down):
+        ax.set_xlim(0, max_nlp * 1.05)
+        ax.set_ylim(total_slots, -1.0)
+        ax.spines[["top", "right", "left"]].set_visible(False)
+        ax.tick_params(left=False, labelleft=False, labelsize=fs["btick"])
+    xt = max_nlp * 0.03
+    for block in layout:
+        ax_up.axhline(block["header_y"] - 0.6, color="#cccccc", lw=0.5, zorder=1)
+        ax_down.axhline(block["header_y"] - 0.6, color="#cccccc", lw=0.5, zorder=1)
+        ax_up.text(0, block["header_y"], str(block["label"]), va="center", ha="left",
+                   fontsize=fs["head"], fontweight="bold",
+                   color=darken(block["color"], 0.62), zorder=5, clip_on=False)
+        if block["note_y"] is not None:
+            ax_up.text(xt, block["note_y"], no_terms_label, va="center", ha="left",
+                       fontsize=fs["note"], color="#999999", fontstyle="italic")
+        for k, side in enumerate(block["sides"]):
+            ax = ax_up if k == 0 else ax_down
+            ax.text(xt, side["sub_y"], side["dlabel"], va="center", ha="left",
+                    fontsize=fs["sub"], fontweight="bold",
+                    color=darken(side["dcolor"], 0.7), clip_on=False)
+            for it in side["items"]:
+                nlp = float(it["t"].get("nlp", 0.0))
+                ax.barh(it["term_y"], nlp, height=0.60, color=side["dcolor"],
+                        alpha=0.28, edgecolor="none")
+                for li, line in enumerate(it["lbl_lines"]):
+                    ax.text(xt, it["term_y"] + li * 0.66, line, va="center", ha="left",
+                            fontsize=fs["term"], color="black", fontweight="bold", clip_on=False)
+                for gy, line in it["glines"]:
+                    ax.text(xt, gy, line, va="center", ha="left", fontsize=fs["gene"],
+                            color=darken(side["dcolor"]), fontstyle="italic", clip_on=False)
+
+
 def _render_enrich_column(ax, layout, total_slots, max_nlp, *, fs,
                           no_terms_label):
     """在单个 enrich 轴上渲染一列 blocks(从 _build_enrichment_layout 出来的 layout)。"""
@@ -315,6 +403,8 @@ def plot_oydeg_heatmap_enrichment(
     font_sizes: Mapping[str, float] | None = None,
     compact_height: bool = True,
     enrich_ncols: int = 1,
+    enrich_updown_cols: bool = False,
+    updown_gap: float = 0.012,
 ):
     """Draw an OY-DEG heatmap with labeled genes and enrichment blocks.
 
@@ -347,15 +437,26 @@ def plot_oydeg_heatmap_enrichment(
 
     right_blocks_norm = _normalise_right_blocks(right_blocks, cols, column_colors, display_labels, "#777777")
     enrich_ncols = max(1, int(enrich_ncols))
-    # 多列时按列宽缩小 gene_wrap,避免左列文字串到右列
-    col_gene_wrap = gene_wrap if enrich_ncols == 1 else max(28, gene_wrap // enrich_ncols)
-    enrich_cols, max_nlp = _build_enrichment_columns(
-        right_blocks_norm, enrich_ncols,
-        max_genes_per_term=max_genes_per_term,
-        gene_formatter=gene_formatter,
-        gene_wrap=col_gene_wrap,
-    )
-    total_slots = max((t for _, t in enrich_cols), default=1.0)
+    if enrich_updown_cols:
+        # 每个细胞类型块的 up / down term 左右并排(块高 = head + max(up,down))
+        updown_layout, total_slots, max_nlp = _build_updown_layout(
+            right_blocks_norm,
+            max_genes_per_term=max_genes_per_term,
+            gene_formatter=gene_formatter,
+            gene_wrap=max(24, gene_wrap // 2),
+            term_wrap=38,
+        )
+        enrich_cols = None
+    else:
+        # 多列时按列宽缩小 gene_wrap,避免左列文字串到右列
+        col_gene_wrap = gene_wrap if enrich_ncols == 1 else max(28, gene_wrap // enrich_ncols)
+        enrich_cols, max_nlp = _build_enrichment_columns(
+            right_blocks_norm, enrich_ncols,
+            max_genes_per_term=max_genes_per_term,
+            gene_formatter=gene_formatter,
+            gene_wrap=col_gene_wrap,
+        )
+        total_slots = max((t for _, t in enrich_cols), default=1.0)
 
     fs = {
         "title": 8.0, "xtick": 8.0, "block": 8.0, "cbar": 8.0, "ctick": 8.0,
@@ -381,12 +482,19 @@ def plot_oydeg_heatmap_enrichment(
     bar_x0 = 0.19 + name_x * 0.18 + max_gene_chars * (fs["label"] * 0.62 / 72) / figsize[0] + 0.015
     bar_x0 = min(max(bar_x0, 0.36), 0.62)
     enrich_region = max(0.985 - bar_x0, 0.13)
-    col_region = enrich_region / enrich_ncols
-    enrich_axw = min(0.13, col_region * 0.92)
-    ax_enrich_list = [
-        fig.add_axes([bar_x0 + i * col_region, 0.055, enrich_axw, 0.90])
-        for i in range(enrich_ncols)
-    ]
+    if enrich_updown_cols:
+        # up 左 / down 右,两轴贴近(小间隙 updown_gap)
+        half = (enrich_region - updown_gap) / 2
+        ax_up = fig.add_axes([bar_x0, 0.055, half, 0.90])
+        ax_down = fig.add_axes([bar_x0 + half + updown_gap, 0.055, half, 0.90])
+        ax_enrich_list = [ax_up, ax_down]
+    else:
+        col_region = enrich_region / enrich_ncols
+        enrich_axw = min(0.13, col_region * 0.92)
+        ax_enrich_list = [
+            fig.add_axes([bar_x0 + i * col_region, 0.055, enrich_axw, 0.90])
+            for i in range(enrich_ncols)
+        ]
     ax_enrich = ax_enrich_list[0]
     cax = fig.add_axes([0.205, 0.022, 0.11, 0.010])
 
@@ -476,12 +584,20 @@ def plot_oydeg_heatmap_enrichment(
         ax_labels.text(name_x, ly, gene_formatter(gene), va="center", ha="left",
                        fontsize=fs["label"], color="#222222", clip_on=False)
 
-    for ci, (ax_e, (col_layout, col_total)) in enumerate(zip(ax_enrich_list, enrich_cols)):
-        _render_enrich_column(ax_e, col_layout, total_slots, max_nlp,
-                              fs=fs, no_terms_label=no_terms_label)
-        ax_e.set_xlabel(right_xlabel, fontsize=fs["axis"])
-        if right_title and ci == 0:
-            ax_e.set_title(right_title, loc="left", fontsize=fs["title"])
+    if enrich_updown_cols:
+        _render_updown(ax_enrich_list[0], ax_enrich_list[1], updown_layout,
+                       total_slots, max_nlp, fs=fs, no_terms_label=no_terms_label)
+        ax_enrich_list[0].set_xlabel(right_xlabel, fontsize=fs["axis"])
+        ax_enrich_list[1].set_xlabel(right_xlabel, fontsize=fs["axis"])
+        if right_title:
+            ax_enrich_list[0].set_title(right_title, loc="left", fontsize=fs["title"])
+    else:
+        for ci, (ax_e, (col_layout, col_total)) in enumerate(zip(ax_enrich_list, enrich_cols)):
+            _render_enrich_column(ax_e, col_layout, total_slots, max_nlp,
+                                  fs=fs, no_terms_label=no_terms_label)
+            ax_e.set_xlabel(right_xlabel, fontsize=fs["axis"])
+            if right_title and ci == 0:
+                ax_e.set_title(right_title, loc="left", fontsize=fs["title"])
 
     axes = {"heatmap": ax_heat, "labels": ax_labels,
             "enrichment": ax_enrich_list[0], "enrichment_cols": ax_enrich_list,
