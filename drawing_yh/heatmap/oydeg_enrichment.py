@@ -437,7 +437,7 @@ def plot_oydeg_heatmap_enrichment(
 
     right_blocks_norm = _normalise_right_blocks(right_blocks, cols, column_colors, display_labels, "#777777")
     enrich_ncols = max(1, int(enrich_ncols))
-    ud_term_wrap = 34   # updown 模式每列文字换行宽度(字符)
+    ud_term_wrap = 28   # updown 模式每列文字换行宽度(字符)
     if enrich_updown_cols:
         # 每个细胞类型块的 up / down term 左右并排(块高 = head + max(up,down))
         updown_layout, total_slots, max_nlp = _build_updown_layout(
