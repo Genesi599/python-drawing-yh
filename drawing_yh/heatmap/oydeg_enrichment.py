@@ -437,14 +437,15 @@ def plot_oydeg_heatmap_enrichment(
 
     right_blocks_norm = _normalise_right_blocks(right_blocks, cols, column_colors, display_labels, "#777777")
     enrich_ncols = max(1, int(enrich_ncols))
+    ud_term_wrap = 34   # updown 模式每列文字换行宽度(字符)
     if enrich_updown_cols:
         # 每个细胞类型块的 up / down term 左右并排(块高 = head + max(up,down))
         updown_layout, total_slots, max_nlp = _build_updown_layout(
             right_blocks_norm,
             max_genes_per_term=max_genes_per_term,
             gene_formatter=gene_formatter,
-            gene_wrap=max(24, gene_wrap // 2),
-            term_wrap=38,
+            gene_wrap=ud_term_wrap,
+            term_wrap=ud_term_wrap,
         )
         enrich_cols = None
     else:
@@ -483,10 +484,12 @@ def plot_oydeg_heatmap_enrichment(
     bar_x0 = min(max(bar_x0, 0.36), 0.62)
     enrich_region = max(0.985 - bar_x0, 0.13)
     if enrich_updown_cols:
-        # up 左 / down 右,两轴贴近(小间隙 updown_gap)
-        half = (enrich_region - updown_gap) / 2
-        ax_up = fig.add_axes([bar_x0, 0.055, half, 0.90])
-        ax_down = fig.add_axes([bar_x0 + half + updown_gap, 0.055, half, 0.90])
+        # 列宽按文字宽(ud_term_wrap 字符 @ term 字号)估算,两列紧贴 → 去掉大片空白
+        char_frac = (fs["term"] * 0.58 / 72) / figsize[0]
+        col_w = (ud_term_wrap + 4) * char_frac
+        col_w = min(col_w, (enrich_region - updown_gap) / 2)   # 不超出可用区
+        ax_up = fig.add_axes([bar_x0, 0.055, col_w, 0.90])
+        ax_down = fig.add_axes([bar_x0 + col_w + updown_gap, 0.055, col_w, 0.90])
         ax_enrich_list = [ax_up, ax_down]
     else:
         col_region = enrich_region / enrich_ncols
