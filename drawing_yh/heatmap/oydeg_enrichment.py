@@ -227,6 +227,63 @@ def _build_enrichment_layout(
     return layout, total_slots, max_nlp
 
 
+def _build_enrichment_columns(right_blocks, ncols, **kw):
+    """把 enrichment blocks 顺序拆成 ncols 列(按累计高度均衡,保留 block 原序),
+    每列独立从 y=0 排版。返回 [(layout, total_slots), ...] + 全局 max_nlp。
+    ncols=1 时与单列 _build_enrichment_layout 完全等价。"""
+    if ncols <= 1 or len(right_blocks) <= 1:
+        layout, total, max_nlp = _build_enrichment_layout(right_blocks, **kw)
+        return [(layout, total)], max_nlp
+    heights = [_build_enrichment_layout([b], **kw)[1] for b in right_blocks]
+    target = sum(heights) / ncols
+    cols, cur, cum = [[]], 0.0, 0
+    for b, h in zip(right_blocks, heights):
+        if len(cols) < ncols and cur >= target - 1e-9 and cols[-1]:
+            cols.append([]); cur = 0.0
+        cols[-1].append(b); cur += h
+    out, max_nlp = [], 1.5
+    for cb in cols:
+        layout, total, mnlp = _build_enrichment_layout(cb, **kw)
+        out.append((layout, total)); max_nlp = max(max_nlp, mnlp)
+    return out, max_nlp
+
+
+def _render_enrich_column(ax, layout, total_slots, max_nlp, *, fs,
+                          no_terms_label):
+    """在单个 enrich 轴上渲染一列 blocks(从 _build_enrichment_layout 出来的 layout)。"""
+    ax.set_xlim(0, max_nlp * 1.05)
+    ax.set_ylim(total_slots, -1.0)
+    xt = max_nlp * 0.03
+    for block in layout:
+        ax.axhline(block["header_y"] - 0.6, color="#cccccc", lw=0.5, zorder=1)
+        ax.text(0, block["header_y"], str(block["label"]),
+                va="center", ha="left", fontsize=fs["head"], fontweight="bold",
+                color=darken(block["color"], 0.62), zorder=5, clip_on=False)
+        if block["note_y"] is not None:
+            ax.text(xt, block["note_y"], no_terms_label, va="center", ha="left",
+                    fontsize=fs["note"], color="#999999", fontstyle="italic")
+        for group in block["glayout"]:
+            ax.text(xt, group["sub_y"], group["dlabel"],
+                    va="center", ha="left", fontsize=fs["sub"], fontweight="bold",
+                    color=darken(group["dcolor"], 0.7), clip_on=False)
+            for item in group["items"]:
+                term = item["t"]
+                y = item["term_y"]
+                nlp = float(term.get("nlp", 0.0))
+                ax.barh(y, nlp, height=0.60, color=group["dcolor"],
+                        alpha=0.28, edgecolor="none")
+                db = str(term.get("db", "")).strip()
+                label = f"{term.get('term', '')} ({db})" if db else str(term.get("term", ""))
+                ax.text(xt, y, label, va="center", ha="left",
+                        fontsize=fs["term"], color="black", fontweight="bold", clip_on=False)
+                for gy, line in item["glines"]:
+                    ax.text(xt, gy, line, va="center", ha="left",
+                            fontsize=fs["gene"], color=darken(group["dcolor"]),
+                            fontstyle="italic", clip_on=False)
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.tick_params(left=False, labelleft=False, labelsize=fs["btick"])
+
+
 def plot_oydeg_heatmap_enrichment(
     values,
     *,
@@ -257,6 +314,7 @@ def plot_oydeg_heatmap_enrichment(
     dot_dx: float = 0.060,
     font_sizes: Mapping[str, float] | None = None,
     compact_height: bool = True,
+    enrich_ncols: int = 1,
 ):
     """Draw an OY-DEG heatmap with labeled genes and enrichment blocks.
 
@@ -288,12 +346,16 @@ def plot_oydeg_heatmap_enrichment(
     mat_disp, disp_idx, n_disp = _add_block_gaps(np.clip(mat, -fc_clip, fc_clip), heat_blocks, block_gap_frac)
 
     right_blocks_norm = _normalise_right_blocks(right_blocks, cols, column_colors, display_labels, "#777777")
-    layout, total_slots, max_nlp = _build_enrichment_layout(
-        right_blocks_norm,
+    enrich_ncols = max(1, int(enrich_ncols))
+    # 多列时按列宽缩小 gene_wrap,避免左列文字串到右列
+    col_gene_wrap = gene_wrap if enrich_ncols == 1 else max(28, gene_wrap // enrich_ncols)
+    enrich_cols, max_nlp = _build_enrichment_columns(
+        right_blocks_norm, enrich_ncols,
         max_genes_per_term=max_genes_per_term,
         gene_formatter=gene_formatter,
-        gene_wrap=gene_wrap,
+        gene_wrap=col_gene_wrap,
     )
+    total_slots = max((t for _, t in enrich_cols), default=1.0)
 
     fs = {
         "title": 8.0, "xtick": 8.0, "block": 8.0, "cbar": 8.0, "ctick": 8.0,
@@ -318,7 +380,14 @@ def plot_oydeg_heatmap_enrichment(
     max_gene_chars = max((len(gene_formatter(g)) for g in label_genes), default=6)
     bar_x0 = 0.19 + name_x * 0.18 + max_gene_chars * (fs["label"] * 0.62 / 72) / figsize[0] + 0.015
     bar_x0 = min(max(bar_x0, 0.36), 0.62)
-    ax_enrich = fig.add_axes([bar_x0, 0.055, 0.13, 0.90])
+    enrich_region = max(0.985 - bar_x0, 0.13)
+    col_region = enrich_region / enrich_ncols
+    enrich_axw = min(0.13, col_region * 0.92)
+    ax_enrich_list = [
+        fig.add_axes([bar_x0 + i * col_region, 0.055, enrich_axw, 0.90])
+        for i in range(enrich_ncols)
+    ]
+    ax_enrich = ax_enrich_list[0]
     cax = fig.add_axes([0.205, 0.022, 0.11, 0.010])
 
     ax_heat.imshow(mat_disp, aspect="auto", cmap=cmap_obj, norm=norm,
@@ -407,42 +476,16 @@ def plot_oydeg_heatmap_enrichment(
         ax_labels.text(name_x, ly, gene_formatter(gene), va="center", ha="left",
                        fontsize=fs["label"], color="#222222", clip_on=False)
 
-    ax_enrich.set_xlim(0, max_nlp * 1.05)
-    ax_enrich.set_ylim(total_slots, -1.0)
-    xt = max_nlp * 0.03
-    for block in layout:
-        ax_enrich.axhline(block["header_y"] - 0.6, color="#cccccc", lw=0.5, zorder=1)
-        ax_enrich.text(0, block["header_y"], str(block["label"]),
-                       va="center", ha="left", fontsize=fs["head"], fontweight="bold",
-                       color=darken(block["color"], 0.62), zorder=5, clip_on=False)
-        if block["note_y"] is not None:
-            ax_enrich.text(xt, block["note_y"], no_terms_label, va="center", ha="left",
-                           fontsize=fs["note"], color="#999999", fontstyle="italic")
-        for group in block["glayout"]:
-            ax_enrich.text(xt, group["sub_y"], group["dlabel"],
-                           va="center", ha="left", fontsize=fs["sub"], fontweight="bold",
-                           color=darken(group["dcolor"], 0.7), clip_on=False)
-            for item in group["items"]:
-                term = item["t"]
-                y = item["term_y"]
-                nlp = float(term.get("nlp", 0.0))
-                ax_enrich.barh(y, nlp, height=0.60, color=group["dcolor"],
-                               alpha=0.28, edgecolor="none")
-                db = str(term.get("db", "")).strip()
-                label = f"{term.get('term', '')} ({db})" if db else str(term.get("term", ""))
-                ax_enrich.text(xt, y, label, va="center", ha="left",
-                               fontsize=fs["term"], color="black", fontweight="bold", clip_on=False)
-                for gy, line in item["glines"]:
-                    ax_enrich.text(xt, gy, line, va="center", ha="left",
-                                   fontsize=fs["gene"], color=darken(group["dcolor"]),
-                                   fontstyle="italic", clip_on=False)
-    ax_enrich.set_xlabel(right_xlabel, fontsize=fs["axis"])
-    ax_enrich.spines[["top", "right", "left"]].set_visible(False)
-    ax_enrich.tick_params(left=False, labelleft=False, labelsize=fs["btick"])
-    if right_title:
-        ax_enrich.set_title(right_title, loc="left", fontsize=fs["title"])
+    for ci, (ax_e, (col_layout, col_total)) in enumerate(zip(ax_enrich_list, enrich_cols)):
+        _render_enrich_column(ax_e, col_layout, total_slots, max_nlp,
+                              fs=fs, no_terms_label=no_terms_label)
+        ax_e.set_xlabel(right_xlabel, fontsize=fs["axis"])
+        if right_title and ci == 0:
+            ax_e.set_title(right_title, loc="left", fontsize=fs["title"])
 
-    axes = {"heatmap": ax_heat, "labels": ax_labels, "enrichment": ax_enrich, "colorbar": cax}
+    axes = {"heatmap": ax_heat, "labels": ax_labels,
+            "enrichment": ax_enrich_list[0], "enrichment_cols": ax_enrich_list,
+            "colorbar": cax}
     return fig, axes
 
 
