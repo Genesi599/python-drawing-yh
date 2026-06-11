@@ -79,23 +79,13 @@ def list_templates() -> list[str]:
     return sorted(p.stem for p in tdir.glob('*.css'))
 
 
-def slide_template_path() -> Path:
-    """Return path to the bundled `build_pages_template.py` (HTML 渲染部分)。
-
-    跟 `config_template_path()`(配置)配套使用。Copy 两个到项目目录(分别改名为
-    `build_pages.py` / `_report_config.py`),改 `_report_config.py` 里的
-    `SLIDES` / `CATEGORIES`,跑 `python build_pages.py` → 得到 sticky 顶 nav +
-    filtered 左 sidebar + dark CSS 的多页 slide-style HTML 报告。
-    """
-    return Path(str(resources.files(__package__).joinpath('templates', 'build_pages_template.py')))
-
-
 def config_template_path() -> Path:
     """Return path to the bundled `_report_config_template.py`(共享配置)。
 
-    跟 `slide_template_path()` 和 `pptx_template_path()` 都配套使用。
-    内容:`SLIDES` / `CATEGORIES` / `split_by_heading()` / `load_chunks()`,
-    无副作用,被 build_pages.py / md_to_pptx.py import 不会跑渲染。
+    跟 `combined_template_path()`(各 sub 从它拷 `_report_config.py`)和
+    `pptx_template_path()` 配套使用。内容:`SLIDES` / `CATEGORIES` /
+    `split_by_heading()` / `load_chunks()`,无副作用,被 build_combined_report.py
+    / md_to_pptx.py import 不会跑渲染。
     """
     return Path(str(resources.files(__package__).joinpath('templates', '_report_config_template.py')))
 
