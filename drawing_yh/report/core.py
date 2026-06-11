@@ -683,6 +683,54 @@ def build_nav(
 
 
 # ------------------------------------------------------------------
+# Briefing card — 汇报草稿 chunk(PPT 字段)→ 结构化卡片
+# ------------------------------------------------------------------
+def briefing_card(md: str) -> str:
+    """含 ``**PPT 页标题**`` 字段的 chunk → 结构化卡片 fenced-div markdown。
+
+    解析 PPT 页标题 / PPT 副标题 / 主信息 / 主图 / 右侧 3 bullets / 讲者备注,
+    重排成卡片(网页预览"将进 PPT 的内容",与导出 PPT 同源)。不含 PPT 页标题
+    字段的 chunk 原样返回,可对所有 chunk 无条件调用。正则零反斜杠(避 JSON/Edit
+    折叠),换行用 ``chr(10)``。卡片样式见 templates/dark.css 的 ``.briefing-*``。
+    """
+    NL = chr(10)
+
+    def inline(label):
+        m = re.search('^[*][*]' + label + '[*][*][:：](.+)$', md, re.M)
+        return m.group(1).strip() if m else ''
+
+    page_title = inline('PPT 页标题')
+    if not page_title:
+        return md
+    sub_title = inline('PPT 副标题')
+    marks = list(re.finditer('^[*][*](主信息|主图|右侧 3 bullets|讲者备注)[*][*]', md, re.M))
+    blocks = {}
+    for i, mk in enumerate(marks):
+        s = mk.end()
+        e = marks[i + 1].start() if i + 1 < len(marks) else len(md)
+        body = md[s:e]
+        body = re.sub('(?m)^#[ ].*', '', body)
+        body = re.sub('(?m)^---+[ ]*', '', body)
+        blocks[mk.group(1)] = body.strip()
+
+    head = '<span class="briefing-badge">进 PPT</span>'
+    head += ' <span class="briefing-ptitle">' + page_title + '</span>'
+    if sub_title:
+        head += ' <span class="briefing-psub">' + sub_title + '</span>'
+    parts = [':::::: {.briefing-card}', ':::: {.briefing-head}' + NL + head + NL + '::::']
+    if blocks.get('主信息'):
+        parts.append(':::: {.briefing-main}' + NL + blocks['主信息'] + NL + '::::')
+    if blocks.get('主图'):
+        parts.append(':::: {.briefing-fig}' + NL + blocks['主图'] + NL + '::::')
+    if blocks.get('右侧 3 bullets'):
+        parts.append(':::: {.briefing-bullets}' + NL + '进 PPT 可见要点' + NL + NL + blocks['右侧 3 bullets'] + NL + '::::')
+    if blocks.get('讲者备注'):
+        parts.append(':::: {.briefing-notes}' + NL + '讲者备注 · 不进可见区' + NL + NL + blocks['讲者备注'] + NL + '::::')
+    parts.append('::::::')
+    return (NL + NL).join(parts)
+
+
+# ------------------------------------------------------------------
 # Left sidebar (vertical nav, supports section headers)
 # ------------------------------------------------------------------
 def build_sidebar(

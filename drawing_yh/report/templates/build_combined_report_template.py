@@ -345,6 +345,8 @@ def render_slide(cslug, body_md, title, super_key, tag, cat, sources, cfgs, cslu
         nav = top_nav_for_source(cfg, tag, cslug_of, cat)
         sidebar = sidebar_for_source(cfg, tag, cslug_of, src, cslug)
     header = extra_css + "\n" + sidebar + "\n" + super_switch(super_key) + "\n" + nav + '\n<main class="report-main">'
+    # 含 **PPT 页标题** 字段的 chunk → 结构化卡片(汇报草稿预览将进 PPT 的内容);其余原样
+    body_md = report.briefing_card(body_md)
     body = rewrite_page_links(rewrite_image_paths(body_md, tag), tag, pages)
     out = report.render(body, out_html=OUT / f"{cslug}.html", css=css, title=title,
                         toc=False, favicon_emoji=_FAVICON_EMOJI, header_html=header,

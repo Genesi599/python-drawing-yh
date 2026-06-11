@@ -46,6 +46,7 @@ from .core import (
     pptx_template_path,
     serve_nocache_template_path,
     watch_build_template_path,
+    briefing_card,
 )
 
 __all__ = [
@@ -63,4 +64,5 @@ __all__ = [
     "pptx_template_path",
     "serve_nocache_template_path",
     "watch_build_template_path",
+    "briefing_card",
 ]
