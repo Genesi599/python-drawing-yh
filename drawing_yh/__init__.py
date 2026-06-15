@@ -107,6 +107,15 @@ from .embedding import (                                # noqa: E402
     cluster_atlas, cluster_centroids,
 )
 from . import embedding                                 # noqa: E402,F401
+from .embedding_domain import (                         # noqa: E402
+    GapfilledOutlineResult,
+    gapfilled_embedding_outline,
+    draw_gapfilled_embedding_domains,
+    embedding_knn_density_mask,
+    filter_main_embedding_components,
+    label_point_for_outline,
+    trim_points_inside_reference_domain,
+)
 from .heatmap import (heatmap_with_row_bars, clustermap_annot,  # noqa: E402
                       plot_oydeg_heatmap_enrichment,
                       plot_enrichment_dotplot, pick_enrich_terms,
@@ -165,6 +174,10 @@ __all__ = [
     # embedding feature-plot primitives (re-exported from drawing_yh.embedding)
     "resolve_vlim", "scatter_embedding", "add_embedding_axes", "auto_ncols",
     "cluster_atlas", "cluster_centroids",
+    "GapfilledOutlineResult", "gapfilled_embedding_outline",
+    "draw_gapfilled_embedding_domains", "embedding_knn_density_mask",
+    "filter_main_embedding_components", "label_point_for_outline",
+    "trim_points_inside_reference_domain",
     # subpackages
     "dotplot",
     "embedding",

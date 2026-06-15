@@ -12,6 +12,8 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
+    "shapely",
+    "scikit-learn",
     "matplotlib-venn",
     "pycirclize",
 ]

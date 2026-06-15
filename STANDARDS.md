@@ -144,6 +144,7 @@ preview_palette(my_palette, save_as='preview.png')  # 双行预览:原色 vs 灰
 |---|---|---|
 | Marker dot plot | `marker_dotplot(data, row_order, gene_order, …)` | long 表(row / gene / avg / pct) |
 | Embedding feature plot | `feature_plot(coords, values, …)` | coords (N,2) + 值矩阵 / dict / DataFrame |
+| Embedding domain outline | `gapfilled_embedding_outline(points, …)` / `draw_gapfilled_embedding_domains(ax, coords, labels, …)` | UMAP/t-SNE 坐标 + 类别 label |
 | 热图 + 每行富集条 | `heatmap_with_row_bars(Z, row_labels, …)` | Z 矩阵 + 每行 `[(term, value)]` |
 | OY-DEG 热图 + 富集块 | `plot_oydeg_heatmap_enrichment(values, …)` | log2FC 矩阵 + heat blocks + label genes + enrichment blocks |
 
@@ -172,6 +173,50 @@ fig, axes = feature_plot(
     axis_labels=('UMAP1', 'UMAP2'),
 )
 ```
+
+**Embedding domain outline**(UMAP/t-SNE 上给每个 cell type 画一块整体 domain;适合“同一细胞类型在 UMAP 上分成几个相邻簇,但视觉上要统一成一个范围”的 atlas 图):
+
+```python
+from drawing_yh import (
+    embedding_knn_density_mask,
+    filter_main_embedding_components,
+    draw_gapfilled_embedding_domains,
+)
+
+coords = df[["UMAP1", "UMAP2"]].to_numpy(float)
+labels = df["cell_type_fine"].astype(str).to_numpy()
+
+# 1) 可选:先按 kNN 去孤立散点,不要让远离主体的小点拉大 domain
+dense = embedding_knn_density_mask(coords, labels, q=0.90, k=15)
+df = df.loc[dense].copy()
+
+# 2) 可选:每类只保留主体 DBSCAN 分量;确实分散的大类可放进 keep_all_labels
+main, stats = filter_main_embedding_components(
+    df[["UMAP1", "UMAP2"]].to_numpy(float),
+    df["cell_type_fine"],
+    order=celltype_order,
+    keep_all_labels={"Neuron"},
+)
+df = df.loc[main].copy()
+
+# 3) 在已有 scatter 下面画自色浅填充 + 细虚线 domain
+domains = draw_gapfilled_embedding_domains(
+    ax,
+    df[["UMAP1", "UMAP2"]].to_numpy(float),
+    df["cell_type_fine"],
+    order=celltype_order,
+    colors=celltype_colors,
+    keep_all_labels={"Neuron"},
+    fill_alpha=0.24,
+    linewidth=0.65,
+)
+for label, domain in domains.items():
+    x, y = domain.label_point
+    ax.text(x, y, str(label_ids[label]), ha="center", va="center",
+            fontweight="bold", path_effects=[pe.withStroke(linewidth=2, foreground="white")])
+```
+
+实现口径:每个 label 先用 DBSCAN 识别主体分量;普通 cell type 丢掉远离主体的小分量,`keep_all_labels` 里的类型保留所有分量。多个主体分量之间只加入临时 bridge points 来生成整体轮廓,这些点不显示也不写回数据。轮廓由 concave hull + Catmull-Rom closed spline 得到;若平滑后漏掉主体点,只做很小的 outward buffer。视觉默认是浅色填充 + 细虚线边界;标签建议放 `domain.label_point`。
 
 **Heatmap + 富集条**(左 z-score 热图 + 列块分隔 + 左侧行彩条;右每行 top 富集条):
 
