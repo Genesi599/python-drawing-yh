@@ -136,6 +136,8 @@ from .proportion_strip import (                         # noqa: E402
     fraction_by_age_panel, fraction_by_age_figure,
 )
 from . import proportion_strip                          # noqa: E402,F401
+from .pca import parallel_centroid_guides                # noqa: E402
+from . import pca as pca                                 # noqa: E402,F401
 from .tile_heatmap import tile_heatmap                  # noqa: E402
 from .lollipop import lollipop_plot                     # noqa: E402
 
