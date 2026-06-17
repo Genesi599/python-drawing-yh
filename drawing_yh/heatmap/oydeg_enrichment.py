@@ -84,6 +84,18 @@ def _display(label, display_labels=None) -> str:
     return str(label)
 
 
+def _label_style(gene_label_styles, gene: str, label: str) -> dict:
+    if gene_label_styles is None:
+        return {}
+    if callable(gene_label_styles):
+        style = gene_label_styles(gene, label)
+    elif isinstance(gene_label_styles, Mapping):
+        style = gene_label_styles.get(gene, gene_label_styles.get(label, {}))
+    else:
+        style = {}
+    return dict(style or {})
+
+
 def _as_heat_blocks(heat_blocks, n_rows: int, default_color: str):
     if heat_blocks is None:
         return [dict(label="", color=default_color, s=0, e=n_rows)]
@@ -395,6 +407,7 @@ def plot_oydeg_heatmap_enrichment(
     max_genes_per_term: int = 8,
     gene_wrap: int = 85,
     gene_formatter: Callable[[str], str] = cap_gene,
+    gene_label_styles: Mapping | Callable[[str, str], Mapping] | None = None,
     fig_width: float | None = None,
     figsize: tuple[float, float] | None = None,
     slot_height: float = 0.185,
@@ -585,8 +598,14 @@ def plot_oydeg_heatmap_enrichment(
                 ax_labels.scatter(x, ly, s=tri_marker_size, marker=("^" if status == "up" else "v"),
                                   color=column_colors.get(col, "#777777"),
                                   edgecolors="none", zorder=3, clip_on=False)
-        ax_labels.text(name_x, ly, gene_formatter(gene), va="center", ha="left",
-                       fontsize=fs["label"], color="#222222", clip_on=False)
+        gene_label = gene_formatter(gene)
+        style = _label_style(gene_label_styles, gene, gene_label)
+        text_kw = dict(
+            va="center", ha="left", fontsize=fs["label"],
+            color="#222222", clip_on=False,
+        )
+        text_kw.update(style)
+        ax_labels.text(name_x, ly, gene_label, **text_kw)
 
     if enrich_updown_cols:
         _render_updown(ax_enrich_list[0], ax_enrich_list[1], updown_layout,
