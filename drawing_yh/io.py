@@ -44,6 +44,9 @@ def save_fig(
     bbox_inches: Optional[str] = 'tight',
     pad_inches: Optional[float] = 0.02,
     clean_metadata: bool = True,
+    save_data=None,
+    save_code: bool = False,
+    save_description=None,
     **savefig_kwargs,
 ) -> list:
     """
@@ -65,6 +68,14 @@ def save_fig(
     bbox_inches, pad_inches : 控制裁白边。
     clean_metadata : bool
         是否给 PDF/PNG 加 `metadata={'Creator': None, 'Producer': None}` 去签名。
+    save_data : DataFrame / dict / list-of-dict / callable / None
+        作图标准 §11:图上**实际渲染的 plotted data**。给了就写 `<stem>.csv`(index=False)。
+        数据密集图(bubble/heatmap/dotplot/多系列)应传,接力分析直接读、不必重跑脚本复现。
+    save_code : bool
+        True 时把**调用 save_fig 的脚本**拷成 `<stem>.snapshot.py`(READ-ONLY 横幅 + 源路径 + 时间戳);
+        交互式(python -c / REPL)无源脚本时自动跳过。
+    save_description : str / callable / None
+        给了就写 `<stem>.md`(图的文字描述,让接力的 AI 不读图也知道内容)。
     **savefig_kwargs : 其它透传给 `fig.savefig`。
 
     Returns
@@ -104,4 +115,51 @@ def save_fig(
             kwargs.setdefault('metadata', _CLEAN_METADATA)
         fig.savefig(p, **kwargs)
         written.append(p)
+
+    # ── sidecar(作图标准 §11「5–6 文件一组」):plotted data / 代码副本 / 文字描述 ──
+    if save_data is not None:
+        import pandas as pd
+        data = save_data() if callable(save_data) else save_data
+        df = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
+        csv_p = base.with_suffix('.csv')
+        df.to_csv(csv_p, index=False)
+        written.append(csv_p)
+    if save_code:
+        snap = _write_code_snapshot(base)
+        if snap is not None:
+            written.append(snap)
+    if save_description is not None:
+        desc = save_description() if callable(save_description) else save_description
+        md_p = base.with_suffix('.md')
+        md_p.write_text(str(desc), encoding='utf-8')
+        written.append(md_p)
     return written
+
+
+def _write_code_snapshot(base: Path) -> Optional[Path]:
+    """把调用 save_fig 的脚本拷成 <stem>.snapshot.py + READ-ONLY 横幅。
+
+    交互式调用(无 .py 源,如 python -c / REPL)返回 None、不写。
+    """
+    import inspect
+    import datetime
+    caller = None
+    for fr in inspect.stack():
+        fn = (fr.filename or '').replace('\\', '/')
+        if fn.endswith('.py') and '/drawing_yh/' not in fn:
+            caller = Path(fr.filename)
+            break
+    if caller is None or not caller.exists():
+        return None
+    ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    banner = (
+        '# ============================================================\n'
+        '# READ-ONLY SNAPSHOT - 作图代码副本,只读\n'
+        f'# 改图请改源脚本: {caller.resolve()}\n'
+        '# 直接改本文件不会更新原脚本、也不会重新出图\n'
+        f'# snapshot at: {ts}\n'
+        '# ============================================================\n\n'
+    )
+    snap = base.with_name(base.name + '.snapshot.py')
+    snap.write_text(banner + caller.read_text(encoding='utf-8'), encoding='utf-8')
+    return snap
