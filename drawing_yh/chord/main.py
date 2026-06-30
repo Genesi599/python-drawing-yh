@@ -61,6 +61,50 @@ def lighten(hex_color, factor: float = 0.3):
     return tuple(c + (1.0 - c) * factor for c in rgb)
 
 
+def _as_square_matrix(mat: pd.DataFrame, order: list | None = None) -> tuple[pd.DataFrame, list]:
+    """Align a directed matrix to a square node set."""
+    univ = set(mat.index) | set(mat.columns)
+    if order is not None:
+        nodes = [n for n in order if n in univ] + [n for n in sorted(univ) if n not in set(order)]
+    else:
+        nodes = sorted(univ)
+    return mat.reindex(index=nodes, columns=nodes, fill_value=0.0), nodes
+
+
+def _add_directed_layout_epsilon(mat: pd.DataFrame) -> pd.DataFrame:
+    """Avoid zero in/out degree divisions in the directed chord layout."""
+    out = mat.copy()
+    positive = out.to_numpy()[out.to_numpy() > 0]
+    eps = float(positive.min()) * 1e-6 if len(positive) else 1e-9
+    for node in out.index:
+        row_sum = out.loc[node].sum()
+        col_sum = out[node].sum()
+        if (row_sum == 0 or col_sum == 0) and (row_sum + col_sum > 0):
+            out.loc[node, node] = eps
+    return out
+
+
+def _slice_interval(start: float, end: float, weights: np.ndarray, gap: float) -> list[tuple[float, float]]:
+    """Split a chord interval into weighted sub-intervals."""
+    total = float(weights.sum())
+    if total <= 0:
+        return []
+    reverse = end < start
+    lo, hi = (end, start) if reverse else (start, end)
+    span = max(hi - lo, 0.0)
+    n = len(weights)
+    use_gap = min(gap, span / max(n * 3, 1))
+    usable = max(span - use_gap * max(n - 1, 0), 0.0)
+    cur = lo
+    parts: list[tuple[float, float]] = []
+    for weight in weights:
+        width = usable * float(weight) / total
+        a, b = cur, cur + width
+        parts.append((b, a) if reverse else (a, b))
+        cur = b + use_gap
+    return parts
+
+
 def chord_diagram(
     matrix: pd.DataFrame,
     color_map: dict | None = None,
@@ -192,5 +236,179 @@ def chord_diagram(
         initial=figsize[0],
         min_size=max(2.2, 2.2 + (n_sec - 6) * 0.04),
         bbox_shrink=0.5,
+    )
+    return fig, ax
+
+
+def lr_role_chord_diagram(
+    edges: pd.DataFrame,
+    *,
+    source: str = "source",
+    target: str = "target",
+    weight: str = "weight",
+    edge_color: str = "edge_color",
+    source_role: str = "send",
+    target_role: str = "recept",
+    role_colors: dict | None = None,
+    order: list | None = None,
+    top_nodes: list | None = None,
+    figsize: tuple = (6.5, 6.5),
+    fontsize: int = 8,
+    alpha: float = 0.78,
+    pad: float = 3.0,
+    chordwidth: float = 0.55,
+    intra_gap: float | None = None,
+    sub_gap: float = 0.04,
+    width: float = 0.08,
+    radial_labels: bool = True,
+):
+    """Draw an LR-style chord diagram with role-colored arcs and edge-colored ribbons.
+
+    This template is for ligand/receptor or sender/receiver gene chords where node
+    color encodes the node role, while each ribbon color encodes an edge-level
+    category such as cell type. Multiple rows with the same source-target pair are
+    drawn as parallel weighted ribbons instead of being collapsed into one color.
+    """
+    from ._mpl_chord.chord_diagram import chord_arc, ideogram_arc
+    from ._mpl_chord.utilities import compute_positions
+
+    required = {source, target, weight, edge_color}
+    missing = required.difference(edges.columns)
+    if missing:
+        raise ValueError(f"edges is missing columns: {sorted(missing)}")
+
+    data = edges.copy()
+    data = data[data[weight] > 0].copy()
+    if data.empty:
+        raise ValueError("edges has no positive-weight rows")
+
+    role_colors = {
+        source_role: "#F47C7C",
+        target_role: "#FFD21A",
+        **(role_colors or {}),
+    }
+
+    mat = data.pivot_table(
+        index=source, columns=target, values=weight,
+        aggfunc="sum", fill_value=0.0,
+    )
+    mat, nodes = _as_square_matrix(mat, order=order)
+    keep = [n for n in nodes if mat.loc[n].sum() > 0 or mat[n].sum() > 0]
+    mat = mat.loc[keep, keep]
+    nodes = keep
+    layout_mat = _add_directed_layout_epsilon(mat)
+
+    source_nodes = set(data[source].astype(str))
+    target_nodes = set(data[target].astype(str))
+    arc_colors = []
+    for node in nodes:
+        if node in source_nodes and node not in target_nodes:
+            arc_colors.append(role_colors[source_role])
+        elif node in target_nodes and node not in source_nodes:
+            arc_colors.append(role_colors[target_role])
+        else:
+            arc_colors.append(role_colors.get("both", "#BDBDBD"))
+
+    def _render(fig_size: float):
+        fig, ax = plt.subplots(figsize=(fig_size, fig_size))
+        plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+
+        arr = layout_mat.to_numpy(dtype=float)
+        num_nodes = len(nodes)
+        out_deg = arr.sum(axis=1)
+        in_deg = arr.sum(axis=0)
+        degree = out_deg + in_deg
+        if intra_gap is None:
+            n_chords = int((mat.to_numpy() > 0).sum())
+            eff_intra_gap = max(0.15, min(1.5, 8.0 / max(n_chords, 1)))
+        else:
+            eff_intra_gap = intra_gap
+
+        arc: list[tuple[float, float]] = []
+        node_pos: list[tuple[float, float, float]] = []
+        rotation: list[bool] = []
+        pos: dict[tuple[int, int], tuple[float, float, float, float]] = {}
+        compute_positions(
+            arr, degree, in_deg, out_deg, 0, False,
+            {"sort": "distance", "intra_gap": eff_intra_gap},
+            True, 360, pad, arc, rotation, node_pos, pos,
+        )
+
+        for i, color in enumerate(arc_colors):
+            start, end = arc[i]
+            ideogram_arc(start=start, end=end, radius=1.0, color=color,
+                         width=width, alpha=1.0, ax=ax)
+
+        node_to_i = {node: i for i, node in enumerate(nodes)}
+        top = set(top_nodes or [])
+        grouped = data.groupby([source, target], sort=False)
+        for (src, dst), group in grouped:
+            if src not in node_to_i or dst not in node_to_i:
+                continue
+            i, j = node_to_i[src], node_to_i[dst]
+            start1, end1, start2, end2 = pos[(i, j)]
+            weights = group[weight].to_numpy(dtype=float)
+            src_parts = _slice_interval(start1, end1, weights, sub_gap)
+            dst_parts = _slice_interval(start2, end2, weights, sub_gap)
+            for (_, row), (s1, e1), (s2, e2) in zip(group.iterrows(), src_parts, dst_parts):
+                color = row[edge_color]
+                zorder = 6 if (src in top or dst in top) else 2
+                chord_arc(
+                    s1, e1, s2, e2,
+                    radius=1 - width,
+                    gap=0,
+                    chordwidth=chordwidth,
+                    color=color,
+                    cend=color,
+                    alpha=alpha,
+                    ax=ax,
+                    use_gradient=False,
+                    extent=360,
+                    directed=True,
+                    zorder=zorder,
+                )
+
+        prop = {
+            "fontsize": fontsize,
+            "ha": "center",
+            "va": "center",
+            "rotation_mode": "anchor",
+            "color": "black",
+        }
+        if radial_labels:
+            for node, text_pos, should_flip in zip(nodes, node_pos, rotation):
+                angle = text_pos[2]
+                pp = prop.copy()
+                rotate = 90
+                arc_angle = np.average(arc[nodes.index(node)])
+                if 90 < arc_angle < 180 or 270 < arc_angle:
+                    rotate = -90
+                if 90 < arc_angle < 270:
+                    pp["ha"] = "right"
+                else:
+                    pp["ha"] = "left"
+                ax.text(text_pos[0], text_pos[1], node, rotation=angle + rotate, **pp)
+        else:
+            for node, text_pos, should_flip in zip(nodes, node_pos, rotation):
+                pp = prop.copy()
+                if should_flip:
+                    pp["va"] = "top"
+                else:
+                    pp["va"] = "bottom"
+                ax.text(text_pos[0], text_pos[1], node, rotation=text_pos[2], **pp)
+
+        ax.set_xlim(-1.32, 1.32)
+        ax.set_ylim(-1.32, 1.32)
+        ax.set_aspect(1)
+        ax.axis("off")
+        return fig, ax
+
+    from drawing_yh.layout import autoshrink_figsize
+    fig, ax = autoshrink_figsize(
+        _render,
+        initial=figsize[0],
+        min_size=max(2.2, 2.2 + (len(nodes) - 6) * 0.04),
+        max_size=max(figsize[0], 10.5),
+        bbox_shrink=1.0,
     )
     return fig, ax
