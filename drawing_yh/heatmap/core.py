@@ -6,6 +6,7 @@ from typing import Iterable, Mapping, Sequence
 
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
+from matplotlib import transforms as mtransforms
 from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
@@ -24,17 +25,54 @@ def compute_heatmap_figsize(
     n_cols: int,
     *,
     width: float | None = DOUBLE_COL_IN,
-    cell_width: float = 0.36,
-    cell_height: float = 0.24,
-    base_height: float = 1.4,
+    cell_width: float = 0.14,
+    cell_height: float | None = None,
+    base_height: float = 1.2,
     min_height: float = 2.2,
     max_height: float = 8.0,
 ) -> tuple[float, float]:
     """Compute a compact, standards-friendly heatmap size in inches."""
+    if cell_height is None:
+        cell_height = cell_width
     if width is None:
-        width = float(np.clip(n_cols * cell_width + 2.2, 3.35, 10.0))
+        width = float(max(n_cols * cell_width + 2.2, 3.35))
     height = float(np.clip(n_rows * cell_height + base_height, min_height, max_height))
     return float(width), height
+
+
+def _lock_axes_to_cell_size(
+    fig,
+    ax,
+    *,
+    n_rows: int,
+    n_cols: int,
+    cell_width: float,
+    cell_height: float,
+    show_colorbar: bool,
+):
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    dpi = fig.dpi
+    fig_width, fig_height = fig.get_size_inches()
+    xlabels = [text for text in ax.get_xticklabels() if text.get_visible() and text.get_text()]
+    ylabels = [text for text in ax.get_yticklabels() if text.get_visible() and text.get_text()]
+    max_xlabel_height = max((text.get_window_extent(renderer).height for text in xlabels), default=0) / dpi
+    max_ylabel_width = max((text.get_window_extent(renderer).width for text in ylabels), default=0) / dpi
+
+    left = max_ylabel_width + 0.08
+    bottom = max_xlabel_height + 0.08
+    top = 0.10
+    right = 0.42 if show_colorbar else 0.10
+    axes_width = n_cols * cell_width
+    axes_height = n_rows * cell_height
+    required_width = left + axes_width + right
+    required_height = bottom + axes_height + top
+
+    if required_width > fig_width or required_height > fig_height:
+        fig.set_size_inches(max(fig_width, required_width), max(fig_height, required_height), forward=True)
+        fig_width, fig_height = fig.get_size_inches()
+
+    ax.set_position([left / fig_width, bottom / fig_height, axes_width / fig_width, axes_height / fig_height])
 
 
 def long_to_matrix(
@@ -188,10 +226,13 @@ def plot_tile_heatmap(
     annotation_fontsize: float | None = None,
     xtick_rotation: float = 45,
     ytick_rotation: float = 0,
+    tick_pad: float = 1.0,
+    axis_labelpad: float = 2.0,
+    square_tiles: bool = True,
     figsize: tuple[float, float] | None = None,
     width: float | None = DOUBLE_COL_IN,
-    cell_width: float = 0.36,
-    cell_height: float = 0.24,
+    cell_width: float = 0.14,
+    cell_height: float | None = None,
 ):
     """Render a vector tile heatmap with optional p-value stars or dots."""
     matrix = _as_dataframe(data)
@@ -252,7 +293,13 @@ def plot_tile_heatmap(
 
     if annotations is not None and significance_mode != "dot":
         amat = _as_dataframe(annotations).reindex(index=matrix.index, columns=matrix.columns)
-        fontsize = annotation_fontsize or DEFAULT_FONT_SIZE
+        if annotation_fontsize is None:
+            fontsize = DEFAULT_FONT_SIZE - 1 if significance_mode == "star" else DEFAULT_FONT_SIZE
+        else:
+            fontsize = annotation_fontsize
+        annotation_transform = ax.transData
+        if significance_mode == "star":
+            annotation_transform = ax.transData + mtransforms.ScaledTranslation(0, -0.03, fig.dpi_scale_trans)
         for i, row_name in enumerate(matrix.index):
             for j, col_name in enumerate(matrix.columns):
                 label = amat.loc[row_name, col_name]
@@ -265,24 +312,38 @@ def plot_tile_heatmap(
                         va="center",
                         fontsize=fontsize,
                         color=annotation_color,
+                        transform=annotation_transform,
                         zorder=4,
                     )
 
     ax.set_xlim(0, n_cols)
     ax.set_ylim(n_rows, 0)
+    if square_tiles:
+        ax.set_aspect("equal", adjustable="box")
     ax.set_xticks(np.arange(n_cols) + 0.5)
     ax.set_xticklabels(
         _display_labels(matrix.columns, column_label_map),
         rotation=xtick_rotation,
-        ha="right" if xtick_rotation else "center",
+        ha="center",
+        va="top",
     )
     ax.set_yticks(np.arange(n_rows) + 0.5)
     ax.set_yticklabels(_display_labels(matrix.index, row_label_map), rotation=ytick_rotation)
-    ax.tick_params(labelsize=DEFAULT_FONT_SIZE, length=0)
-    ax.set_xlabel(xlabel or "", fontsize=DEFAULT_FONT_SIZE)
-    ax.set_ylabel(ylabel or "", fontsize=DEFAULT_FONT_SIZE)
+    ax.tick_params(labelsize=DEFAULT_FONT_SIZE, length=0, pad=tick_pad)
+    ax.set_xlabel(xlabel or "", fontsize=DEFAULT_FONT_SIZE, labelpad=axis_labelpad)
+    ax.set_ylabel(ylabel or "", fontsize=DEFAULT_FONT_SIZE, labelpad=axis_labelpad)
     if title:
         ax.set_title(title, fontsize=DEFAULT_FONT_SIZE, pad=8)
+    if square_tiles:
+        _lock_axes_to_cell_size(
+            fig,
+            ax,
+            n_rows=n_rows,
+            n_cols=n_cols,
+            cell_width=cell_width,
+            cell_height=cell_height if cell_height is not None else cell_width,
+            show_colorbar=show_colorbar,
+        )
     for spine in ax.spines.values():
         spine.set_visible(False)
 
