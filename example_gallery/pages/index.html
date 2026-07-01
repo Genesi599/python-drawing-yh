@@ -45,9 +45,33 @@
 .super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
 .super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
 .gallery-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 18px; margin: 1.2em 0 2em;
 }
+.gallery-search {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px; align-items: center; margin: 1em 0 1.2em; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev);
+}
+.gallery-search label {
+  color: var(--muted); font-size: .86em; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.gallery-search input {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--fg); background: var(--bg-soft);
+}
+.gallery-search input:focus {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent-strong);
+}
+.gallery-search-count { color: var(--muted); font-size: .86em; white-space: nowrap; }
+.gallery-empty {
+  margin: 1em 0 2em; padding: 18px; text-align: center;
+  color: var(--muted); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--bg-soft);
+}
+.gallery-card[hidden], .gallery-empty[hidden] { display: none !important; }
 .gallery-card {
   border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
   overflow: hidden;
@@ -69,6 +93,10 @@
   color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
 }
 .gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+@media (max-width: 640px) {
+  .gallery-search { grid-template-columns: 1fr; }
+  .gallery-search-count { white-space: normal; }
+}
 </style>
 
 <aside class="report-sidebar">
@@ -78,19 +106,27 @@
   <a href="quantitative-bar.html">Bar</a>
   <a href="quantitative-distribution.html">Distribution</a>
   <a href="quantitative-scatter.html">Scatter</a>
+  <a href="quantitative-summary-dot.html">Summary dot</a>
+  <a href="quantitative-comparison.html">Comparison</a>
+  <div class="sidebar-section">Single-cell</div>
+  <a href="single-cell.html">Single-cell overview</a>
+  <a href="single-cell-marker-expression.html">Marker expression</a>
+  <a href="single-cell-embedding.html">Embedding</a>
   <div class="sidebar-section">Omics</div>
   <a href="omics.html">Omics overview</a>
-  <a href="omics-marker-qc.html">Marker / QC</a>
-  <a href="omics-comparison.html">Comparison</a>
   <a href="omics-differential.html">Differential</a>
   <a href="omics-heatmap.html">Heatmap</a>
+  <div class="sidebar-section">QC</div>
+  <a href="qc.html">QC overview</a>
+  <a href="qc-dimension-reduction.html">Dimension reduction</a>
+  <div class="sidebar-section">Curves</div>
+  <a href="curves.html">Curves overview</a>
+  <a href="curves-dose-response.html">Dose response</a>
+  <a href="curves-dose-enzyme.html">Dose / enzyme</a>
   <div class="sidebar-section">Composition</div>
   <a href="composition.html">Composition overview</a>
   <a href="composition-pie-donut.html">Pie / Donut</a>
   <a href="composition-set-overlap.html">Set overlap</a>
-  <div class="sidebar-section">Curves</div>
-  <a href="curves.html">Curves overview</a>
-  <a href="curves-dose-enzyme.html">Dose / enzyme</a>
   <div class="sidebar-section">Network</div>
   <a href="network.html">Network overview</a>
   <a href="network-flow-relation.html">Flow / relation</a>
@@ -98,28 +134,856 @@
   <a href="utility.html">Utility overview</a>
   <a href="utility-assets.html">Assets</a>
 </aside>
-<div class="super-switch"><span class="super-label">图类</span><a class="super-btn current" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
+<div class="super-switch"><span class="super-label">图类</span><a class="super-btn current" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn" href="single-cell.html">Single-cell</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn" href="qc.html">QC</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
 <nav class="report-nav">
   <a href="quantitative.html">Quantitative</a>
+  <a href="single-cell.html">Single-cell</a>
   <a href="omics.html">Omics</a>
-  <a href="composition.html">Composition</a>
+  <a href="qc.html">QC</a>
   <a href="curves.html">Curves</a>
+  <a href="composition.html">Composition</a>
   <a href="network.html">Network</a>
   <a href="utility.html">Utility</a>
 </nav>
 <main class="report-main">
 <h1 id="drawing-yh-图型示例库">drawing-yh 图型示例库</h1>
-<p>30 种示例图，按标准三层目录组织：图类 → 子类 → 具体图型。</p>
+<p>31 种示例图，按标准三层目录组织：图类 → 子类 → 具体图型。</p>
 <h2 id="图类">图类</h2>
 <ul>
-<li><a href="quantitative.html">Quantitative</a> — 10 examples</li>
-<li><a href="omics.html">Omics</a> — 10 examples</li>
+<li><a href="quantitative.html">Quantitative</a> — 11 examples</li>
+<li><a href="single-cell.html">Single-cell</a> — 2 examples</li>
+<li><a href="omics.html">Omics</a> — 5 examples</li>
+<li><a href="qc.html">QC</a> — 1 examples</li>
+<li><a href="curves.html">Curves</a> — 3 examples</li>
 <li><a href="composition.html">Composition</a> — 5 examples</li>
-<li><a href="curves.html">Curves</a> — 2 examples</li>
-<li><a href="network.html">Network</a> — 2 examples</li>
+<li><a href="network.html">Network</a> — 3 examples</li>
 <li><a href="utility.html">Utility</a> — 1 examples</li>
 </ul>
+<h2 id="全部示例">全部示例</h2>
+<div class="gallery-search" role="search" data-gallery-search="">
+<label>Search</label>
+<input type="search" placeholder="Title, section, text" autocomplete="off" aria-label="Search examples">
+<div class="gallery-search-count" data-gallery-count="">
+31 examples
+</div>
+</div>
+<div class="gallery-grid">
+<article class="gallery-card" id="bar-horizontal" data-search="bar-horizontal Horizontal bar Quantitative Bar 排序比较、top-N 指标、富集结果横向展示。 适合标签较长的类别。 drawing_yh/bar/horizontal/main.py bar ranking">
+<figure>
+<a href="../assets/gallery_images/bar-horizontal.png"><img src="../assets/gallery_images/bar-horizontal.png" alt="Horizontal bar"></a>
+</figure>
+<div class="body">
+<h3>
+Horizontal bar
+</h3>
+<p>
+排序比较、top-N 指标、富集结果横向展示。
+</p>
+<p>
+<em>适合标签较长的类别。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Bar · drawing_yh/bar/horizontal/main.py
+</div>
+<div class="gallery-tags">
+<span>bar</span> <span>ranking</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/bar-horizontal.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/bar/horizontal/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="bar-circular" data-search="bar-circular Circular bar Quantitative Bar 周期性或环形排列的类别值。 视觉更强，适合少量类别。 drawing_yh/bar/circle/main.py bar radial">
+<figure>
+<a href="../assets/gallery_images/bar-circular.png"><img src="../assets/gallery_images/bar-circular.png" alt="Circular bar"></a>
+</figure>
+<div class="body">
+<h3>
+Circular bar
+</h3>
+<p>
+周期性或环形排列的类别值。
+</p>
+<p>
+<em>视觉更强，适合少量类别。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Bar · drawing_yh/bar/circle/main.py
+</div>
+<div class="gallery-tags">
+<span>bar</span> <span>radial</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/bar-circular.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/bar/circle/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="bar-enrichment" data-search="bar-enrichment Enrichment bar Quantitative Bar GO / KEGG / Reactome 富集结果。 通常用 -log10(FDR) 或 enrichment score 排序。 drawing_yh/bar/enrichment_bar/enrichment_bar.py bar enrichment">
+<figure>
+<a href="../assets/gallery_images/bar-enrichment.png"><img src="../assets/gallery_images/bar-enrichment.png" alt="Enrichment bar"></a>
+</figure>
+<div class="body">
+<h3>
+Enrichment bar
+</h3>
+<p>
+GO / KEGG / Reactome 富集结果。
+</p>
+<p>
+<em>通常用 -log10(FDR) 或 enrichment score 排序。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Bar · drawing_yh/bar/enrichment_bar/enrichment_bar.py
+</div>
+<div class="gallery-tags">
+<span>bar</span> <span>enrichment</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/bar-enrichment.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/bar/enrichment_bar/enrichment_bar.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="bar-waterfall" data-search="bar-waterfall Waterfall Quantitative Bar 按方向和幅度排序的连续变化。 适合展示个体、基因或通路的正负变化。 drawing_yh/bar/waterfall/waterfall.py bar waterfall">
+<figure>
+<a href="../assets/gallery_images/bar-waterfall.png"><img src="../assets/gallery_images/bar-waterfall.png" alt="Waterfall"></a>
+</figure>
+<div class="body">
+<h3>
+Waterfall
+</h3>
+<p>
+按方向和幅度排序的连续变化。
+</p>
+<p>
+<em>适合展示个体、基因或通路的正负变化。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Bar · drawing_yh/bar/waterfall/waterfall.py
+</div>
+<div class="gallery-tags">
+<span>bar</span> <span>waterfall</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/bar-waterfall.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/bar/waterfall/waterfall.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="box-plot" data-search="box-plot Box plot Quantitative Distribution 组间分布与离散程度。 可叠加散点显示样本量。 example_gallery/build_gallery.py box distribution">
+<figure>
+<a href="../generated/box_plot.png"><img src="../generated/box_plot.png" alt="Box plot"></a>
+</figure>
+<div class="body">
+<h3>
+Box plot
+</h3>
+<p>
+组间分布与离散程度。
+</p>
+<p>
+<em>可叠加散点显示样本量。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Distribution · example_gallery/build_gallery.py
+</div>
+<div class="gallery-tags">
+<span>box</span> <span>distribution</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/box_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="violin-plot" data-search="violin-plot Violin plot Quantitative Distribution 连续变量的密度分布。 比 box plot 更突出分布形状。 drawing_yh/violin_plot/violin_function.py violin distribution">
+<figure>
+<a href="../assets/gallery_images/violin-plot.png"><img src="../assets/gallery_images/violin-plot.png" alt="Violin plot"></a>
+</figure>
+<div class="body">
+<h3>
+Violin plot
+</h3>
+<p>
+连续变量的密度分布。
+</p>
+<p>
+<em>比 box plot 更突出分布形状。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Distribution · drawing_yh/violin_plot/violin_function.py
+</div>
+<div class="gallery-tags">
+<span>violin</span> <span>distribution</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/violin-plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/violin_plot/violin_function.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="scatter-linear" data-search="scatter-linear Scatter + linear fit Quantitative Scatter 年龄相关、相关性、回归趋势。 点表示样本，线表示拟合趋势。 example_gallery/build_gallery.py scatter correlation">
+<figure>
+<a href="../generated/scatter_linear_fit.png"><img src="../generated/scatter_linear_fit.png" alt="Scatter + linear fit"></a>
+</figure>
+<div class="body">
+<h3>
+Scatter + linear fit
+</h3>
+<p>
+年龄相关、相关性、回归趋势。
+</p>
+<p>
+<em>点表示样本，线表示拟合趋势。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Scatter · example_gallery/build_gallery.py
+</div>
+<div class="gallery-tags">
+<span>scatter</span> <span>correlation</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/scatter_linear_fit.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="bubble-plot" data-search="bubble-plot Bubble plot Quantitative Scatter 二维类别矩阵 + 第三变量大小。 颜色和气泡大小可同时编码。 example_gallery/build_gallery.py bubble matrix">
+<figure>
+<a href="../generated/bubble_plot.png"><img src="../generated/bubble_plot.png" alt="Bubble plot"></a>
+</figure>
+<div class="body">
+<h3>
+Bubble plot
+</h3>
+<p>
+二维类别矩阵 + 第三变量大小。
+</p>
+<p>
+<em>颜色和气泡大小可同时编码。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Scatter · example_gallery/build_gallery.py
+</div>
+<div class="gallery-tags">
+<span>bubble</span> <span>matrix</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/bubble_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="rank-plot" data-search="rank-plot Rank plot Quantitative Scatter 候选基因、通路、feature 的排序。 适合强调 top candidates。 example_gallery/build_gallery.py rank candidate">
+<figure>
+<a href="../generated/rank_plot.png"><img src="../generated/rank_plot.png" alt="Rank plot"></a>
+</figure>
+<div class="body">
+<h3>
+Rank plot
+</h3>
+<p>
+候选基因、通路、feature 的排序。
+</p>
+<p>
+<em>适合强调 top candidates。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Scatter · example_gallery/build_gallery.py
+</div>
+<div class="gallery-tags">
+<span>rank</span> <span>candidate</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/rank_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="dot-chart" data-search="dot-chart Dot chart Quantitative Summary dot 蛋白/代谢物跨组织或分组点图。 可用颜色、位置、显著性共同编码。 drawing_yh/scatter/dot_chart/dot_chart.py dot summary">
+<figure>
+<a href="../assets/gallery_images/dot-chart.png"><img src="../assets/gallery_images/dot-chart.png" alt="Dot chart"></a>
+</figure>
+<div class="body">
+<h3>
+Dot chart
+</h3>
+<p>
+蛋白/代谢物跨组织或分组点图。
+</p>
+<p>
+<em>可用颜色、位置、显著性共同编码。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Summary dot · drawing_yh/scatter/dot_chart/dot_chart.py
+</div>
+<div class="gallery-tags">
+<span>dot</span> <span>summary</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/dot-chart.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/scatter/dot_chart/dot_chart.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="marker-dotplot" data-search="marker-dotplot Marker dot plot Single-cell Marker expression 单细胞 marker 表达矩阵。 颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct expressed，左侧彩点=cell-type 颜色。 drawing_yh/dotplot.py single-cell marker dotplot">
+<figure>
+<a href="../generated/marker_dotplot.png"><img src="../generated/marker_dotplot.png" alt="Marker dot plot"></a>
+</figure>
+<div class="body">
+<h3>
+Marker dot plot
+</h3>
+<p>
+单细胞 marker 表达矩阵。
+</p>
+<p>
+<em>颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct
+expressed，左侧彩点=cell-type 颜色。</em>
+</p>
+<div class="gallery-meta">
+Single-cell / Marker expression · drawing_yh/dotplot.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>marker</span> <span>dotplot</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/marker_dotplot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/dotplot.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="feature-plot" data-search="feature-plot Embedding feature plot Single-cell Embedding 基因表达投影到 UMAP/tSNE 的多基因网格。 共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。 drawing_yh/embedding.py single-cell umap feature">
+<figure>
+<a href="../generated/feature_plot.png"><img src="../generated/feature_plot.png" alt="Embedding feature plot"></a>
+</figure>
+<div class="body">
+<h3>
+Embedding feature plot
+</h3>
+<p>
+基因表达投影到 UMAP/tSNE 的多基因网格。
+</p>
+<p>
+<em>共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。</em>
+</p>
+<div class="gallery-meta">
+Single-cell / Embedding · drawing_yh/embedding.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>umap</span> <span>feature</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/feature_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/embedding.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="dumbbell" data-search="dumbbell Dumbbell chart Quantitative Comparison Young vs Old 或处理前后均值比较。 箭头方向编码升降，适合通讯强度或 pathway score。 drawing_yh/dumbbell.py dumbbell comparison">
+<figure>
+<a href="../generated/dumbbell.png"><img src="../generated/dumbbell.png" alt="Dumbbell chart"></a>
+</figure>
+<div class="body">
+<h3>
+Dumbbell chart
+</h3>
+<p>
+Young vs Old 或处理前后均值比较。
+</p>
+<p>
+<em>箭头方向编码升降，适合通讯强度或 pathway score。</em>
+</p>
+<div class="gallery-meta">
+Quantitative / Comparison · drawing_yh/dumbbell.py
+</div>
+<div class="gallery-tags">
+<span>dumbbell</span> <span>comparison</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/dumbbell.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/dumbbell.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="volcano" data-search="volcano Volcano plot Omics Differential 差异分析结果，logFC × p-value。 适合快速筛选显著上/下调。 drawing_yh/volcano_plot/volcano.py volcano DEG">
+<figure>
+<a href="../assets/gallery_images/volcano.png"><img src="../assets/gallery_images/volcano.png" alt="Volcano plot"></a>
+</figure>
+<div class="body">
+<h3>
+Volcano plot
+</h3>
+<p>
+差异分析结果，logFC × p-value。
+</p>
+<p>
+<em>适合快速筛选显著上/下调。</em>
+</p>
+<div class="gallery-meta">
+Omics / Differential · drawing_yh/volcano_plot/volcano.py
+</div>
+<div class="gallery-tags">
+<span>volcano</span> <span>DEG</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/volcano.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/volcano_plot/volcano.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="pca" data-search="pca PCA score plot QC Dimension reduction 样本整体结构、批次、分组分离。 用于 QC 和组间结构展示。 drawing_yh/pca/PCA.py PCA QC">
+<figure>
+<a href="../generated/pca_score.png"><img src="../generated/pca_score.png" alt="PCA score plot"></a>
+</figure>
+<div class="body">
+<h3>
+PCA score plot
+</h3>
+<p>
+样本整体结构、批次、分组分离。
+</p>
+<p>
+<em>用于 QC 和组间结构展示。</em>
+</p>
+<div class="gallery-meta">
+QC / Dimension reduction · drawing_yh/pca/PCA.py
+</div>
+<div class="gallery-tags">
+<span>PCA</span> <span>QC</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/pca_score.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/pca/PCA.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="heatmap-clustered" data-search="heatmap-clustered Clustered heatmap Omics Heatmap 矩阵聚类、表达模式、样本/基因分组。 适合 feature 数中等的全局模式。 drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py heatmap cluster">
+<figure>
+<a href="../assets/gallery_images/heatmap-clustered.png"><img src="../assets/gallery_images/heatmap-clustered.png" alt="Clustered heatmap"></a>
+</figure>
+<div class="body">
+<h3>
+Clustered heatmap
+</h3>
+<p>
+矩阵聚类、表达模式、样本/基因分组。
+</p>
+<p>
+<em>适合 feature 数中等的全局模式。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap ·
+drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py
+</div>
+<div class="gallery-tags">
+<span>heatmap</span> <span>cluster</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/heatmap-clustered.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="heatmap-tile" data-search="heatmap-tile Tile heatmap Omics Heatmap 通路 × 细胞类型、组织 × feature 的紧凑矩阵。 适合报告里快速比较方向。 drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py heatmap tile">
+<figure>
+<a href="../generated/heatmap_tile.png"><img src="../generated/heatmap_tile.png" alt="Tile heatmap"></a>
+</figure>
+<div class="body">
+<h3>
+Tile heatmap
+</h3>
+<p>
+通路 × 细胞类型、组织 × feature 的紧凑矩阵。
+</p>
+<p>
+<em>适合报告里快速比较方向。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap ·
+drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py
+</div>
+<div class="gallery-tags">
+<span>heatmap</span> <span>tile</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/heatmap_tile.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="heatmap-row-bars" data-search="heatmap-row-bars Heatmap + per-row bars Omics Heatmap z-score 热图 + 每行 top 富集条(如各 cell type GO)。 左侧行彩条 + 列块分隔，右侧横向条标注通路。 drawing_yh/heatmap/row_bars.py single-cell heatmap enrichment">
+<figure>
+<a href="../generated/heatmap_row_bars.png"><img src="../generated/heatmap_row_bars.png" alt="Heatmap + per-row bars"></a>
+</figure>
+<div class="body">
+<h3>
+Heatmap + per-row bars
+</h3>
+<p>
+z-score 热图 + 每行 top 富集条(如各 cell type GO)。
+</p>
+<p>
+<em>左侧行彩条 + 列块分隔，右侧横向条标注通路。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap · drawing_yh/heatmap/row_bars.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>heatmap</span> <span>enrichment</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/heatmap_row_bars.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/heatmap/row_bars.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="oydeg-enrichment-heatmap" data-search="oydeg-enrichment-heatmap OY-DEG heatmap + enrichment Omics Heatmap Old vs Young DEG log2FC 热图 + 动态 gene labels + Up/Down 富集块。 输入为已整理矩阵、block、label genes 和 enrichment blocks；DEG/enrichment 计算留在分析流程。 drawing_yh/heatmap/oydeg_enrichment.py single-cell DEG enrichment">
+<figure>
+<a href="../generated/oydeg_enrichment_heatmap.png"><img src="../generated/oydeg_enrichment_heatmap.png" alt="OY-DEG heatmap + enrichment"></a>
+</figure>
+<div class="body">
+<h3>
+OY-DEG heatmap + enrichment
+</h3>
+<p>
+Old vs Young DEG log2FC 热图 + 动态 gene labels + Up/Down 富集块。
+</p>
+<p>
+<em>输入为已整理矩阵、block、label genes 和 enrichment
+blocks；DEG/enrichment 计算留在分析流程。</em>
+</p>
+<div class="gallery-meta">
+Omics / Heatmap · drawing_yh/heatmap/oydeg_enrichment.py
+</div>
+<div class="gallery-tags">
+<span>single-cell</span> <span>DEG</span> <span>enrichment</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/oydeg_enrichment_heatmap.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/heatmap/oydeg_enrichment.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="dose-heatmap" data-search="dose-heatmap Dose-response heatmap Curves Dose response 药物浓度 × 组合条件矩阵。 适合筛选敏感窗口。 drawing_yh/dose_response/heatmap_with_colorbar.py dose-response heatmap">
+<figure>
+<a href="../assets/gallery_images/dose-heatmap.png"><img src="../assets/gallery_images/dose-heatmap.png" alt="Dose-response heatmap"></a>
+</figure>
+<div class="body">
+<h3>
+Dose-response heatmap
+</h3>
+<p>
+药物浓度 × 组合条件矩阵。
+</p>
+<p>
+<em>适合筛选敏感窗口。</em>
+</p>
+<div class="gallery-meta">
+Curves / Dose response ·
+drawing_yh/dose_response/heatmap_with_colorbar.py
+</div>
+<div class="gallery-tags">
+<span>dose-response</span> <span>heatmap</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/dose-heatmap.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/dose_response/heatmap_with_colorbar.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="pie" data-search="pie Pie chart Composition Pie / Donut 少量类别的组成比例。 类别过多时优先换 bar plot。 drawing_yh/pie_chart/pie/main.py pie composition">
+<figure>
+<a href="../assets/gallery_images/pie.png"><img src="../assets/gallery_images/pie.png" alt="Pie chart"></a>
+</figure>
+<div class="body">
+<h3>
+Pie chart
+</h3>
+<p>
+少量类别的组成比例。
+</p>
+<p>
+<em>类别过多时优先换 bar plot。</em>
+</p>
+<div class="gallery-meta">
+Composition / Pie / Donut · drawing_yh/pie_chart/pie/main.py
+</div>
+<div class="gallery-tags">
+<span>pie</span> <span>composition</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/pie.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/pie_chart/pie/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="donut" data-search="donut Donut chart Composition Pie / Donut 组成比例 + 中心注释。 比普通 pie 更适合放总数或标签。 drawing_yh/pie_chart/donut/main.py donut composition">
+<figure>
+<a href="../assets/gallery_images/donut.png"><img src="../assets/gallery_images/donut.png" alt="Donut chart"></a>
+</figure>
+<div class="body">
+<h3>
+Donut chart
+</h3>
+<p>
+组成比例 + 中心注释。
+</p>
+<p>
+<em>比普通 pie 更适合放总数或标签。</em>
+</p>
+<div class="gallery-meta">
+Composition / Pie / Donut · drawing_yh/pie_chart/donut/main.py
+</div>
+<div class="gallery-tags">
+<span>donut</span> <span>composition</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/donut.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/pie_chart/donut/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="explode-pie" data-search="explode-pie Exploded pie Composition Pie / Donut 强调某一个组成部分。 只适合非常明确的 highlight。 drawing_yh/pie_chart/explode/main.py pie highlight">
+<figure>
+<a href="../assets/gallery_images/explode-pie.png"><img src="../assets/gallery_images/explode-pie.png" alt="Exploded pie"></a>
+</figure>
+<div class="body">
+<h3>
+Exploded pie
+</h3>
+<p>
+强调某一个组成部分。
+</p>
+<p>
+<em>只适合非常明确的 highlight。</em>
+</p>
+<div class="gallery-meta">
+Composition / Pie / Donut · drawing_yh/pie_chart/explode/main.py
+</div>
+<div class="gallery-tags">
+<span>pie</span> <span>highlight</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/explode-pie.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/pie_chart/explode/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="zoom-pie" data-search="zoom-pie Zoom pie Composition Pie / Donut 大类 + 小类局部放大。 适合比例悬殊但又要展示小类。 drawing_yh/pie_chart/zoom_pie/main.py pie zoom">
+<figure>
+<a href="../assets/gallery_images/zoom-pie.png"><img src="../assets/gallery_images/zoom-pie.png" alt="Zoom pie"></a>
+</figure>
+<div class="body">
+<h3>
+Zoom pie
+</h3>
+<p>
+大类 + 小类局部放大。
+</p>
+<p>
+<em>适合比例悬殊但又要展示小类。</em>
+</p>
+<div class="gallery-meta">
+Composition / Pie / Donut · drawing_yh/pie_chart/zoom_pie/main.py
+</div>
+<div class="gallery-tags">
+<span>pie</span> <span>zoom</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/zoom-pie.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/pie_chart/zoom_pie/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="venn" data-search="venn Venn diagram Composition Set overlap 2-3 个集合交集。 集合大小悬殊时可用 equal/log 模式。 drawing_yh/venn/venn_plot.py venn set">
+<figure>
+<a href="../generated/venn_diagram.png"><img src="../generated/venn_diagram.png" alt="Venn diagram"></a>
+</figure>
+<div class="body">
+<h3>
+Venn diagram
+</h3>
+<p>
+2-3 个集合交集。
+</p>
+<p>
+<em>集合大小悬殊时可用 equal/log 模式。</em>
+</p>
+<div class="gallery-meta">
+Composition / Set overlap · drawing_yh/venn/venn_plot.py
+</div>
+<div class="gallery-tags">
+<span>venn</span> <span>set</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/venn_diagram.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/venn/venn_plot.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="dose-curve" data-search="dose-curve Dose-response curve Curves Dose / enzyme 药物浓度-效应曲线。 适合 IC50/viability 展示。 drawing_yh/dose_response/main.py curve dose-response">
+<figure>
+<a href="../assets/gallery_images/dose-curve.png"><img src="../assets/gallery_images/dose-curve.png" alt="Dose-response curve"></a>
+</figure>
+<div class="body">
+<h3>
+Dose-response curve
+</h3>
+<p>
+药物浓度-效应曲线。
+</p>
+<p>
+<em>适合 IC50/viability 展示。</em>
+</p>
+<div class="gallery-meta">
+Curves / Dose / enzyme · drawing_yh/dose_response/main.py
+</div>
+<div class="gallery-tags">
+<span>curve</span> <span>dose-response</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/dose-curve.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/dose_response/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="michaelis-menten" data-search="michaelis-menten Michaelis-Menten curve Curves Dose / enzyme 酶动力学 Vmax/Km 曲线。 适合反应速率拟合。 drawing_yh/michaelis_menten/MM_curve.py curve enzyme">
+<figure>
+<a href="../assets/gallery_images/michaelis-menten.png"><img src="../assets/gallery_images/michaelis-menten.png" alt="Michaelis-Menten curve"></a>
+</figure>
+<div class="body">
+<h3>
+Michaelis-Menten curve
+</h3>
+<p>
+酶动力学 Vmax/Km 曲线。
+</p>
+<p>
+<em>适合反应速率拟合。</em>
+</p>
+<div class="gallery-meta">
+Curves / Dose / enzyme · drawing_yh/michaelis_menten/MM_curve.py
+</div>
+<div class="gallery-tags">
+<span>curve</span> <span>enzyme</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/michaelis-menten.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/michaelis_menten/MM_curve.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="chord" data-search="chord Chord diagram Network Flow / relation 有向加权网络，如细胞通讯 sender → receiver。 ribbon 宽度表示权重，颜色跟 sender 对齐。 drawing_yh/chord/main.py network chord">
+<figure>
+<a href="../generated/chord_diagram.png"><img src="../generated/chord_diagram.png" alt="Chord diagram"></a>
+</figure>
+<div class="body">
+<h3>
+Chord diagram
+</h3>
+<p>
+有向加权网络，如细胞通讯 sender → receiver。
+</p>
+<p>
+<em>ribbon 宽度表示权重，颜色跟 sender 对齐。</em>
+</p>
+<div class="gallery-meta">
+Network / Flow / relation · drawing_yh/chord/main.py
+</div>
+<div class="gallery-tags">
+<span>network</span> <span>chord</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/chord_diagram.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/chord/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="lr-chord-panel" data-search="lr-chord-panel LR chord panel Network Flow / relation 配体-受体弦图的横向多面板比较。 共享 legend、可选 rescue 灰边、边编号和方向色，适合 aging / intervention 对照。 drawing_yh/chord/main.py network chord ligand-receptor panel">
+<figure>
+<a href="../generated/lr_chord_panel.png"><img src="../generated/lr_chord_panel.png" alt="LR chord panel"></a>
+</figure>
+<div class="body">
+<h3>
+LR chord panel
+</h3>
+<p>
+配体-受体弦图的横向多面板比较。
+</p>
+<p>
+<em>共享 legend、可选 rescue 灰边、边编号和方向色，适合 aging /
+intervention 对照。</em>
+</p>
+<div class="gallery-meta">
+Network / Flow / relation · drawing_yh/chord/main.py
+</div>
+<div class="gallery-tags">
+<span>network</span> <span>chord</span> <span>ligand-receptor</span>
+<span>panel</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/lr_chord_panel.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/chord/main.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="hub-spoke" data-search="hub-spoke Hub-spoke network Network Flow / relation 中心 TF / ligand 与 target/cell type 的辐射网络。 适合展示一个核心节点的调控范围。 drawing_yh/network/hub_spoke.py network TF">
+<figure>
+<a href="../generated/hub_spoke.png"><img src="../generated/hub_spoke.png" alt="Hub-spoke network"></a>
+</figure>
+<div class="body">
+<h3>
+Hub-spoke network
+</h3>
+<p>
+中心 TF / ligand 与 target/cell type 的辐射网络。
+</p>
+<p>
+<em>适合展示一个核心节点的调控范围。</em>
+</p>
+<div class="gallery-meta">
+Network / Flow / relation · drawing_yh/network/hub_spoke.py
+</div>
+<div class="gallery-tags">
+<span>network</span> <span>TF</span>
+</div>
+<div class="gallery-links">
+<a href="../generated/hub_spoke.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/network/hub_spoke.py">源码/示例</a>
+</div>
+</div>
+</article>
+<article class="gallery-card" id="tissue-icons" data-search="tissue-icons Tissue / species icons Utility Assets 报告和组合图里的组织/物种图标。 用于 legend、schematic 或 atlas overview。 drawing_yh/icon/generate_missing_icons.py icon utility">
+<figure>
+<a href="../assets/gallery_images/tissue-icons.png"><img src="../assets/gallery_images/tissue-icons.png" alt="Tissue / species icons"></a>
+</figure>
+<div class="body">
+<h3>
+Tissue / species icons
+</h3>
+<p>
+报告和组合图里的组织/物种图标。
+</p>
+<p>
+<em>用于 legend、schematic 或 atlas overview。</em>
+</p>
+<div class="gallery-meta">
+Utility / Assets · drawing_yh/icon/generate_missing_icons.py
+</div>
+<div class="gallery-tags">
+<span>icon</span> <span>utility</span>
+</div>
+<div class="gallery-links">
+<a href="../assets/gallery_images/tissue-icons.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/icon/generate_missing_icons.py">源码/示例</a>
+</div>
+</div>
+</article>
+</div>
+<p class="gallery-empty" data-gallery-empty hidden>
+No results
+</p>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-gallery-search]').forEach(function (box) {
+    var input = box.querySelector('input[type="search"]');
+    var main = box.closest('main') || document;
+    var cards = Array.prototype.slice.call(main.querySelectorAll('.gallery-card'));
+    var empty = main.querySelector('[data-gallery-empty]');
+    var count = box.querySelector('[data-gallery-count]');
+    function normalize(value) {
+      return (value || '').toLowerCase().trim();
+    }
+    function applyFilter() {
+      var query = normalize(input.value);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var text = normalize(card.getAttribute('data-search') || card.textContent);
+        var matched = !query || text.indexOf(query) !== -1;
+        card.hidden = !matched;
+        if (matched) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      if (count) count.textContent = query ? shown + ' / ' + cards.length + ' examples' : cards.length + ' examples';
+    }
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('search', applyFilter);
+    applyFilter();
+  });
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('img').forEach(function (img) {

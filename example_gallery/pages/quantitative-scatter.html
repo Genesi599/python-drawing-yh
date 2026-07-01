@@ -45,9 +45,33 @@
 .super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
 .super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
 .gallery-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 18px; margin: 1.2em 0 2em;
 }
+.gallery-search {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px; align-items: center; margin: 1em 0 1.2em; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev);
+}
+.gallery-search label {
+  color: var(--muted); font-size: .86em; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.gallery-search input {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--fg); background: var(--bg-soft);
+}
+.gallery-search input:focus {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent-strong);
+}
+.gallery-search-count { color: var(--muted); font-size: .86em; white-space: nowrap; }
+.gallery-empty {
+  margin: 1em 0 2em; padding: 18px; text-align: center;
+  color: var(--muted); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--bg-soft);
+}
+.gallery-card[hidden], .gallery-empty[hidden] { display: none !important; }
 .gallery-card {
   border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
   overflow: hidden;
@@ -69,6 +93,10 @@
   color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
 }
 .gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+@media (max-width: 640px) {
+  .gallery-search { grid-template-columns: 1fr; }
+  .gallery-search-count { white-space: normal; }
+}
 </style>
 
 <aside class="report-sidebar">
@@ -81,22 +109,32 @@
   <a href="#scatter-linear">  Scatter + linear fit</a>
   <a href="#bubble-plot">  Bubble plot</a>
   <a href="#rank-plot">  Rank plot</a>
-  <a href="#dot-chart">  Dot chart</a>
+  <a href="quantitative-summary-dot.html">Summary dot</a>
+  <a href="quantitative-comparison.html">Comparison</a>
 </aside>
-<div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn current" href="quantitative.html">Quantitative</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
+<div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn current" href="quantitative.html">Quantitative</a><a class="super-btn" href="single-cell.html">Single-cell</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn" href="qc.html">QC</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
 <nav class="report-nav">
   <a href="quantitative.html" class="current">Quantitative</a>
+  <a href="single-cell.html">Single-cell</a>
   <a href="omics.html">Omics</a>
-  <a href="composition.html">Composition</a>
+  <a href="qc.html">QC</a>
   <a href="curves.html">Curves</a>
+  <a href="composition.html">Composition</a>
   <a href="network.html">Network</a>
   <a href="utility.html">Utility</a>
 </nav>
 <main class="report-main">
 <h1 id="scatter">Scatter</h1>
-<p>Quantitative / Scatter — 4 种示例图。</p>
+<p>Quantitative / Scatter — 3 种示例图。</p>
+<div class="gallery-search" role="search" data-gallery-search="">
+<label>Search</label>
+<input type="search" placeholder="Title, section, text" autocomplete="off" aria-label="Search examples">
+<div class="gallery-search-count" data-gallery-count="">
+3 examples
+</div>
+</div>
 <div class="gallery-grid">
-<article class="gallery-card" id="scatter-linear">
+<article class="gallery-card" id="scatter-linear" data-search="scatter-linear Scatter + linear fit Quantitative Scatter 年龄相关、相关性、回归趋势。 点表示样本，线表示拟合趋势。 example_gallery/build_gallery.py scatter correlation">
 <figure>
 <a href="../generated/scatter_linear_fit.png"><img src="../generated/scatter_linear_fit.png" alt="Scatter + linear fit"></a>
 </figure>
@@ -117,11 +155,11 @@ Quantitative / Scatter · example_gallery/build_gallery.py
 <span>scatter</span> <span>correlation</span>
 </div>
 <div class="gallery-links">
-<a href="../generated/scatter_linear_fit.png">原图</a><a href="../build_gallery.py">源码/示例</a>
+<a href="../generated/scatter_linear_fit.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
 </div>
 </div>
 </article>
-<article class="gallery-card" id="bubble-plot">
+<article class="gallery-card" id="bubble-plot" data-search="bubble-plot Bubble plot Quantitative Scatter 二维类别矩阵 + 第三变量大小。 颜色和气泡大小可同时编码。 example_gallery/build_gallery.py bubble matrix">
 <figure>
 <a href="../generated/bubble_plot.png"><img src="../generated/bubble_plot.png" alt="Bubble plot"></a>
 </figure>
@@ -142,11 +180,11 @@ Quantitative / Scatter · example_gallery/build_gallery.py
 <span>bubble</span> <span>matrix</span>
 </div>
 <div class="gallery-links">
-<a href="../generated/bubble_plot.png">原图</a><a href="../build_gallery.py">源码/示例</a>
+<a href="../generated/bubble_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
 </div>
 </div>
 </article>
-<article class="gallery-card" id="rank-plot">
+<article class="gallery-card" id="rank-plot" data-search="rank-plot Rank plot Quantitative Scatter 候选基因、通路、feature 的排序。 适合强调 top candidates。 example_gallery/build_gallery.py rank candidate">
 <figure>
 <a href="../generated/rank_plot.png"><img src="../generated/rank_plot.png" alt="Rank plot"></a>
 </figure>
@@ -167,37 +205,44 @@ Quantitative / Scatter · example_gallery/build_gallery.py
 <span>rank</span> <span>candidate</span>
 </div>
 <div class="gallery-links">
-<a href="../generated/rank_plot.png">原图</a><a href="../build_gallery.py">源码/示例</a>
-</div>
-</div>
-</article>
-<article class="gallery-card" id="dot-chart">
-<figure>
-<a href="../../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png"><img src="../../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png" alt="Dot chart"></a>
-</figure>
-<div class="body">
-<h3>
-Dot chart
-</h3>
-<p>
-蛋白/代谢物跨组织或分组点图。
-</p>
-<p>
-<em>可用颜色、位置、显著性共同编码。</em>
-</p>
-<div class="gallery-meta">
-Quantitative / Scatter · drawing_yh/scatter/dot_chart/dot_chart.py
-</div>
-<div class="gallery-tags">
-<span>dot</span> <span>summary</span>
-</div>
-<div class="gallery-links">
-<a href="../../drawing_yh/scatter/dot_chart/output/protein_dotplot/TNF_p0.png">原图</a><a href="../../drawing_yh/scatter/dot_chart/dot_chart.py">源码/示例</a>
+<a href="../generated/rank_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/example_gallery/build_gallery.py">源码/示例</a>
 </div>
 </div>
 </article>
 </div>
+<p class="gallery-empty" data-gallery-empty hidden>
+No results
+</p>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-gallery-search]').forEach(function (box) {
+    var input = box.querySelector('input[type="search"]');
+    var main = box.closest('main') || document;
+    var cards = Array.prototype.slice.call(main.querySelectorAll('.gallery-card'));
+    var empty = main.querySelector('[data-gallery-empty]');
+    var count = box.querySelector('[data-gallery-count]');
+    function normalize(value) {
+      return (value || '').toLowerCase().trim();
+    }
+    function applyFilter() {
+      var query = normalize(input.value);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var text = normalize(card.getAttribute('data-search') || card.textContent);
+        var matched = !query || text.indexOf(query) !== -1;
+        card.hidden = !matched;
+        if (matched) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      if (count) count.textContent = query ? shown + ' / ' + cards.length + ' examples' : cards.length + ' examples';
+    }
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('search', applyFilter);
+    applyFilter();
+  });
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('img').forEach(function (img) {

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Omics / Marker / QC</title>
+  <title>Single-cell / Embedding</title>
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
@@ -45,9 +45,33 @@
 .super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
 .super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
 .gallery-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 18px; margin: 1.2em 0 2em;
 }
+.gallery-search {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px; align-items: center; margin: 1em 0 1.2em; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev);
+}
+.gallery-search label {
+  color: var(--muted); font-size: .86em; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.gallery-search input {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--fg); background: var(--bg-soft);
+}
+.gallery-search input:focus {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent-strong);
+}
+.gallery-search-count { color: var(--muted); font-size: .86em; white-space: nowrap; }
+.gallery-empty {
+  margin: 1em 0 2em; padding: 18px; text-align: center;
+  color: var(--muted); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--bg-soft);
+}
+.gallery-card[hidden], .gallery-empty[hidden] { display: none !important; }
 .gallery-card {
   border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
   overflow: hidden;
@@ -69,60 +93,43 @@
   color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
 }
 .gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+@media (max-width: 640px) {
+  .gallery-search { grid-template-columns: 1fr; }
+  .gallery-search-count { white-space: normal; }
+}
 </style>
 
 <aside class="report-sidebar">
   <a href="index.html">Overview</a>
-  <div class="sidebar-section">Omics</div>
-  <a href="omics.html">Omics overview</a>
-  <a href="omics-marker-qc.html" class="current">Marker / QC</a>
-  <a href="#marker-dotplot">  Marker dot plot</a>
+  <div class="sidebar-section">Single-cell</div>
+  <a href="single-cell.html">Single-cell overview</a>
+  <a href="single-cell-marker-expression.html">Marker expression</a>
+  <a href="single-cell-embedding.html" class="current">Embedding</a>
   <a href="#feature-plot">  Embedding feature plot</a>
-  <a href="#pca">  PCA score plot</a>
-  <a href="omics-comparison.html">Comparison</a>
-  <a href="omics-differential.html">Differential</a>
-  <a href="omics-heatmap.html">Heatmap</a>
 </aside>
-<div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn current" href="omics.html">Omics</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
+<div class="super-switch"><span class="super-label">图类</span><a class="super-btn" href="index.html">Overview</a><a class="super-btn" href="quantitative.html">Quantitative</a><a class="super-btn current" href="single-cell.html">Single-cell</a><a class="super-btn" href="omics.html">Omics</a><a class="super-btn" href="qc.html">QC</a><a class="super-btn" href="curves.html">Curves</a><a class="super-btn" href="composition.html">Composition</a><a class="super-btn" href="network.html">Network</a><a class="super-btn" href="utility.html">Utility</a></div>
 <nav class="report-nav">
   <a href="quantitative.html">Quantitative</a>
-  <a href="omics.html" class="current">Omics</a>
-  <a href="composition.html">Composition</a>
+  <a href="single-cell.html" class="current">Single-cell</a>
+  <a href="omics.html">Omics</a>
+  <a href="qc.html">QC</a>
   <a href="curves.html">Curves</a>
+  <a href="composition.html">Composition</a>
   <a href="network.html">Network</a>
   <a href="utility.html">Utility</a>
 </nav>
 <main class="report-main">
-<h1 id="marker-qc">Marker / QC</h1>
-<p>Omics / Marker / QC — 3 种示例图。</p>
+<h1 id="embedding">Embedding</h1>
+<p>Single-cell / Embedding — 1 种示例图。</p>
+<div class="gallery-search" role="search" data-gallery-search="">
+<label>Search</label>
+<input type="search" placeholder="Title, section, text" autocomplete="off" aria-label="Search examples">
+<div class="gallery-search-count" data-gallery-count="">
+1 examples
+</div>
+</div>
 <div class="gallery-grid">
-<article class="gallery-card" id="marker-dotplot">
-<figure>
-<a href="../generated/marker_dotplot.png"><img src="../generated/marker_dotplot.png" alt="Marker dot plot"></a>
-</figure>
-<div class="body">
-<h3>
-Marker dot plot
-</h3>
-<p>
-单细胞 marker 表达矩阵。
-</p>
-<p>
-<em>颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct
-expressed，左侧彩点=cell-type 颜色。</em>
-</p>
-<div class="gallery-meta">
-Omics / Marker / QC · drawing_yh/dotplot.py
-</div>
-<div class="gallery-tags">
-<span>single-cell</span> <span>marker</span> <span>dotplot</span>
-</div>
-<div class="gallery-links">
-<a href="../generated/marker_dotplot.png">原图</a><a href="../../drawing_yh/dotplot.py">源码/示例</a>
-</div>
-</div>
-</article>
-<article class="gallery-card" id="feature-plot">
+<article class="gallery-card" id="feature-plot" data-search="feature-plot Embedding feature plot Single-cell Embedding 基因表达投影到 UMAP/tSNE 的多基因网格。 共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。 drawing_yh/embedding.py single-cell umap feature">
 <figure>
 <a href="../generated/feature_plot.png"><img src="../generated/feature_plot.png" alt="Embedding feature plot"></a>
 </figure>
@@ -137,43 +144,50 @@ Embedding feature plot
 <em>共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。</em>
 </p>
 <div class="gallery-meta">
-Omics / Marker / QC · drawing_yh/embedding.py
+Single-cell / Embedding · drawing_yh/embedding.py
 </div>
 <div class="gallery-tags">
 <span>single-cell</span> <span>umap</span> <span>feature</span>
 </div>
 <div class="gallery-links">
-<a href="../generated/feature_plot.png">原图</a><a href="../../drawing_yh/embedding.py">源码/示例</a>
-</div>
-</div>
-</article>
-<article class="gallery-card" id="pca">
-<figure>
-<a href="../generated/pca_score.png"><img src="../generated/pca_score.png" alt="PCA score plot"></a>
-</figure>
-<div class="body">
-<h3>
-PCA score plot
-</h3>
-<p>
-样本整体结构、批次、分组分离。
-</p>
-<p>
-<em>用于 QC 和组间结构展示。</em>
-</p>
-<div class="gallery-meta">
-Omics / Marker / QC · drawing_yh/pca/PCA.py
-</div>
-<div class="gallery-tags">
-<span>PCA</span> <span>QC</span>
-</div>
-<div class="gallery-links">
-<a href="../generated/pca_score.png">原图</a><a href="../../drawing_yh/pca/PCA.py">源码/示例</a>
+<a href="../generated/feature_plot.png">原图</a><a href="https://github.com/Genesi599/python-drawing-yh/blob/main/drawing_yh/embedding.py">源码/示例</a>
 </div>
 </div>
 </article>
 </div>
+<p class="gallery-empty" data-gallery-empty hidden>
+No results
+</p>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-gallery-search]').forEach(function (box) {
+    var input = box.querySelector('input[type="search"]');
+    var main = box.closest('main') || document;
+    var cards = Array.prototype.slice.call(main.querySelectorAll('.gallery-card'));
+    var empty = main.querySelector('[data-gallery-empty]');
+    var count = box.querySelector('[data-gallery-count]');
+    function normalize(value) {
+      return (value || '').toLowerCase().trim();
+    }
+    function applyFilter() {
+      var query = normalize(input.value);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var text = normalize(card.getAttribute('data-search') || card.textContent);
+        var matched = !query || text.indexOf(query) !== -1;
+        card.hidden = !matched;
+        if (matched) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      if (count) count.textContent = query ? shown + ' / ' + cards.length + ' examples' : cards.length + ' examples';
+    }
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('search', applyFilter);
+    applyFilter();
+  });
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('img').forEach(function (img) {

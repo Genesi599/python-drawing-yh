@@ -8,7 +8,7 @@ import json
 import math
 import os
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import quote
 
@@ -29,7 +29,7 @@ from drawing_yh import (
     save_fig,
     venn_diagram,
 )
-from drawing_yh.chord import chord_diagram
+from drawing_yh.chord import chord_diagram, lr_role_chord_panel
 from drawing_yh.network import hub_spoke
 
 
@@ -37,6 +37,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(__file__).resolve().parent
 GEN = OUT / "generated"
 PAGES = OUT / "pages"
+IMAGE_ASSETS = OUT / "assets" / "gallery_images"
+REPO_BLOB_BASE = "https://github.com/Genesi599/python-drawing-yh/blob/main"
 
 
 @dataclass(frozen=True)
@@ -321,6 +323,77 @@ def generate_chord() -> Path:
     return out
 
 
+def generate_lr_chord_panel() -> Path:
+    out = GEN / "lr_chord_panel.png"
+    cell_colors = {
+        "Neuron": "#4C6EDB",
+        "Glia": "#58B368",
+        "Fib": "#E07A5F",
+        "Myeloid": "#9D4EDD",
+        "VSMC": "#A97142",
+    }
+    base_edges = [
+        ("NRXN3", "NLGN1", "Neuron", 1, 0.18, "Old > Young", "Rescued", "Rescued"),
+        ("COL4A3", "ITGAV", "Fib", 3, 0.14, "Old > Young", "Rescued", "Not rescued"),
+        ("NRG3", "ERBB4", "Myeloid", 4, 0.11, "Old < Young", "Rescued", "Not rescued"),
+        ("LAMA2", "ITGB8", "Glia", 2, 0.10, "Old > Young", "Not rescued", "Not rescued"),
+        ("TENM2", "ADGRL3", "VSMC", 5, 0.08, "Old > Young", "Not rescued", "Rescued"),
+    ]
+    rows = []
+    for source, target, other_cell, cell_no, weight, direction, vc_status, met_status in base_edges:
+        rows.extend([
+            ("Aging change", source, target, other_cell, cell_no, weight, direction, "Aging"),
+            ("VC rescue", source, target, other_cell, cell_no, weight, direction, vc_status),
+            ("Met rescue", source, target, other_cell, cell_no, weight, direction, met_status),
+        ])
+    df = pd.DataFrame(
+        rows,
+        columns=["panel", "source", "target", "other_cell", "cell_no", "weight", "direction", "status"],
+    )
+    df["edge_color_base"] = df["other_cell"].map(cell_colors)
+    df["edge_color"] = np.where(df["status"].eq("Not rescued"), "#D0D0D0", df["edge_color_base"])
+    df["edge_alpha"] = np.where(df["status"].eq("Not rescued"), 0.28, 0.86)
+    df["number"] = np.where(df["status"].eq("Not rescued"), "", df["cell_no"].astype(str))
+    df["number_color"] = np.where(df["direction"].eq("Old > Young"), "#E67E22", "#1F77B4")
+    fig, _, _ = lr_role_chord_panel(
+        df,
+        panel_order=["Aging change", "VC rescue", "Met rescue"],
+        edge_label="other_cell",
+        edge_color="edge_color",
+        edge_alpha="edge_alpha",
+        edge_number="number",
+        edge_number_color="number_color",
+        edge_legend_color="edge_color_base",
+        edge_legend_title="Other cell number",
+        edge_legend_order=list(cell_colors),
+        status="status",
+        status_palette={"Rescued": "#3A8E3A", "Not rescued": "#D0D0D0"},
+        number_color_legend={"Old > Young": "#E67E22", "Old < Young": "#1F77B4"},
+        source_role_label="Ligand / sender",
+        target_role_label="Receptor / receiver",
+        source_group_label="Ligands (sender cells)",
+        target_group_label="Receptors (receiver cells)",
+        group_label_fontsize=8,
+        group_label_radius=1.54,
+        legend_title="Legend",
+        figsize=(12.4, 3.8),
+        chord_size=3.8,
+        legend_width_ratio=0.58,
+        fontsize=7,
+        panel_title_fontsize=9,
+        legend_fontsize=7,
+        legend_heading_fontsize=8,
+        legend_title_fontsize=10,
+        edge_number_jitter=0.030,
+        width=0.075,
+        pad=2.4,
+        wspace=0.0,
+    )
+    fig.savefig(out, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def generate_hub_spoke() -> Path:
     out = GEN / "hub_spoke.png"
     outer = {
@@ -503,6 +576,7 @@ def generate_all() -> dict[str, Path]:
         "dumbbell": generate_dumbbell(),
         "venn_diagram": generate_venn(),
         "chord_diagram": generate_chord(),
+        "lr_chord_panel": generate_lr_chord_panel(),
         "hub_spoke": generate_hub_spoke(),
     }
 
@@ -519,17 +593,17 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("scatter-linear", "Quantitative", "Scatter", "Scatter + linear fit", generated["scatter_linear_fit"], OUT / "build_gallery.py", "年龄相关、相关性、回归趋势。", "点表示样本，线表示拟合趋势。", ("scatter", "correlation")),
         Example("bubble-plot", "Quantitative", "Scatter", "Bubble plot", generated["bubble_plot"], OUT / "build_gallery.py", "二维类别矩阵 + 第三变量大小。", "颜色和气泡大小可同时编码。", ("bubble", "matrix")),
         Example("rank-plot", "Quantitative", "Scatter", "Rank plot", generated["rank_plot"], OUT / "build_gallery.py", "候选基因、通路、feature 的排序。", "适合强调 top candidates。", ("rank", "candidate")),
-        Example("dot-chart", "Quantitative", "Scatter", "Dot chart", p / "scatter/dot_chart/output/protein_dotplot/TNF_p0.png", p / "scatter/dot_chart/dot_chart.py", "蛋白/代谢物跨组织或分组点图。", "可用颜色、位置、显著性共同编码。", ("dot", "summary")),
-        Example("marker-dotplot", "Omics", "Marker / QC", "Marker dot plot", generated["marker_dotplot"], p / "dotplot.py", "单细胞 marker 表达矩阵。", "颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct expressed，左侧彩点=cell-type 颜色。", ("single-cell", "marker", "dotplot")),
-        Example("feature-plot", "Omics", "Marker / QC", "Embedding feature plot", generated["feature_plot"], p / "embedding.py", "基因表达投影到 UMAP/tSNE 的多基因网格。", "共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。", ("single-cell", "umap", "feature")),
-        Example("dumbbell", "Omics", "Comparison", "Dumbbell chart", generated["dumbbell"], p / "dumbbell.py", "Young vs Old 或处理前后均值比较。", "箭头方向编码升降，适合通讯强度或 pathway score。", ("dumbbell", "comparison")),
+        Example("dot-chart", "Quantitative", "Summary dot", "Dot chart", p / "scatter/dot_chart/output/protein_dotplot/TNF_p0.png", p / "scatter/dot_chart/dot_chart.py", "蛋白/代谢物跨组织或分组点图。", "可用颜色、位置、显著性共同编码。", ("dot", "summary")),
+        Example("marker-dotplot", "Single-cell", "Marker expression", "Marker dot plot", generated["marker_dotplot"], p / "dotplot.py", "单细胞 marker 表达矩阵。", "颜色=gene-scaled mean(grey-red，默认 scseq 配色)，大小=pct expressed，左侧彩点=cell-type 颜色。", ("single-cell", "marker", "dotplot")),
+        Example("feature-plot", "Single-cell", "Embedding", "Embedding feature plot", generated["feature_plot"], p / "embedding.py", "基因表达投影到 UMAP/tSNE 的多基因网格。", "共享 grey-red colorbar + 角落 UMAP 箭头轴，按非零百分位裁剪。", ("single-cell", "umap", "feature")),
+        Example("dumbbell", "Quantitative", "Comparison", "Dumbbell chart", generated["dumbbell"], p / "dumbbell.py", "Young vs Old 或处理前后均值比较。", "箭头方向编码升降，适合通讯强度或 pathway score。", ("dumbbell", "comparison")),
         Example("volcano", "Omics", "Differential", "Volcano plot", p / "volcano_plot/Volcano_plot.png", p / "volcano_plot/volcano.py", "差异分析结果，logFC × p-value。", "适合快速筛选显著上/下调。", ("volcano", "DEG")),
-        Example("pca", "Omics", "Marker / QC", "PCA score plot", generated["pca_score"], p / "pca/PCA.py", "样本整体结构、批次、分组分离。", "用于 QC 和组间结构展示。", ("PCA", "QC")),
+        Example("pca", "QC", "Dimension reduction", "PCA score plot", generated["pca_score"], p / "pca/PCA.py", "样本整体结构、批次、分组分离。", "用于 QC 和组间结构展示。", ("PCA", "QC")),
         Example("heatmap-clustered", "Omics", "Heatmap", "Clustered heatmap", p / "heatmap/heatmap_clustered/HMM 20241126/heatmap_with_colorbar_cluster.png", p / "heatmap/heatmap_clustered/heapmap_clustered.py", "矩阵聚类、表达模式、样本/基因分组。", "适合 feature 数中等的全局模式。", ("heatmap", "cluster")),
         Example("heatmap-tile", "Omics", "Heatmap", "Tile heatmap", generated["heatmap_tile"], p / "heatmap/heatmap_tile_style/heatmap_tile_style.py", "通路 × 细胞类型、组织 × feature 的紧凑矩阵。", "适合报告里快速比较方向。", ("heatmap", "tile")),
         Example("heatmap-row-bars", "Omics", "Heatmap", "Heatmap + per-row bars", generated["heatmap_row_bars"], p / "heatmap/row_bars.py", "z-score 热图 + 每行 top 富集条(如各 cell type GO)。", "左侧行彩条 + 列块分隔，右侧横向条标注通路。", ("single-cell", "heatmap", "enrichment")),
         Example("oydeg-enrichment-heatmap", "Omics", "Heatmap", "OY-DEG heatmap + enrichment", generated["oydeg_enrichment_heatmap"], p / "heatmap/oydeg_enrichment.py", "Old vs Young DEG log2FC 热图 + 动态 gene labels + Up/Down 富集块。", "输入为已整理矩阵、block、label genes 和 enrichment blocks；DEG/enrichment 计算留在分析流程。", ("single-cell", "DEG", "enrichment")),
-        Example("dose-heatmap", "Omics", "Heatmap", "Dose-response heatmap", p / "dose_response/heatmap_with_colorbar.png", p / "dose_response/heatmap_with_colorbar.py", "药物浓度 × 组合条件矩阵。", "适合筛选敏感窗口。", ("dose-response", "heatmap")),
+        Example("dose-heatmap", "Curves", "Dose response", "Dose-response heatmap", p / "dose_response/heatmap_with_colorbar.png", p / "dose_response/heatmap_with_colorbar.py", "药物浓度 × 组合条件矩阵。", "适合筛选敏感窗口。", ("dose-response", "heatmap")),
         Example("pie", "Composition", "Pie / Donut", "Pie chart", p / "pie_chart/pie/pie.png", p / "pie_chart/pie/main.py", "少量类别的组成比例。", "类别过多时优先换 bar plot。", ("pie", "composition")),
         Example("donut", "Composition", "Pie / Donut", "Donut chart", p / "pie_chart/donut/donut.png", p / "pie_chart/donut/main.py", "组成比例 + 中心注释。", "比普通 pie 更适合放总数或标签。", ("donut", "composition")),
         Example("explode-pie", "Composition", "Pie / Donut", "Exploded pie", p / "pie_chart/explode/explode.png", p / "pie_chart/explode/main.py", "强调某一个组成部分。", "只适合非常明确的 highlight。", ("pie", "highlight")),
@@ -538,9 +612,29 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("dose-curve", "Curves", "Dose / enzyme", "Dose-response curve", p / "dose_response/fig.png", p / "dose_response/main.py", "药物浓度-效应曲线。", "适合 IC50/viability 展示。", ("curve", "dose-response")),
         Example("michaelis-menten", "Curves", "Dose / enzyme", "Michaelis-Menten curve", p / "michaelis_menten/fig.png", p / "michaelis_menten/MM_curve.py", "酶动力学 Vmax/Km 曲线。", "适合反应速率拟合。", ("curve", "enzyme")),
         Example("chord", "Network", "Flow / relation", "Chord diagram", generated["chord_diagram"], p / "chord/main.py", "有向加权网络，如细胞通讯 sender → receiver。", "ribbon 宽度表示权重，颜色跟 sender 对齐。", ("network", "chord")),
+        Example("lr-chord-panel", "Network", "Flow / relation", "LR chord panel", generated["lr_chord_panel"], p / "chord/main.py", "配体-受体弦图的横向多面板比较。", "共享 legend、可选 rescue 灰边、边编号和方向色，适合 aging / intervention 对照。", ("network", "chord", "ligand-receptor", "panel")),
         Example("hub-spoke", "Network", "Flow / relation", "Hub-spoke network", generated["hub_spoke"], p / "network/hub_spoke.py", "中心 TF / ligand 与 target/cell type 的辐射网络。", "适合展示一个核心节点的调控范围。", ("network", "TF")),
         Example("tissue-icons", "Utility", "Assets", "Tissue / species icons", p / "icon/lib/brain.png", p / "icon/generate_missing_icons.py", "报告和组合图里的组织/物种图标。", "用于 legend、schematic 或 atlas overview。", ("icon", "utility")),
     ]
+
+
+def materialize_gallery_images(examples: list[Example]) -> list[Example]:
+    """Copy example images that live outside the gallery into gallery assets."""
+    if IMAGE_ASSETS.exists():
+        shutil.rmtree(IMAGE_ASSETS)
+    IMAGE_ASSETS.mkdir(parents=True, exist_ok=True)
+
+    out_root = OUT.resolve()
+    materialized: list[Example] = []
+    for ex in examples:
+        image = ex.image.resolve()
+        if image.is_relative_to(out_root):
+            materialized.append(ex)
+            continue
+        dest = IMAGE_ASSETS / f"{ex.slug}{image.suffix.lower()}"
+        shutil.copy2(image, dest)
+        materialized.append(replace(ex, image=dest))
+    return materialized
 
 
 def _categories(examples: list[Example]) -> list[str]:
@@ -578,10 +672,7 @@ def _image_href(path: Path, *, from_pages: bool = True) -> str:
 
 
 def _source_href(path: Path, *, from_pages: bool = True) -> str:
-    rel = Path(os.path.relpath(path.resolve(), OUT.resolve())).as_posix()
-    if from_pages:
-        rel = f"../{rel}"
-    return quote(rel, safe="/:#?&=%")
+    return f"{REPO_BLOB_BASE}/{quote(_root_rel(path), safe='/')}"
 
 
 def _super_switch(categories: list[str], current: str) -> str:
@@ -650,9 +741,33 @@ def _gallery_extra_css() -> str:
 .super-switch a.super-btn:hover { background: var(--bg); color: var(--link-hover); text-decoration: none; }
 .super-switch a.super-btn.current { background: var(--accent); color: #0d1117; border-color: var(--accent-strong); }
 .gallery-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 18px; margin: 1.2em 0 2em;
 }
+.gallery-search {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px; align-items: center; margin: 1em 0 1.2em; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev);
+}
+.gallery-search label {
+  color: var(--muted); font-size: .86em; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.gallery-search input {
+  min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--fg); background: var(--bg-soft);
+}
+.gallery-search input:focus {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent-strong);
+}
+.gallery-search-count { color: var(--muted); font-size: .86em; white-space: nowrap; }
+.gallery-empty {
+  margin: 1em 0 2em; padding: 18px; text-align: center;
+  color: var(--muted); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--bg-soft);
+}
+.gallery-card[hidden], .gallery-empty[hidden] { display: none !important; }
 .gallery-card {
   border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
   overflow: hidden;
@@ -674,6 +789,10 @@ def _gallery_extra_css() -> str:
   color: var(--accent-strong); background: var(--bg-elev); font-size: .82em;
 }
 .gallery-links { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; }
+@media (max-width: 640px) {
+  .gallery-search { grid-template-columns: 1fr; }
+  .gallery-search-count { white-space: normal; }
+}
 </style>
 """
 
@@ -699,8 +818,20 @@ def _example_card(ex: Example) -> str:
     img_url = _image_href(ex.image)
     source_url = _source_href(ex.source)
     tags = " ".join(f"<span>{html.escape(tag)}</span>" for tag in ex.tags)
+    search_text = " ".join(
+        [
+            ex.slug,
+            ex.title,
+            ex.category,
+            ex.sub_category,
+            ex.use_case,
+            ex.note,
+            _root_rel(ex.source),
+            *ex.tags,
+        ]
+    )
     return f"""
-<article class="gallery-card" id="{html.escape(ex.slug)}">
+<article class="gallery-card" id="{html.escape(ex.slug)}" data-search="{html.escape(search_text, quote=True)}">
 <figure>
 <a href="{img_url}"><img src="{img_url}" alt="{html.escape(ex.title)}"></a>
 </figure>
@@ -716,6 +847,54 @@ def _example_card(ex: Example) -> str:
 """
 
 
+def _gallery_search(total: int) -> str:
+    return f"""
+<div class="gallery-search" role="search" data-gallery-search>
+<label>Search</label>
+<input type="search" placeholder="Title, section, text" autocomplete="off" aria-label="Search examples">
+<div class="gallery-search-count" data-gallery-count>{total} examples</div>
+</div>
+"""
+
+
+def _gallery_empty_state() -> str:
+    return '<p class="gallery-empty" data-gallery-empty hidden>No results</p>'
+
+
+def _gallery_search_script() -> str:
+    return """
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-gallery-search]').forEach(function (box) {
+    var input = box.querySelector('input[type="search"]');
+    var main = box.closest('main') || document;
+    var cards = Array.prototype.slice.call(main.querySelectorAll('.gallery-card'));
+    var empty = main.querySelector('[data-gallery-empty]');
+    var count = box.querySelector('[data-gallery-count]');
+    function normalize(value) {
+      return (value || '').toLowerCase().trim();
+    }
+    function applyFilter() {
+      var query = normalize(input.value);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var text = normalize(card.getAttribute('data-search') || card.textContent);
+        var matched = !query || text.indexOf(query) !== -1;
+        card.hidden = !matched;
+        if (matched) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      if (count) count.textContent = query ? shown + ' / ' + cards.length + ' examples' : cards.length + ' examples';
+    }
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('search', applyFilter);
+    applyFilter();
+  });
+});
+</script>
+"""
+
+
 def _render_report_page(md: str, out_html: Path, title: str, header_html: str) -> None:
     report.render(
         md,
@@ -725,7 +904,7 @@ def _render_report_page(md: str, out_html: Path, title: str, header_html: str) -
         title=title,
         favicon_emoji="🎨",
         header_html=header_html,
-        footer_html="</main>",
+        footer_html="</main>" + _gallery_search_script(),
         extra_args=["--resource-path", str(OUT)],
     )
 
@@ -748,6 +927,9 @@ def render_report_site(examples: list[Example]) -> None:
     for cat in categories:
         n = sum(1 for ex in examples if ex.category == cat)
         overview_lines.append(f"- [{cat}]({_page_href(_page_slug(cat))}) — {n} examples")
+    overview_lines += ["", "## 全部示例", "", _gallery_search(len(examples)), '<div class="gallery-grid">']
+    overview_lines += [_example_card(ex) for ex in examples]
+    overview_lines += ["</div>", _gallery_empty_state()]
     _render_report_page(
         "\n".join(overview_lines) + "\n",
         PAGES / "index.html",
@@ -761,9 +943,9 @@ def render_report_site(examples: list[Example]) -> None:
         for sub in sub_categories[cat]:
             sub_examples = [ex for ex in cat_examples if ex.sub_category == sub]
             lines.append(f"- [{sub}]({_page_href(_page_slug(cat, sub))}) — {len(sub_examples)} examples")
-        lines += ["", "## 全部示例", "", '<div class="gallery-grid">']
+        lines += ["", "## 全部示例", "", _gallery_search(len(cat_examples)), '<div class="gallery-grid">']
         lines += [_example_card(ex) for ex in cat_examples]
-        lines.append("</div>")
+        lines += ["</div>", _gallery_empty_state()]
         _render_report_page(
             "\n".join(lines) + "\n",
             PAGES / _page_href(_page_slug(cat)),
@@ -778,10 +960,11 @@ def render_report_site(examples: list[Example]) -> None:
                 "",
                 f"{cat} / {sub} — {len(sub_examples)} 种示例图。",
                 "",
+                _gallery_search(len(sub_examples)),
                 '<div class="gallery-grid">',
             ]
             lines += [_example_card(ex) for ex in sub_examples]
-            lines.append("</div>")
+            lines += ["</div>", _gallery_empty_state()]
             _render_report_page(
                 "\n".join(lines) + "\n",
                 PAGES / _page_href(_page_slug(cat, sub)),
@@ -834,6 +1017,7 @@ def main() -> None:
     if missing:
         miss = "\n".join(f"- {ex.slug}: {ex.image}" for ex in missing)
         raise FileNotFoundError(f"Missing gallery images:\n{miss}")
+    examples = materialize_gallery_images(examples)
     render_report_site(examples)
     manifest = pd.DataFrame(
         [
