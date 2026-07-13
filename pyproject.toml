@@ -16,6 +16,9 @@ dependencies = [
     "scikit-learn",
     "matplotlib-venn",
     "pycirclize",
+    "Pillow",
+    "python-pptx",
+    "pywin32; platform_system == 'Windows'",
 ]
 
 [tool.setuptools.packages.find]
