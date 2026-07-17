@@ -615,6 +615,7 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("lr-chord-panel", "Network", "Flow / relation", "LR chord panel", generated["lr_chord_panel"], p / "chord/main.py", "配体-受体弦图的横向多面板比较。", "共享 legend、可选 rescue 灰边、边编号和方向色，适合 aging / intervention 对照。", ("network", "chord", "ligand-receptor", "panel")),
         Example("hub-spoke", "Network", "Flow / relation", "Hub-spoke network", generated["hub_spoke"], p / "network/hub_spoke.py", "中心 TF / ligand 与 target/cell type 的辐射网络。", "适合展示一个核心节点的调控范围。", ("network", "TF")),
         Example("tissue-icons", "Utility", "Assets", "Tissue / species icons", p / "icon/lib/brain.png", p / "icon/generate_missing_icons.py", "报告和组合图里的组织/物种图标。", "用于 legend、schematic 或 atlas overview。", ("icon", "utility")),
+        Example("flat-cell-schematic", "Utility", "Assets", "Flat cell schematic", p / "cell_schematic/templates/flat_eukaryotic_cell_preview.png", p / "cell_schematic/__init__.py", "亚细胞定位、细胞器分布和蛋白定位总览。", "可编辑 SVG + placement 列表；可控制细胞器数量、位置、大小和旋转，并附锚点与素材许可。", ("cell", "organelle", "localization", "schematic")),
     ]
 
 

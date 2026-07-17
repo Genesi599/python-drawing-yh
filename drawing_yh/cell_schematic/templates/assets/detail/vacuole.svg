@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" role="img" aria-labelledby="title desc">
+  <title id="title">Vacuole</title>
+  <desc id="desc">Flat, translucent vacuole adapted from the outer membrane and lumen geometry of Servier's CC BY 3.0 vacuole-oval icon.</desc>
+  <path
+    d="M12 60c0-29.5 35.4-53.5 78.9-53.5 43.6 0 78.9 24 78.9 53.5S134.5 113.5 90.9 113.5C47.4 113.5 12 89.5 12 60Z"
+    fill="#89BBCB"
+    fill-opacity=".56"
+    stroke="#557887"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M23.2 60c0-23.3 30.5-42.1 68.1-42.1 37.6 0 68.1 18.8 68.1 42.1s-30.5 42.1-68.1 42.1S23.2 83.3 23.2 60Z"
+    fill="#ECF8FA"
+    fill-opacity=".72"
+  />
+  <path
+    d="M48 44.4c13.3-10.8 31.1-17.2 50.2-17.2 12.7 0 24.8 2.8 35.2 7.8"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-opacity=".70"
+  />
+</svg>

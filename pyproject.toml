@@ -27,3 +27,14 @@ include = ["drawing_yh*"]
 
 [tool.setuptools.package-data]
 "drawing_yh.report" = ["templates/*.css", "templates/*.py"]
+"drawing_yh.cell_schematic" = [
+    "README.md",
+    "templates/*.svg",
+    "templates/*.png",
+    "templates/*.json",
+    "templates/*.md",
+    "templates/assets/*.svg",
+    "templates/assets/external/*.png",
+    "templates/assets/detail/*.svg",
+    "templates/assets/detail/*.license.txt",
+]

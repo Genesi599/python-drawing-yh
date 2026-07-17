@@ -1,0 +1,21 @@
+{
+  "reference_size": [1400, 1182],
+  "viewbox": [180, 45, 1220, 1030],
+  "summary_anchors_px": {
+    "ECM / collagen": [700, 65],
+    "Secreted / extracellular": [92, 235],
+    "Plasma membrane": [384, 256],
+    "Cell periphery": [270, 380],
+    "Cytoplasm": [500, 420],
+    "Endolysosomal / vesicular": [385, 475],
+    "Peroxisome": [1100, 600],
+    "Mitochondrion": [370, 675],
+    "ER / Golgi": [900, 750],
+    "Nucleus": [750, 620]
+  },
+  "branch_targets_px": {
+    "Cell periphery": [[312, 310], [215, 442]],
+    "ER / Golgi": [[835, 700], [865, 830]],
+    "Endolysosomal / vesicular": [[340, 430], [430, 430], [385, 520]]
+  }
+}

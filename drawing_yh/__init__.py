@@ -140,6 +140,15 @@ from .pca import parallel_centroid_guides                # noqa: E402
 from . import pca as pca                                 # noqa: E402,F401
 from .tile_heatmap import tile_heatmap                  # noqa: E402
 from .lollipop import lollipop_plot                     # noqa: E402
+from .cell_schematic import (                           # noqa: E402
+    IconPlacement,
+    copy_flat_cell_template,
+    default_anchor_map,
+    flat_cell_attribution_path,
+    flat_cell_preview_path,
+    flat_cell_template_path,
+)
+from . import cell_schematic                            # noqa: E402,F401
 
 __all__ = [
     # version
@@ -201,4 +210,8 @@ __all__ = [
     "tile_heatmap",
     # lollipop / stem plot
     "lollipop_plot",
+    # flat editable cell schematic
+    "IconPlacement", "copy_flat_cell_template", "default_anchor_map",
+    "flat_cell_attribution_path", "flat_cell_preview_path",
+    "flat_cell_template_path", "cell_schematic",
 ]
