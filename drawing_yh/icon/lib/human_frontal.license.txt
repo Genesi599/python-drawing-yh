@@ -11,3 +11,11 @@ human_frontal_detailed.svg / human_frontal_detailed.png
 - Retrieved: 2026-08-18. NOTE: source path fill is WHITE (#fff); downstream
   scripts must recolor opaque pixels to grey or it will be invisible on
   white backgrounds.
+
+adrenal.svg / adrenal.png
+- Source: silhouette combining kidney + adrenal cap, provided by user (2026-08-19).
+  Derived from user-supplied SVG (single filled path, 800x800 viewBox).
+- Fill treatment: only the top adrenal "cloud" region follows its natural outline
+  (V-notch + wing tips, traced column-wise); kidney body rendered as hollow outline.
+- Pancreas icon in the same directory is programmatically generated
+  (tadpole shape: head sphere + serrated body + tail).
