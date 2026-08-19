@@ -1,0 +1,13 @@
+human_frontal.svg / human_frontal.png
+- Source: Google Material Symbols, icon "accessibility_new" (action)
+  https://fonts.google.com/metadata/icons (rendered via fonts.gstatic.com v6 24px.svg)
+- License: Apache License 2.0 (Material Symbols/Icons default)
+- Retrieved: 2026-08-18, recolored at render time in downstream scripts.
+
+human_frontal_detailed.svg / human_frontal_detailed.png
+- Source: Wikimedia Commons, "Human silhouette gender neutral front.svg"
+  https://commons.wikimedia.org/wiki/File:Human_silhouette_gender_neutral_front.svg
+- License: see source page (CC0/public-domain style silhouette; verify before redistribution)
+- Retrieved: 2026-08-18. NOTE: source path fill is WHITE (#fff); downstream
+  scripts must recolor opaque pixels to grey or it will be invisible on
+  white backgrounds.

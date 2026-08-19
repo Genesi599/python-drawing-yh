@@ -14,6 +14,7 @@ feature-plot,Single-cell,Embedding,Embedding feature plot,example_gallery/genera
 dumbbell,Quantitative,Comparison,Dumbbell chart,example_gallery/generated/dumbbell.png,drawing_yh/dumbbell.py,Young vs Old 或处理前后均值比较。,箭头方向编码升降，适合通讯强度或 pathway score。,"dumbbell,comparison"
 volcano,Omics,Differential,Volcano plot,example_gallery/assets/gallery_images/volcano.png,drawing_yh/volcano_plot/volcano.py,差异分析结果，logFC × p-value。,适合快速筛选显著上/下调。,"volcano,DEG"
 pca,QC,Dimension reduction,PCA score plot,example_gallery/generated/pca_score.png,drawing_yh/pca/PCA.py,样本整体结构、批次、分组分离。,用于 QC 和组间结构展示。,"PCA,QC"
+pca-centroid-guides,QC,Dimension reduction,PCA centroid guides,example_gallery/generated/pca_centroid_guides.png,drawing_yh/pca/__init__.py,PCA 散点中过各组质心画平行参考线。,参考线垂直于组质心最大分离轴，用于强调组间沿主分离方向的错位。,"PCA,QC,centroid"
 heatmap-clustered,Omics,Heatmap,Clustered heatmap,example_gallery/assets/gallery_images/heatmap-clustered.png,drawing_yh/heatmap/heatmap_clustered/heapmap_clustered.py,矩阵聚类、表达模式、样本/基因分组。,适合 feature 数中等的全局模式。,"heatmap,cluster"
 heatmap-tile,Omics,Heatmap,Tile heatmap,example_gallery/generated/heatmap_tile.png,drawing_yh/heatmap/heatmap_tile_style/heatmap_tile_style.py,通路 × 细胞类型、组织 × feature 的紧凑矩阵。,适合报告里快速比较方向。,"heatmap,tile"
 heatmap-row-bars,Omics,Heatmap,Heatmap + per-row bars,example_gallery/generated/heatmap_row_bars.png,drawing_yh/heatmap/row_bars.py,z-score 热图 + 每行 top 富集条(如各 cell type GO)。,左侧行彩条 + 列块分隔，右侧横向条标注通路。,"single-cell,heatmap,enrichment"
