@@ -183,7 +183,7 @@ def _plain_text(text: str) -> str:
 
 def draft_bullets(body_md: str) -> List[str]:
     match = re.search(
-        r"\*\*右侧(?:\s*3)?\s*bullets\*\*(.*?)(?:\*\*讲者备注\*\*|$)",
+        r"\*\*右侧(?:\s*\d+)?\s*bullets\*\*(.*?)(?:\*\*讲者备注\*\*|$)",
         body_md,
         re.S | re.I,
     )
