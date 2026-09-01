@@ -46,6 +46,7 @@ class PptBuildConfig:
     template_candidates: Sequence[Path]
     title: str
     subtitle: str = ""
+    figure_dirs: Sequence[Path] = field(default_factory=tuple)
     include_cover: bool = True
     auto_open: bool = True
     title_font_pt: int = 20
@@ -165,12 +166,17 @@ def _load_template(path: Path) -> Presentation:
 
 
 def _plain_text(text: str) -> str:
+    # Preserve escaped literal asterisks while stripping Markdown bold markers.
+    # This keeps significance legends such as ``\*\* p<0.01`` intact in PPT.
+    star_token = "\uf000"
+    protected = text.replace(r"\*", star_token)
     return (
-        re.sub(r"<[^>]+>", "", text)
+        re.sub(r"<[^>]+>", "", protected)
         .replace("**", "")
         .replace("`", "")
         .replace("&gt;", ">")
         .replace("&lt;", "<")
+        .replace(star_token, "*")
         .strip()
     )
 
@@ -259,7 +265,7 @@ def _apply_sections(path: Path, specs: Sequence[Any], config: PptBuildConfig) ->
     ]
     if not sections:
         return
-    if not config.include_cover:
+    if config.include_cover:
         sections[0] = (sections[0][0], 1)
 
     try:
@@ -506,10 +512,12 @@ def choose_layout(
 ) -> LayoutPlan:
     gap = Inches(0.12)
     body_height = (BODY_BOTTOM - body_top) / EMU_PER_IN
-    right_width = 4.65 if dense else 3.12
+    right_width = (4.65 if dense else 3.12) if bullets else 0.0
     side_font = 13 if dense else 15
     side_total = (
-        SLIDE_W - Inches(0.24 + right_width + 0.08) - gap * (len(images) - 1)
+        SLIDE_W
+        - Inches(0.24 + right_width + (0.08 if bullets else 0.0))
+        - gap * (len(images) - 1)
     )
     side_widths = _image_widths(images, side_total, explicit_widths)
     side_area = sum(
@@ -528,7 +536,12 @@ def choose_layout(
         )
     }
 
-    if len(images) == 1 and _image_ratio(images[0]) >= 2.5:
+    # wide_bottom candidate: ratio>=2.5 (wide figures) OR side text overflows
+    # (fit<1) — gives tall single-image pages with long bullets an escape
+    # layout so text never renders past the divider/slide bottom.
+    if len(images) == 1 and bullets and (
+        _image_ratio(images[0]) >= 2.5 or side_fit < 1.0
+    ):
         width = (SLIDE_W - Inches(0.56)) / EMU_PER_IN
         notes_needed = _bullet_height_in(bullets, width, 13)
         notes_height = min(2.10, max(0.90, notes_needed))
@@ -670,9 +683,15 @@ def _render_slide(slide, spec: Any, images: Sequence[Path], bullets: Sequence[st
     if plan.name == "wide_bottom":
         width = SLIDE_W - Inches(0.56)
         notes_needed = _bullet_height_in(bullets, width / EMU_PER_IN, 13)
-        notes_h = Inches(min(2.10, max(0.90, notes_needed)))
+        # tall-figure variant: cap notes at what fits after the image, never
+        # let the note box start below BODY_BOTTOM - notes_h
+        notes_h = Inches(min(2.40, max(0.90, notes_needed)))
         note_gap = Inches(0.12)
         image_h = min(Inches(4.95), BODY_BOTTOM - body_top - notes_h - note_gap)
+        # if the estimated note height itself cannot fit in the body at all,
+        # shrink font floor to 12pt before allowing overflow
+        if image_h <= Inches(1.0) and notes_h < Inches(notes_needed if isinstance(notes_needed, float) else 0):
+            notes_h = Inches(notes_needed)
         total_h = image_h + note_gap + notes_h
         top = body_top + (BODY_BOTTOM - body_top - total_h) / 2
         _add_image(slide, images[0], Inches(0.28), top, width, image_h)
@@ -682,10 +701,10 @@ def _render_slide(slide, spec: Any, images: Sequence[Path], bullets: Sequence[st
         )
         return
 
-    right_width = Inches(4.65 if dense else 3.12)
+    right_width = Inches((4.65 if dense else 3.12) if bullets else 0.0)
     right_x = SLIDE_W - Inches(0.12) - right_width
     total_width = (
-        right_x - left - Inches(0.08) - gap * (len(images) - 1)
+        right_x - left - (Inches(0.08) if bullets else 0) - gap * (len(images) - 1)
     )
     widths = _image_widths(images, total_width, explicit)
     x = left
@@ -698,12 +717,20 @@ def _render_slide(slide, spec: Any, images: Sequence[Path], bullets: Sequence[st
     )
 
 
-def _resolve_images(spec: Any, figure_dir: Path) -> List[Path]:
-    images = [figure_dir / Path(src).name for src in spec.images]
-    missing = [path for path in images if not path.is_file()]
+def _resolve_images(spec: Any, config: PptBuildConfig) -> List[Path]:
+    roots = [Path(config.figure_dir), *[Path(path) for path in config.figure_dirs]]
+    images: List[Path] = []
+    missing: List[str] = []
+    for src in spec.images:
+        name = Path(src).name
+        resolved = next((root / name for root in roots if (root / name).is_file()), None)
+        if resolved is None:
+            missing.append(name)
+        else:
+            images.append(resolved)
     if missing:
         raise FileNotFoundError(
-            f"{spec.slug}: missing PPT figures: {[str(path) for path in missing]}"
+            f"{spec.slug}: missing PPT figures {missing}; searched {[str(root) for root in roots]}"
         )
     return images
 
@@ -720,7 +747,7 @@ def build_draft_ppt(specs: Iterable[Any], config: PptBuildConfig) -> Path:
 
     for spec in specs:
         slide = prs.slides.add_slide(blank_layout)
-        images = _resolve_images(spec, config.figure_dir)
+        images = _resolve_images(spec, config)
         bullets = draft_bullets(spec.body_md)
         _render_slide(slide, spec, images, bullets, config)
         notes = draft_notes(spec.body_md)
