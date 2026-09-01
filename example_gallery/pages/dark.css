@@ -122,6 +122,8 @@ aside.report-sidebar {
   box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;               /* 2026-09-01: 侧栏滚动条可见(用户看不到=以为没有滚轮功能) */
+  scrollbar-color: var(--border-strong, #444) transparent;
   padding: 18px 12px calc(24px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-soft);
   border-right: 1px solid var(--border);
@@ -214,6 +216,16 @@ main.report-main {
   body:has(aside.report-sidebar) {
     padding-left: 72px !important;     /* rail 48 + 24 gap, doesn't shift on hover */
     max-width: calc(980px + 72px) !important;
+  }
+  /* 2026-09-01: hover 展开时推开正文而非覆盖(触屏无 hover,维持浮层+点外部收回) */
+}
+
+/* Hover-capable narrow windows: while the rail is expanded, shift body so
+   the overlay never covers content (user-reported overlap, 2026-09-01). */
+@media (hover: hover) and (max-width: 1180px) {
+  body:has(aside.report-sidebar:hover) {
+    padding-left: 296px !important;    /* expanded 280 + 16 gap */
+    max-width: calc(980px + 296px) !important;
   }
 }
 
