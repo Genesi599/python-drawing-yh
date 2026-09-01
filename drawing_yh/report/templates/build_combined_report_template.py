@@ -403,10 +403,23 @@ def main():
 
     for row in SOURCE_REPORTS:
         tag = src_key(row)
-        render_slide(cslug_for(cslug_of, tag, "index"),
-                     source_landing(row, cfgs[tag], tag, cslug_of),
-                     src_landing_title(row), tag, tag, "overview",
-                     sources, cfgs, cslug_of, pages, css, extra_css)
+        _entry = row.get("entry_slug", "index")
+        _idx = cslug_for(cslug_of, tag, "index")
+        if _entry != "index":
+            # 配了 entry_slug(入口是某概览 slide)→ <tag>_index 重定向到入口页,
+            # 避免再生成一个重复的目录 landing 而成孤儿(2026-06-25)
+            _tgt = f"{cslug_for(cslug_of, tag, _entry)}.html"
+            (OUT / f"{_idx}.html").write_text(
+                '<!doctype html><meta charset="utf-8">'
+                f'<meta http-equiv="refresh" content="0; url={_tgt}">'
+                f'<title>{PROJECT_TITLE}</title>'
+                f'<p>Redirect to <a href="{_tgt}">overview</a>.</p>\n',
+                encoding="utf-8")
+        else:
+            render_slide(_idx,
+                         source_landing(row, cfgs[tag], tag, cslug_of),
+                         src_landing_title(row), tag, tag, "overview",
+                         sources, cfgs, cslug_of, pages, css, extra_css)
 
     render_slide("index", combined_landing(sources, pages), PROJECT_TITLE,
                  CROSS_KEY, CROSS_KEY, "overview",
@@ -418,6 +431,7 @@ def main():
         f'<title>{PROJECT_TITLE}</title><p>Redirect to <a href="pages/index.html">report</a>.</p>\n'
     )
     (HERE / "index.html").write_text(redirect, encoding="utf-8")
+    report.check_orphan_pages(OUT)
     print("done.")
 
 

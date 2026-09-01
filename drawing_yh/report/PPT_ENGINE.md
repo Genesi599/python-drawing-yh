@@ -56,6 +56,9 @@ From the `projects-yh` repository root:
 ```powershell
 py -3.13 tools/build_report_ppt.py bone_marrow
 py -3.13 tools/build_report_ppt.py b_cell
+py -3.13 tools/build_report_ppt.py thymus
+py -3.13 tools/build_report_ppt.py maodie
+py -3.13 tools/build_report_ppt.py cellchat
 py -3.13 tools/build_report_ppt.py all
 ```
 
@@ -65,6 +68,9 @@ Aliases `bm`, `bone`, and `bcell` are accepted. Existing project-local commands 
 
 - `Bone_Marrow_Aging/project_report/md_to_pptx.py`
 - `B_Cell_Aging/report/sub_reports/build_ppt_draft.py`
+- `Thymus_Aging/mouse_clock_bulk_reanalysis/report/md_to_pptx.py`
+- `Bone_Marrow_Aging/analysis/maodie_blood_validation/md_to_pptx.py`
+- `Bone_Marrow_Aging/analysis/cellchat_x_BMIF/md_to_pptx.py`
 - existing `node build_ppt_draft.mjs` remains as a compatibility launcher.
 
-Older standalone analysis exports without `PPT 页标题` / `PPT 副标题` metadata remain legacy adapters; new and actively maintained web-report drafts use this shared engine.
+Reports with `PPT 页标题` / `PPT 副标题` metadata use `load_draft_specs()` directly. Historical reports without those fields use `drawing_yh.report.legacy_ppt.load_legacy_specs()` to preserve project title maps, split multi-image pages, and move excess visible bullets into speaker notes; rendering still goes through the same engine.
