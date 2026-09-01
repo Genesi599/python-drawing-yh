@@ -122,8 +122,9 @@ aside.report-sidebar {
   box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;               /* 2026-09-01: 侧栏滚动条可见(用户看不到=以为没有滚轮功能) */
-  scrollbar-color: var(--border-strong, #444) transparent;
+  /* 2026-09-01: 滚动条用醒目样式(用户反馈 thin 淡到看不见,以为没有滚轮功能) */
+  scrollbar-width: auto;
+  scrollbar-color: var(--accent, #2ea3a3) var(--bg, #0d1117);
   padding: 18px 12px calc(24px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-soft);
   border-right: 1px solid var(--border);
@@ -187,51 +188,20 @@ main.report-main {
   margin: 0 auto;
 }
 
-/* On windows narrower than ~1180 px, collapse the sidebar to a 48 px rail
-   on the LEFT (NOT to the top). Hovering it expands to a full overlay. */
+/* 2026-09-01: 废除 ≤1180px 折叠 48px 图标轨的设计(文字硬切成残片+细滚动条
+ * 不可见,用户两轮反馈"没滚动轴/文字显示不全")。侧栏在任何窗口宽度都保持
+ * 完整 240px + 换行显示 + 可见滚动条;超窄屏只稍微收窄到 200px。 */
 @media (max-width: 1180px) {
-  aside.report-sidebar {
-    width: 48px;
-    padding: 18px 4px 24px;
-    overflow-x: hidden;
-    transition: width 0.18s ease, padding 0.18s ease, box-shadow 0.18s ease;
-  }
-  aside.report-sidebar:hover,
-  aside.report-sidebar:focus-within {
-    width: 280px;
-    padding: 18px 12px 24px;
-    box-shadow: 4px 0 16px rgba(0,0,0,0.45);
-  }
-  aside.report-sidebar a,
-  aside.report-sidebar .sidebar-section,
-  aside.report-sidebar .sidebar-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* In rail (collapsed) state, current page should still be obvious */
-  aside.report-sidebar a.current {
-    border-left-width: 3px;
-  }
   body:has(aside.report-sidebar) {
-    padding-left: 72px !important;     /* rail 48 + 24 gap, doesn't shift on hover */
-    max-width: calc(980px + 72px) !important;
-  }
-  /* 2026-09-01: hover 展开时推开正文而非覆盖(触屏无 hover,维持浮层+点外部收回) */
-}
-
-/* Hover-capable narrow windows: while the rail is expanded, shift body so
-   the overlay never covers content (user-reported overlap, 2026-09-01). */
-@media (hover: hover) and (max-width: 1180px) {
-  body:has(aside.report-sidebar:hover) {
-    padding-left: 296px !important;    /* expanded 280 + 16 gap */
-    max-width: calc(980px + 296px) !important;
+    padding-left: 264px !important;
+    max-width: calc(980px + 264px) !important;
   }
 }
 
-/* Very narrow phones: drop body padding further so content fits */
+/* Very narrow phones: slightly narrower sidebar so content keeps some room */
 @media (max-width: 600px) {
-  body:has(aside.report-sidebar) { padding-left: 60px !important; padding-right: 16px !important; }
+  aside.report-sidebar { width: 200px; }
+  body:has(aside.report-sidebar) { padding-left: 216px !important; padding-right: 12px !important; }
 }
 
 /* ============================================================
