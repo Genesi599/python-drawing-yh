@@ -112,7 +112,9 @@ def embed_panel(dest: ET.Element, src_svg: Path, pid: str,
     return scale
 
 
-def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: str) -> Path:
+def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: str) -> list[Path]:
+    """构建一个 YAML page 配置。flow 模式超页自动拆临时下一页(2026-09-03 用户指示),
+    返回全部页的 svg 路径(可能 >1)。"""
     page = cfg_page["page"]
     gut = cfg_page.get("gutters", {})
     margin = gut.get("margin_mm", 10) * MM
@@ -148,8 +150,14 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
     grid_title = None
 
     # 2) 定位
+    page_chunks: list[tuple[float, float, list[dict], list, str | None]] = []
     if mode == "flow":
         target_w = max(page["width_mm"] * MM, max(it["w_px"] for it in items) + 2 * margin)
+        if target_w > page["width_mm"] * MM + 0.5:
+            wide = [it["p"].get("id", it["sv"].stem) for it in items
+                    if it["w_px"] + 2 * margin > page["width_mm"] * MM]
+            print(f"[warn] flow 页超宽: {target_w / MM:.0f}mm > 页宽 {page['width_mm']}mm, "
+                  f"超宽 panel: {', '.join(wide)}", file=sys.stderr)
         rows, cur, cur_x = [], [], margin
         for it in items:
             if cur and cur_x + col_gap + it["w_px"] > target_w - margin:
@@ -160,12 +168,35 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
             cur_x += (col_gap if len(cur) > 1 else 0) + it["w_px"]
         rows.append(cur)
         W = target_w
-        y = margin
+        page_h = page["height_mm"] * MM
+        usable_bottom = page_h - margin
+        max_body = page_h - 2 * margin
+        # 逐行装页: 放不下 → 临时下一页(2026-09-03 用户指示)
+        chunk_rows: list[list[list[dict]]] = []
+        cur_rows: list[list[dict]] = []
+        cur_y = margin
         for row in rows:
-            for it in row:
-                it["y_px"] = y + (label_gap + 10)
-            y += max(it["h_px"] for it in row) + (label_gap + 10) + cap_gap + row_gap
-        H = y - row_gap + margin
+            body = max(it["h_px"] for it in row)
+            rh = body + (label_gap + 10) + cap_gap + row_gap
+            if body > max_body:
+                ids = ", ".join(it["p"].get("id", it["sv"].stem) for it in row)
+                print(f"[warn] 单行超页高: {ids} 图体 {body / MM:.0f}mm > 可用 {max_body / MM:.0f}mm, "
+                      f"仍独占一页, 底部可能裁切", file=sys.stderr)
+            if cur_rows and cur_y + rh > usable_bottom:
+                chunk_rows.append(cur_rows)
+                cur_rows, cur_y = [], margin
+            cur_rows.append(row)
+            cur_y += rh
+        chunk_rows.append(cur_rows)
+        if len(chunk_rows) > 1:
+            print(f"[info] flow 自动分页: {len(items)} panel → {len(chunk_rows)} 页", file=sys.stderr)
+        for prows in chunk_rows:
+            y = margin
+            for row in prows:
+                for it in row:
+                    it["y_px"] = y + (label_gap + 10)
+                y += max(it["h_px"] for it in row) + (label_gap + 10) + cap_gap + row_gap
+            page_chunks.append((W, page_h, [it for row in prows for it in row], [], None))
     elif mode == "grid":
         g = cfg_page.get("grid", {})
         cell_w = g.get("cell_w_mm", 60) * MM
@@ -191,6 +222,7 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 it["w_px"], it["h_px"] = w2, h2
                 it["x_px"] = margin + label_w + ci * cell_w + (cell_w - w2) / 2
                 it["y_px"] = margin + title_h + ri * cell_h + (cell_h - h2) / 2
+        page_chunks.append((W, H, items, grid_rows, grid_title))
     else:  # abs
         W = page["width_mm"] * MM
         H = page["height_mm"] * MM
@@ -199,45 +231,49 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
             if "x_mm" not in p or "y_mm" not in p:
                 raise SystemExit(f"abs 模式 panel 需 x_mm/y_mm: {p.get('id')}")
             it["x_px"], it["y_px"] = p["x_mm"] * MM, p["y_mm"] * MM
+        page_chunks.append((W, H, items, [], None))
 
-    # 3) 渲染
-    svg = ET.Element("svg", {
-        "width": f"{W / MM:.1f}mm", "height": f"{H / MM:.1f}mm",
-        "viewBox": f"0 0 {W:.2f} {H:.2f}"})
-    ET.SubElement(svg, "rect", {"x": "0", "y": "0", "width": f"{W:.2f}", "height": f"{H:.2f}",
-                                "fill": page.get("background", "white")})
-    if grid_title:
-        ET.SubElement(svg, "text", {"x": f"{W / 2:.1f}", "y": f"{margin + 8 * MM / MM:.1f}",
-                                    "text-anchor": "middle", "font-family": "Arial",
-                                    "font-weight": "bold", "font-size": "28"}).text = grid_title
-    for rlab, row_items in grid_rows:
-        if rlab and row_items:
-            ymid = row_items[0]["y_px"] + row_items[0]["h_px"] / 2
-            ET.SubElement(svg, "text", {"x": f"{margin:.1f}", "y": f"{ymid:.1f}",
-                                        "font-family": "Arial", "font-weight": "bold",
-                                        "font-size": "24", "fill": "rgb(120,0,0)"}).text = rlab
-    for it in items:
-        p = it["p"]
-        pid = p.get("id", it["sv"].stem)
-        sc = embed_panel(svg, it["sv"], pid, it["x_px"], it["y_px"], it["w_px"], it["h_px"],
-                         it["vw"], it["vh"], it["minx"], it["miny"])
-        if p.get("label"):
-            ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
-                                        "y": f"{it['y_px'] - label_gap:.1f}",
-                                        "font-family": "Arial", "font-weight": "bold",
-                                        "font-size": "28"}).text = str(p["label"])
-        if p.get("caption"):
-            ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
-                                        "y": f"{it['y_px'] + it['h_px'] + cap_gap:.1f}",
-                                        "font-family": "Arial", "font-size": "13"}).text = str(p["caption"])
-        if mode == "abs":
-            if it["y_px"] + it["h_px"] > H or it["x_px"] + it["w_px"] > W:
-                print(f"[warn] {pid} 越界: 底 {(it['y_px'] + it['h_px']) / MM:.0f}mm / 页高 {H/MM:.0f}mm,"
-                      f" 右 {(it['x_px'] + it['w_px']) / MM:.0f}mm / 页宽 {W/MM:.0f}mm", file=sys.stderr)
-    out_dir.mkdir(exist_ok=True)
-    svg_path = out_dir / f"{name}.svg"
-    ET.ElementTree(svg).write(svg_path, encoding="unicode", xml_declaration=True)
-    return svg_path
+    # 3) 渲染每页
+    svg_paths = []
+    for ci, (W, H, chunk_items, chunk_grid_rows, chunk_title) in enumerate(page_chunks, 1):
+        svg = ET.Element("svg", {
+            "width": f"{W / MM:.1f}mm", "height": f"{H / MM:.1f}mm",
+            "viewBox": f"0 0 {W:.2f} {H:.2f}"})
+        ET.SubElement(svg, "rect", {"x": "0", "y": "0", "width": f"{W:.2f}", "height": f"{H:.2f}",
+                                    "fill": page.get("background", "white")})
+        if chunk_title:
+            ET.SubElement(svg, "text", {"x": f"{W / 2:.1f}", "y": f"{margin + 8:.1f}",
+                                        "text-anchor": "middle", "font-family": "Arial",
+                                        "font-weight": "bold", "font-size": "28"}).text = chunk_title
+        for rlab, row_items in chunk_grid_rows:
+            if rlab and row_items:
+                ymid = row_items[0]["y_px"] + row_items[0]["h_px"] / 2
+                ET.SubElement(svg, "text", {"x": f"{margin:.1f}", "y": f"{ymid:.1f}",
+                                            "font-family": "Arial", "font-weight": "bold",
+                                            "font-size": "24", "fill": "rgb(120,0,0)"}).text = rlab
+        for it in chunk_items:
+            p = it["p"]
+            pid = p.get("id", it["sv"].stem)
+            embed_panel(svg, it["sv"], pid, it["x_px"], it["y_px"], it["w_px"], it["h_px"],
+                        it["vw"], it["vh"], it["minx"], it["miny"])
+            if p.get("label"):
+                ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
+                                            "y": f"{it['y_px'] - label_gap:.1f}",
+                                            "font-family": "Arial", "font-weight": "bold",
+                                            "font-size": "28"}).text = str(p["label"])
+            if p.get("caption"):
+                ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
+                                            "y": f"{it['y_px'] + it['h_px'] + cap_gap:.1f}",
+                                            "font-family": "Arial", "font-size": "13"}).text = str(p["caption"])
+            if mode == "abs":
+                if it["y_px"] + it["h_px"] > H or it["x_px"] + it["w_px"] > W:
+                    print(f"[warn] {pid} 越界: 底 {(it['y_px'] + it['h_px']) / MM:.0f}mm / 页高 {H/MM:.0f}mm,"
+                          f" 右 {(it['x_px'] + it['w_px']) / MM:.0f}mm / 页宽 {W/MM:.0f}mm", file=sys.stderr)
+        out_dir.mkdir(exist_ok=True)
+        svg_path = out_dir / f"{name}_raw{ci}.svg"
+        ET.ElementTree(svg).write(svg_path, encoding="unicode", xml_declaration=True)
+        svg_paths.append(svg_path)
+    return svg_paths
 
 
 def export(svg_path: Path, ink: Path, formats=("pdf", "png")) -> list[Path]:
@@ -265,14 +301,27 @@ def main() -> int:
         raise SystemExit(f"找不到 Inkscape: {ink}")
     cfg = load_yaml(yaml_p)
     out_dir = yaml_p.parent / cfg.get("out", "out_layout")
+    name = cfg.get("name", "layout")
+    # 清旧输出(保留 .cache)
+    if out_dir.exists():
+        for old in out_dir.glob(f"{name}*"):
+            if old.is_file():
+                old.unlink()
     pages = cfg.get("pages") or [{"page": cfg["page"], "gutters": cfg.get("gutters", {}),
                                   "mode": "flow" if cfg.get("flow", False) else "abs",
                                   "panels": cfg.get("panels", [])}]
-    for i, pg in enumerate(pages, 1):
-        nm = cfg.get("name", "layout") + (f"_p{i}" if len(pages) > 1 else "")
-        svg_path = build_page(pg, yaml_p.parent, ink, out_dir, nm)
-        outs = export(svg_path, ink)
-        print("SVG:", svg_path)
+    raw_paths = []
+    for pg in pages:
+        # 每 YAML page 给唯一前缀, 防多 page 的 rawN 重名覆盖
+        raw_paths.extend(build_page(pg, yaml_p.parent, ink, out_dir, f"{name}__pg{len(raw_paths)}"))
+    final = []
+    for k, sp in enumerate(raw_paths, 1):
+        dst = out_dir / ((name if len(raw_paths) == 1 else f"{name}_p{k}") + ".svg")
+        sp.replace(dst)
+        final.append(dst)
+    for sp in final:
+        outs = export(sp, ink)
+        print("SVG:", sp)
         for o in outs:
             print(o.suffix.lstrip(".").upper() + ":", o)
     return 0
