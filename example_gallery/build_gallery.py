@@ -19,11 +19,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.patches import Ellipse
 
 import drawing_yh
 from drawing_yh import (
     OKABE_ITO,
     marker_dotplot,
+    parallel_centroid_guides,
     report,
     render_mean_dumbbell,
     save_fig,
@@ -80,6 +82,33 @@ def _style_axes(ax):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", color="#e6e6e6", linewidth=0.5)
+
+
+def _add_group_ellipse(ax, points: np.ndarray, *, color: str, scale: float = 2.0) -> None:
+    if len(points) < 3:
+        return
+    mean = points.mean(axis=0)
+    cov = np.cov(points.T)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = eigvals.argsort()[::-1]
+    eigvals = eigvals[order]
+    eigvecs = eigvecs[:, order]
+    angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
+    width, height = 2 * scale * np.sqrt(np.maximum(eigvals, 0))
+    ax.add_patch(
+        Ellipse(
+            xy=mean,
+            width=width,
+            height=height,
+            angle=angle,
+            facecolor=color,
+            edgecolor=color,
+            alpha=0.12,
+            linewidth=1.0,
+            linestyle="--",
+            zorder=1,
+        )
+    )
 
 
 def generate_box_plot() -> Path:
@@ -219,10 +248,62 @@ def generate_pca_plot() -> Path:
     fig, ax = plt.subplots(figsize=(3.35, 2.35))
     for label, center, color in zip(["Young", "Middle", "Old"], centers, [OKABE_ITO[2], OKABE_ITO[0], OKABE_ITO[1]]):
         pts = center + rng.normal(0, 0.27, (14, 2))
-        ax.scatter(pts[:, 0], pts[:, 1], s=22, color=color, alpha=0.82, label=label, edgecolor="white", linewidth=0.4)
+        _add_group_ellipse(ax, pts, color=color)
+        ax.scatter(pts[:, 0], pts[:, 1], s=22, color=color, alpha=0.82, label=label, edgecolor="white", linewidth=0.4, zorder=2)
     ax.set_xlabel("PC1 (38%)")
     ax.set_ylabel("PC2 (17%)")
     ax.set_title("PCA score plot")
+    ax.legend(frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.18))
+    _style_axes(ax)
+    fig.subplots_adjust(bottom=0.30)
+    fig.savefig(out, dpi=220)
+    plt.close(fig)
+    return out
+
+
+def generate_pca_centroid_guides() -> Path:
+    rng = np.random.default_rng(18)
+    centers = {
+        "Young": (-1.5, -0.45),
+        "Middle": (0.25, 0.25),
+        "Old": (1.65, 0.7),
+    }
+    colors = {"Young": OKABE_ITO[2], "Middle": OKABE_ITO[0], "Old": OKABE_ITO[1]}
+    rows = []
+    for label, center in centers.items():
+        pts = np.array(center) + rng.normal(0, [0.25, 0.22], (12, 2))
+        for pc1, pc2 in pts:
+            rows.append({"PC1": pc1, "PC2": pc2, "Group": label})
+    df = pd.DataFrame(rows)
+
+    out = GEN / "pca_centroid_guides.png"
+    fig, ax = plt.subplots(figsize=(3.35, 2.35))
+    parallel_centroid_guides(
+        ax,
+        df,
+        color_map=colors,
+        group_order=["Young", "Middle", "Old"],
+        linewidth=0.9,
+        alpha=0.7,
+        zorder=1,
+    )
+    for label in ["Young", "Middle", "Old"]:
+        sub = df[df["Group"] == label]
+        _add_group_ellipse(ax, sub[["PC1", "PC2"]].to_numpy(), color=colors[label])
+        ax.scatter(
+            sub["PC1"],
+            sub["PC2"],
+            s=22,
+            color=colors[label],
+            alpha=0.82,
+            label=label,
+            edgecolor="white",
+            linewidth=0.4,
+            zorder=2,
+        )
+    ax.set_xlabel("PC1 (41%)")
+    ax.set_ylabel("PC2 (16%)")
+    ax.set_title("PCA centroid guides")
     ax.legend(frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.18))
     _style_axes(ax)
     fig.subplots_adjust(bottom=0.30)
@@ -569,6 +650,7 @@ def generate_all() -> dict[str, Path]:
         "rank_plot": generate_rank_plot(),
         "heatmap_tile": generate_heatmap_tile(),
         "pca_score": generate_pca_plot(),
+        "pca_centroid_guides": generate_pca_centroid_guides(),
         "marker_dotplot": generate_marker_dotplot(),
         "feature_plot": generate_feature_plot(),
         "heatmap_row_bars": generate_heatmap_row_bars(),
@@ -599,6 +681,7 @@ def build_examples(generated: dict[str, Path]) -> list[Example]:
         Example("dumbbell", "Quantitative", "Comparison", "Dumbbell chart", generated["dumbbell"], p / "dumbbell.py", "Young vs Old 或处理前后均值比较。", "箭头方向编码升降，适合通讯强度或 pathway score。", ("dumbbell", "comparison")),
         Example("volcano", "Omics", "Differential", "Volcano plot", p / "volcano_plot/Volcano_plot.png", p / "volcano_plot/volcano.py", "差异分析结果，logFC × p-value。", "适合快速筛选显著上/下调。", ("volcano", "DEG")),
         Example("pca", "QC", "Dimension reduction", "PCA score plot", generated["pca_score"], p / "pca/PCA.py", "样本整体结构、批次、分组分离。", "用于 QC 和组间结构展示。", ("PCA", "QC")),
+        Example("pca-centroid-guides", "QC", "Dimension reduction", "PCA centroid guides", generated["pca_centroid_guides"], p / "pca/__init__.py", "PCA 散点中过各组质心画平行参考线。", "参考线垂直于组质心最大分离轴，用于强调组间沿主分离方向的错位。", ("PCA", "QC", "centroid")),
         Example("heatmap-clustered", "Omics", "Heatmap", "Clustered heatmap", p / "heatmap/heatmap_clustered/HMM 20241126/heatmap_with_colorbar_cluster.png", p / "heatmap/heatmap_clustered/heapmap_clustered.py", "矩阵聚类、表达模式、样本/基因分组。", "适合 feature 数中等的全局模式。", ("heatmap", "cluster")),
         Example("heatmap-tile", "Omics", "Heatmap", "Tile heatmap", generated["heatmap_tile"], p / "heatmap/heatmap_tile_style/heatmap_tile_style.py", "通路 × 细胞类型、组织 × feature 的紧凑矩阵。", "适合报告里快速比较方向。", ("heatmap", "tile")),
         Example("heatmap-row-bars", "Omics", "Heatmap", "Heatmap + per-row bars", generated["heatmap_row_bars"], p / "heatmap/row_bars.py", "z-score 热图 + 每行 top 富集条(如各 cell type GO)。", "左侧行彩条 + 列块分隔，右侧横向条标注通路。", ("single-cell", "heatmap", "enrichment")),
@@ -818,6 +901,7 @@ def _header(examples: list[Example], current: str, current_sub: str | None = Non
 def _example_card(ex: Example) -> str:
     img_url = _image_href(ex.image)
     source_url = _source_href(ex.source)
+    source_label = html.escape(_root_rel(ex.source)).replace("_", "&#95;")
     tags = " ".join(f"<span>{html.escape(tag)}</span>" for tag in ex.tags)
     search_text = " ".join(
         [
@@ -840,7 +924,7 @@ def _example_card(ex: Example) -> str:
 <h3>{html.escape(ex.title)}</h3>
 <p>{html.escape(ex.use_case)}</p>
 <p><em>{html.escape(ex.note)}</em></p>
-<div class="gallery-meta">{html.escape(ex.category)} / {html.escape(ex.sub_category)} · {html.escape(_root_rel(ex.source))}</div>
+<div class="gallery-meta">{html.escape(ex.category)} / {html.escape(ex.sub_category)} · {source_label}</div>
 <div class="gallery-tags">{tags}</div>
 <div class="gallery-links"><a href="{img_url}">原图</a><a href="{source_url}">源码/示例</a></div>
 </div>
