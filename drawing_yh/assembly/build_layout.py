@@ -127,6 +127,9 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
 
     # 1) 源尺寸 + 有意缩放覆盖
     items = []
+    if not cfg_page.get("panels"):
+        print(f"[skip] {name}: 无面板(占位布局), 不生成页", file=sys.stderr)
+        return []
     for p in cfg_page.get("panels", []):
         src = yaml_dir / p["src"]
         if not src.exists():
