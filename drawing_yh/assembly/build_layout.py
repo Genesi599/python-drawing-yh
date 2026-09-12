@@ -146,6 +146,11 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
             h_px = w_px * vh / vw
         else:
             w_px, h_px = vw, vh  # 自然尺寸
+        # 统一缩放(2026-09-11 用户): 源图字号不动, 排版时同比例缩小 —— 矢量 transform 无损,
+        # 组图上有效字号 = 源字号 × scale(如 8pt×0.875=7pt); 线宽/点大小同步等比变化
+        if "scale" in p:
+            s = float(p["scale"])
+            w_px, h_px = w_px * s, h_px * s
         items.append({"p": p, "sv": sv, "vw": vw, "vh": vh, "minx": minx, "miny": miny,
                       "w_px": w_px, "h_px": h_px})
 
