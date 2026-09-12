@@ -354,6 +354,7 @@ def marker_dotplot(
     fig_size: tuple[float, float] | None = None,
     font: int = DEFAULT_FONT_SIZE,
     block_per_gene=None,
+    diagonal: bool = False,
     scale_per_gene: bool = True,
     scale: str | None = None,
     cmap=GREY_RED_CMAP,
@@ -400,6 +401,13 @@ def marker_dotplot(
     block_per_gene
         Dict ``gene -> block`` or sequence aligned with ``gene_order`` for
         vertical separators. ``None`` (default) draws no separators.
+    diagonal
+        **Default diagonal convention (2026-09-12)**: ``True`` requires
+        ``block_per_gene`` dict whose blocks follow ``row_order`` — genes are
+        re-sorted so each row's marker block sits on its own row (diagonal
+        layout, 行序=发育/生物学顺序, 基因块逐行排). Also validates: (a) every
+        row appears in the blocks; (b) block order matches row order (else
+        ValueError — 挡住"大类身份基因混进 subtype 图破坏对角"这类错误).
     scale_per_gene
         Legacy switch kept for back-compat. Used only when ``scale`` is None:
         True -> ``scale="gene"``, False -> ``scale="none"``.
@@ -438,6 +446,30 @@ def marker_dotplot(
         attaching a custom colour-bar if needed).
     """
     df = data.loc[data[row_col].isin(row_order) & data[gene_col].isin(gene_order)].copy()
+
+    # 对角约定: diagonal=True 时按 row_order 重排基因块, 并校验块序=行序
+    if diagonal:
+        if not isinstance(block_per_gene, Mapping):
+            raise ValueError("diagonal=True requires block_per_gene as a dict (gene -> block)")
+        blocks_seen = []
+        for g in gene_order:
+            b = block_per_gene.get(g)
+            if b is not None and b not in blocks_seen:
+                blocks_seen.append(b)
+        rows_wo_block = [r for r in row_order if r not in blocks_seen]
+        if rows_wo_block:
+            raise ValueError(
+                f"diagonal: rows without a marker block: {rows_wo_block} — "
+                "every row needs its own block (大类身份基因不应混入 subtype 图)"
+            )
+        if blocks_seen != [r for r in row_order if r in blocks_seen]:
+            raise ValueError(
+                f"diagonal: block order {blocks_seen} != row_order "
+                f"{[r for r in row_order if r in blocks_seen]} — 基因块须按行序排列"
+            )
+        _rank = {r: i for i, r in enumerate(row_order)}
+        gene_order = sorted(gene_order, key=lambda g: (_rank.get(block_per_gene.get(g), 99), g))
+
     df[row_col] = pd.Categorical(df[row_col], categories=list(row_order), ordered=True)
     df[gene_col] = pd.Categorical(df[gene_col], categories=list(gene_order), ordered=True)
     df = df.sort_values([row_col, gene_col])
