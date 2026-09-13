@@ -136,8 +136,9 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
 
     # 1) 源尺寸 + 有意缩放覆盖
     items = []
-    if not cfg_page.get("panels"):
-        print(f"[skip] {name}: 无面板(占位布局), 不生成页", file=sys.stderr)
+    # 2026-09-13: 纯图注页(panels 空但有 legend)合法 — 生成纯文字页
+    if not cfg_page.get("panels") and not cfg_page.get("legend"):
+        print(f"[skip] {name}: 无面板且无图注(占位布局), 不生成页", file=sys.stderr)
         return []
     for p in cfg_page.get("panels", []):
         src = yaml_dir / p["src"]
@@ -297,7 +298,8 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
         # page.legend: 发表标准图注(2026-09-13 用户) — 页底区, 7pt Arial,
         # 逐行渲染(yaml legend 是 list[str], 每行一段); 行距 1.35 倍
         if chunk_legend and ci == len(page_chunks):  # 图注只放最后一页
-            lg_y = H - margin - (len(chunk_legend) - 1) * 9.45 - 6
+            # 纯图注页(无 panels)从页顶 margin 起; 有图版的页仍放页底
+            lg_y = (margin + 8) if not chunk_items else H - margin - (len(chunk_legend) - 1) * 9.45 - 6
             for li, line in enumerate(chunk_legend):
                 ET.SubElement(svg, "text", {
                     "x": f"{margin:.1f}", "y": f"{lg_y + li * 9.45:.1f}",
