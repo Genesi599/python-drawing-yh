@@ -261,6 +261,9 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
     svg_paths = []
     for ci, (W, H, chunk_items, chunk_grid_rows, chunk_title, chunk_legend) in enumerate(page_chunks, 1):
         svg = ET.Element("svg", {
+            # xmlns 必须显式(2026-09-13 用户: 网页图注页不渲染) — ET 不自动加,
+            # HTML <img> 引无 xmlns 的 SVG 浏览器拒绝解析
+            "xmlns": "http://www.w3.org/2000/svg",
             "width": f"{W / MM:.1f}mm", "height": f"{H / MM:.1f}mm",
             "viewBox": f"0 0 {W:.2f} {H:.2f}"})
         ET.SubElement(svg, "rect", {"x": "0", "y": "0", "width": f"{W:.2f}", "height": f"{H:.2f}",
@@ -343,6 +346,14 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                     else:
                         txt_el.text = lo
                     yi += 1
+            if not chunk_items and yi:
+                # 2026-09-13 用户: 网页上图注页大片空白 — 纯图注页 SVG 高度收紧到内容
+                new_h = lg_y0 + (yi - 1) * LINE_H + 0.30 * MM * 3
+                svg.set("height", f"{new_h / MM:.1f}mm")
+                svg.set("viewBox", f"0 0 {W:.2f} {new_h:.2f}")
+                bg = svg.find("rect")
+                if bg is not None:
+                    bg.set("height", f"{new_h:.2f}")
 
         out_dir.mkdir(exist_ok=True)
         svg_path = out_dir / f"{name}_raw{ci}.svg"
