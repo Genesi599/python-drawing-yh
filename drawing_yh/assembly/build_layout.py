@@ -213,7 +213,7 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 for it in row:
                     it["y_px"] = y + (label_gap + 10)
                 y += max(it["h_px"] for it in row) + (label_gap + 10) + cap_gap + row_gap
-            page_chunks.append((W, page_h, [it for row in prows for it in row], [], None))
+            page_chunks.append((W, page_h, [it for row in prows for it in row], [], None, cfg_page.get('legend')))
     elif mode == "grid":
         g = cfg_page.get("grid", {})
         cell_w = g.get("cell_w_mm", 60) * MM
@@ -239,7 +239,7 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 it["w_px"], it["h_px"] = w2, h2
                 it["x_px"] = margin + label_w + ci * cell_w + (cell_w - w2) / 2
                 it["y_px"] = margin + title_h + ri * cell_h + (cell_h - h2) / 2
-        page_chunks.append((W, H, items, grid_rows, grid_title))
+        page_chunks.append((W, H, items, grid_rows, grid_title, cfg_page.get('legend')))
     else:  # abs
         W = page["width_mm"] * MM
         H = page["height_mm"] * MM
@@ -254,11 +254,11 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 raise SystemExit(
                     f"abs 模式带 label 的面板 y_mm={p['y_mm']} < 6mm — 字母会贴页边, 请 y_mm ≥ 10 (panel {p.get('id')})")
             it["x_px"], it["y_px"] = p["x_mm"] * MM, p["y_mm"] * MM
-        page_chunks.append((W, H, items, [], None))
+        page_chunks.append((W, H, items, [], None, cfg_page.get('legend')))
 
     # 3) 渲染每页
     svg_paths = []
-    for ci, (W, H, chunk_items, chunk_grid_rows, chunk_title) in enumerate(page_chunks, 1):
+    for ci, (W, H, chunk_items, chunk_grid_rows, chunk_title, chunk_legend) in enumerate(page_chunks, 1):
         svg = ET.Element("svg", {
             "width": f"{W / MM:.1f}mm", "height": f"{H / MM:.1f}mm",
             "viewBox": f"0 0 {W:.2f} {H:.2f}"})
@@ -294,6 +294,16 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 if it["y_px"] + it["h_px"] > H or it["x_px"] + it["w_px"] > W:
                     print(f"[warn] {pid} 越界: 底 {(it['y_px'] + it['h_px']) / MM:.0f}mm / 页高 {H/MM:.0f}mm,"
                           f" 右 {(it['x_px'] + it['w_px']) / MM:.0f}mm / 页宽 {W/MM:.0f}mm", file=sys.stderr)
+        # page.legend: 发表标准图注(2026-09-13 用户) — 页底区, 7pt Arial,
+        # 逐行渲染(yaml legend 是 list[str], 每行一段); 行距 1.35 倍
+        if chunk_legend and ci == len(page_chunks):  # 图注只放最后一页
+            lg_y = H - margin - (len(chunk_legend) - 1) * 9.45 - 6
+            for li, line in enumerate(chunk_legend):
+                ET.SubElement(svg, "text", {
+                    "x": f"{margin:.1f}", "y": f"{lg_y + li * 9.45:.1f}",
+                    "font-family": "Arial", "font-size": "9.33",   # 7pt = 9.33px@96dpi
+                    "fill": "black", "xml:space": "preserve"}).text = str(line)
+
         out_dir.mkdir(exist_ok=True)
         svg_path = out_dir / f"{name}_raw{ci}.svg"
         ET.ElementTree(svg).write(svg_path, encoding="unicode", xml_declaration=True)
