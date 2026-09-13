@@ -357,7 +357,12 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
 
         out_dir.mkdir(exist_ok=True)
         svg_path = out_dir / f"{name}_raw{ci}.svg"
-        ET.ElementTree(svg).write(svg_path, encoding="unicode", xml_declaration=True)
+        # 2026-09-13: 写 LF 且嵌入面板带进来的 CRLF 一并归一(Windows Inkscape 面板 SVG 是 CRLF;
+        # 部分浏览器 <img> 引含大量 CRLF 的 SVG 渲染异常); 最终 svg 由 raw 直接改名, 必须干净
+        ET.ElementTree(svg).write(svg_path, encoding="utf-8", xml_declaration=True)
+        _d = svg_path.read_bytes()
+        _d = _d.replace(bytes((13, 10)), bytes((10,)))
+        svg_path.write_bytes(_d)
         svg_paths.append(svg_path)
     return svg_paths
 
