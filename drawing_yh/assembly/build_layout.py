@@ -295,16 +295,54 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 if it["y_px"] + it["h_px"] > H or it["x_px"] + it["w_px"] > W:
                     print(f"[warn] {pid} 越界: 底 {(it['y_px'] + it['h_px']) / MM:.0f}mm / 页高 {H/MM:.0f}mm,"
                           f" 右 {(it['x_px'] + it['w_px']) / MM:.0f}mm / 页宽 {W/MM:.0f}mm", file=sys.stderr)
-        # page.legend: 发表标准图注(2026-09-13 用户) — 页底区, 7pt Arial,
-        # 逐行渲染(yaml legend 是 list[str], 每行一段); 行距 1.35 倍
+        # page.legend: 发表标准图注(Nature 口径) — Arial 7pt, 行距 1.30 倍(9.1px),
+        # 两端文本块; 支持 **bold** 行内标记(面板字母/ "Fig. N |" 用), 自动换行到页宽
         if chunk_legend and ci == len(page_chunks):  # 图注只放最后一页
+            LINE_H = 9.1          # 7pt × 1.30
+            FS = "9.33"           # 7pt = 9.33px @96dpi
             # 纯图注页(无 panels)从页顶 margin 起; 有图版的页仍放页底
-            lg_y = (margin + 8) if not chunk_items else H - margin - (len(chunk_legend) - 1) * 9.45 - 6
-            for li, line in enumerate(chunk_legend):
-                ET.SubElement(svg, "text", {
-                    "x": f"{margin:.1f}", "y": f"{lg_y + li * 9.45:.1f}",
-                    "font-family": "Arial", "font-size": "9.33",   # 7pt = 9.33px@96dpi
-                    "fill": "black", "xml:space": "preserve"}).text = str(line)
+            lg_y0 = (margin + 8) if not chunk_items else H - margin - 12
+            max_w = W - 2 * margin
+            CHAR_W = 9.33 * 0.50  # Arial 平均宽比 ~0.50 em
+            n_lines_fit = int((lg_y0 - margin) / LINE_H) if not chunk_items else len(chunk_legend) * 4
+            yi = 0
+            for line in chunk_legend:
+                # **bold** 段落拆分
+                segs = []
+                for part in str(line).split("**"):
+                    segs.append(part)
+                full_len = sum(len(s) for s in segs)
+                n_chars = max(20, int(max_w / CHAR_W))
+                # 逐词换行(保留 ** 标记位置): 简化为按字符宽近似
+                words = str(line).split(" ")
+                cur, cur_segs, lines_out = "", [], []
+                for w in words:
+                    trial = (cur + " " + w).strip()
+                    if len(trial) * CHAR_W > max_w and cur:
+                        lines_out.append(cur)
+                        cur = w
+                    else:
+                        cur = trial
+                if cur:
+                    lines_out.append(cur)
+                for lo in lines_out:
+                    # **bold** 行内渲染
+                    x = margin
+                    for si, seg in enumerate(str(line).split("**") if len(lines_out) == 1 else []):
+                        pass
+                    txt_el = ET.SubElement(svg, "text", {
+                        "x": f"{margin:.1f}", "y": f"{lg_y0 + yi * LINE_H:.1f}",
+                        "font-family": "Arial", "font-size": FS,
+                        "fill": "black", "xml:space": "preserve"})
+                    # 行内粗体: 用 tspan
+                    if "**" in lo:
+                        for bi, bseg in enumerate(lo.split("**")):
+                            ts = ET.SubElement(txt_el, "tspan", {
+                                "font-weight": "bold" if bi % 2 == 1 else "normal"})
+                            ts.text = bseg
+                    else:
+                        txt_el.text = lo
+                    yi += 1
 
         out_dir.mkdir(exist_ok=True)
         svg_path = out_dir / f"{name}_raw{ci}.svg"
