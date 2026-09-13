@@ -362,6 +362,17 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
         ET.ElementTree(svg).write(svg_path, encoding="utf-8", xml_declaration=True)
         _d = svg_path.read_bytes()
         _d = _d.replace(bytes((13, 10)), bytes((10,)))
+        # 嵌入面板的根 svg 属性会把 xmlns 再带进来一次(重复属性 = XML 严格解析失败,
+        # 浏览器 <img> 直接拒渲染, 2026-09-13 网页图版页不显示的根因) — 只留第一次
+        import re as _re
+        svg_open = _d.find(b'<svg')
+        head_end = _d.find(b'>', svg_open)
+        head = _d[:head_end]
+        # 根开标签内 xmlns="..." 出现 >1 次 → 删第二次及以后(重复属性 = XML 解析失败)
+        m = list(_re.finditer(rb'\sxmlns="http://www\.w3\.org/2000/svg"', head))
+        for mm in reversed(m[1:]):
+            head = head[:mm.start()] + head[mm.end():]
+        _d = head + _d[head_end:]
         svg_path.write_bytes(_d)
         svg_paths.append(svg_path)
     return svg_paths
