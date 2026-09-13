@@ -243,10 +243,16 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
     else:  # abs
         W = page["width_mm"] * MM
         H = page["height_mm"] * MM
+        # abs 模式首行标签带(2026-09-13 用户: 字母贴上边缘): y_mm 是"面板内容顶",
+        # 字母基线 = y_mm - label_gap_mm, 还需字形高度 ≈2.4mm → y_mm ≥ 10mm 才有页边。
+        # 引擎层不再自动偏移(各 yaml 已显式给 y_mm ≥ 10), 但低于 6mm 直接报错防呆:
         for it in items:
             p = it["p"]
             if "x_mm" not in p or "y_mm" not in p:
                 raise SystemExit(f"abs 模式 panel 需 x_mm/y_mm: {p.get('id')}")
+            if p.get("label") and float(p["y_mm"]) < 6.0:
+                raise SystemExit(
+                    f"abs 模式带 label 的面板 y_mm={p['y_mm']} < 6mm — 字母会贴页边, 请 y_mm ≥ 10 (panel {p.get('id')})")
             it["x_px"], it["y_px"] = p["x_mm"] * MM, p["y_mm"] * MM
         page_chunks.append((W, H, items, [], None))
 
