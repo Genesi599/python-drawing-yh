@@ -394,11 +394,28 @@ def main() -> int:
         dst = out_dir / ((name if len(raw_paths) == 1 else f"{name}_p{k}") + ".svg")
         sp.replace(dst)
         final.append(dst)
+    all_outs = []
     for sp in final:
         outs = export(sp, ink)
         print("SVG:", sp)
         for o in outs:
             print(o.suffix.lstrip(".").upper() + ":", o)
+        all_outs.extend(outs)
+    # 多页合并为单 PDF(2026-09-13 用户: 两页分开放不对, 一个组图 = 一个多页 PDF;
+    # 单页 PDF 已是合并结果则跳过; pN 单页文件保留供报告链引用)
+    pdfs = [o for o in all_outs if o.suffix == ".pdf"]
+    if len(pdfs) > 1:
+        try:
+            from pypdf import PdfWriter
+            w = PdfWriter()
+            for f in pdfs:
+                w.append(str(f))
+            merged = out_dir / f"{name}.pdf"
+            with merged.open("wb") as fh:
+                w.write(fh)
+            print("MERGED PDF:", merged)
+        except ImportError:
+            print("[warn] pypdf 不可用, 跳过多页合并", file=sys.stderr)
     return 0
 
 
