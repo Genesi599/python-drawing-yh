@@ -274,10 +274,12 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
             embed_panel(svg, it["sv"], pid, it["x_px"], it["y_px"], it["w_px"], it["h_px"],
                         it["vw"], it["vh"], it["minx"], it["miny"])
             if p.get("label"):
+                # 2026-09-13 用户: 字母序号按期刊标准(Nature 8pt bold; 96dpi px → 12px=9pt,
+                # 8pt 上浮半档保印刷清晰); 原 28px(21pt) 明显偏大
                 ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
                                             "y": f"{it['y_px'] - label_gap:.1f}",
                                             "font-family": "Arial", "font-weight": "bold",
-                                            "font-size": "28"}).text = str(p["label"])
+                                            "font-size": "12"}).text = str(p["label"])
             if p.get("caption"):
                 ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
                                             "y": f"{it['y_px'] + it['h_px'] + cap_gap:.1f}",
