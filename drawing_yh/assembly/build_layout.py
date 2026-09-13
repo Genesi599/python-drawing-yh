@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -51,15 +52,23 @@ def svg_box(src: Path) -> tuple[float, float, float, float]:
 
 
 def ensure_svg(src: Path, cache: Path, ink: Path) -> Path:
-    """PDF/位图统一转成可嵌 SVG;SVG 原样返回。"""
+    """PDF/位图统一转成可嵌 SVG;SVG 原样返回。
+
+    缓存校验用源文件内容 md5(2026-09-13): 只比 mtime 会被 `cp -p` 保留的旧时间戳骗过
+    ——源 PDF 已换内容但 mtime 更旧时,缓存被误判有效,组图拼进旧图。
+    """
     if src.suffix.lower() == ".svg":
         return src
     cache.mkdir(parents=True, exist_ok=True)
     dst = cache / (src.stem + ".svg")
+    src_md5 = hashlib.md5(src.read_bytes()).hexdigest()
+    tag = cache / (src.stem + ".md5")
     if src.suffix.lower() == ".pdf":
-        if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
+        if (not dst.exists() or not tag.exists()
+                or tag.read_text(encoding="utf-8").strip() != src_md5):
             subprocess.run([str(ink), "--export-type=svg", "--export-filename", str(dst), str(src)],
                            check=True, capture_output=True)
+            tag.write_text(src_md5, encoding="utf-8")
         return dst
     w, h = _png_size(src)
     href = src.resolve().as_uri()
