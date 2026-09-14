@@ -351,16 +351,25 @@ def _atlas_palette(n):
     return base + extra
 
 
-def _draw_atlas_key(ax, order, label_ids, color_of, disp, sublabels, count_of, ncol, fs):
-    """右侧独立编号 legend: 2(或 ncol)列, 每项 = 色点 + "编号. 显示名 (计数)" + 可选副标。"""
+def _draw_atlas_key(ax, order, label_ids, color_of, disp, sublabels, count_of, ncol, fs,
+                    compact=False):
+    """右侧独立编号 legend: 2(或 ncol)列, 每项 = 色点 + "编号. 显示名 (计数)" + 可选副标。
+
+    ``compact=True`` → 行距按图高自适应(小图不拉稀), 首行留白收到 0.3 行。
+    """
     ax.set_axis_off()
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     rows = int(np.ceil(len(order) / ncol))
+    if compact:
+        step = 1.0 / (rows + 0.6)
+        y_top = 0.5 + step * (rows - 1) / 2
+    else:
+        step, y_top = 1.0 / rows, 1.0
     for idx, lab in enumerate(order):
         col, row = idx // rows, idx % rows
         x0 = 0.02 + col * (1.0 / ncol)
-        y = 1.0 - (row + 0.5) / rows
+        y = (y_top - (row + 0.5) * step) if compact else (1.0 - (row + 0.5) / rows)
         ax.scatter([x0], [y], s=22, color=color_of[lab], transform=ax.transAxes, clip_on=False)
         txt = f"{label_ids[lab]}. {disp(lab)}"
         if count_of is not None:
@@ -380,7 +389,7 @@ def cluster_atlas(
     label_offsets=None, legend=True, legend_ncol=2, legend_fontsize=None,
     point_size=0.75, bg_color="#BDBDBD", bg_size=0.06, bg_alpha=0.18,
     alpha=0.78, square=True, axis_labels=("UMAP 1", "UMAP 2"),
-    font=DEFAULT_FONT_SIZE, fig_size=None, ax=None,
+    font=DEFAULT_FONT_SIZE, fig_size=None, ax=None, compact=False, pad_frac=0.015,
 ):
     """分类细胞图谱 UMAP 一键模版 (额叶 final complete-atlas 画法)。
 
@@ -400,6 +409,11 @@ def cluster_atlas(
     label_offsets : dict ``label->(dx, dy)`` 手动微调团心标号位置(防数字相撞)。
     point_size : 散点大小(默认 0.75 固定; 小群靠 z-order 在上层仍可见)。
     square : ``True`` → data 范围正方形居中 + box_aspect=1。
+    compact : ``True`` → **紧凑模式**(2026-09-14 新增): ①画布按点云实测长宽比适配
+        (代替 square 的正方形, 消掉短轴白边); ②点云外边距收到 ``pad_frac``(默认 1.5%,
+        常规模式是 4%); ③图例行距按图高自适应(小图不拉稀)。点云本身形状造成的空角
+        (UMAP 固有, 凸包常只占外接矩形 ~80%)不在此列, 任何模板都消不掉。
+    pad_frac : compact 模式下的点云边距(占数据跨度比例, 默认 0.015)。
     返回 ``(fig, ax, label_ids)``, ``label_ids`` = ``{label: 编号}``。
     """
     coords = np.asarray(coords, dtype=float)
@@ -439,6 +453,12 @@ def cluster_atlas(
         key_w = 0.55 + (0.052 * max_lab + 0.45) * legend_ncol
         main_w = fig_size[0] if fig_size else 5.2
         fh = fig_size[1] if fig_size else max(4.4, 0.155 * nrow + 1.7)
+        if compact and fig_size is None:
+            # 紧凑模式: 主面板按点云实测长宽比, 图例行距按图高自适应(不拉稀)
+            _sx = float(coords[:, 0].max() - coords[:, 0].min())
+            _sy = float(coords[:, 1].max() - coords[:, 1].min())
+            fh = max(3.6, 0.135 * nrow + 1.2)
+            main_w = max(3.2, fh * (_sx / _sy if _sy else 1.0))
         fig, (ax, key_ax) = plt.subplots(
             1, 2, figsize=(main_w + key_w, fh),
             gridspec_kw={"width_ratios": [main_w, key_w], "wspace": 0.02})
@@ -470,7 +490,14 @@ def cluster_atlas(
             ax.text(cx + dx, cy + dy, txt, ha="center", va="center", fontsize=font,
                     fontweight="bold", zorder=100,
                     path_effects=[pe.withStroke(linewidth=2.0, foreground="white")])
-    if square:
+    if compact:
+        # 紧凑: 点云外边距只留 pad_frac(常规是 4%), 且不做正方形强制(画布已按长宽比适配)
+        xmin, xmax = float(coords[kept, 0].min()), float(coords[kept, 0].max())
+        ymin, ymax = float(coords[kept, 1].min()), float(coords[kept, 1].max())
+        sx, sy = xmax - xmin, ymax - ymin
+        ax.set_xlim(xmin - sx * pad_frac, xmax + sx * pad_frac)
+        ax.set_ylim(ymin - sy * pad_frac, ymax + sy * pad_frac)
+    elif square:
         xmin, xmax = coords[:, 0].min(), coords[:, 0].max()
         ymin, ymax = coords[:, 1].min(), coords[:, 1].max()
         xmid, ymid = (xmin + xmax) / 2, (ymin + ymax) / 2
@@ -490,7 +517,7 @@ def cluster_atlas(
     if key_ax is not None:
         _draw_atlas_key(key_ax, order, label_ids, color_of, disp, sublabels,
                         count_of if counts_in_legend else None,
-                        legend_ncol, legend_fontsize or (font - 1.2))
+                        legend_ncol, legend_fontsize or (font - 1.2), compact=compact)
     return fig, ax, label_ids
 
 

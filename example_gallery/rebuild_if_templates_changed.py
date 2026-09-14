@@ -74,7 +74,14 @@ def main() -> int:
         return 0
 
     print("gallery hook: template/gallery source changed; rebuilding example gallery")
-    subprocess.run([sys.executable, str(GALLERY_DIR / "build_gallery.py")], check=True, cwd=str(ROOT))
+    # build_gallery.py 需要能 import drawing_yh: 显式带 PYTHONPATH=仓库根
+    # (2026-09-14 实证: 从 git hook 的 cwd 端起 subprocess 时, sys.path 不含仓库根,
+    #  build_gallery 直接 ModuleNotFoundError 让 commit 失败)
+    import os
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    subprocess.run([sys.executable, str(GALLERY_DIR / "build_gallery.py")], check=True,
+                   cwd=str(ROOT), env=env)
     stage_gallery_outputs()
     print("gallery hook: rebuilt and staged example_gallery outputs")
     return 0
