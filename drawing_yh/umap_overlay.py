@@ -315,8 +315,17 @@ def umap_value_panels(
     figure_title: str | None = None,
     figure_subtitle: str | None = None,
     fs: int = DEFAULT_FONT_SIZE,
+    panel_frac: float = 0.62,
+    key_gap: float = 1.5,
+    point_size: float = 4.5,
 ):
     """Create a multi-panel (or single-panel) DA UMAP figure.
+
+    ``panel_frac`` controls the scatter/key horizontal split inside each grid
+    cell (scatter panel width = panel_frac × cell_w; key gets the rest).
+    Defaults preserve the historical 0.45/0.52 layout (0.45+0.020≈0.47 start
+    of key ≈ 1−0.62=0.38 ... historical ax spans [0.010,0.460] of cell_w with
+    key starting at 0.47; ``panel_frac=None`` keeps that exact legacy layout).
 
     Parameters
     ----------
@@ -379,13 +388,17 @@ def umap_value_panels(
         r, c = divmod(pi, ncols)
         x0 = GX0 + c * cell_w
         y0 = GY1 - (r + 1) * cell_h
+        # scatter/key split: panel_frac 透传(默认 0.62 时保持历史 0.45/0.52 布局)
+        ax_w = 0.45 * cell_w if panel_frac is None else (panel_frac - 0.010) * cell_w
+        key_x = 0.47 * cell_w if panel_frac is None else (panel_frac + 0.010) * cell_w
         ax = fig.add_axes([
             x0 + 0.010 * cell_w, y0 + 0.06 * cell_h,
-            0.45 * cell_w,        0.78 * cell_h,
+            ax_w,                  0.78 * cell_h,
         ])
         ax_key = fig.add_axes([
-            x0 + 0.47 * cell_w, y0 + 0.02 * cell_h,
-            0.52 * cell_w,       0.92 * cell_h,
+            x0 + key_x, y0 + 0.02 * cell_h,
+            (0.99 - (0.47 if panel_frac is None else panel_frac + 0.010)) * cell_w,
+            0.92 * cell_h,
         ])
         draw_da_umap_panel(
             ax, ax_key,
@@ -397,6 +410,8 @@ def umap_value_panels(
             title=pspec.get("title"),
             title_color=pspec.get("title_color", "black"),
             fs=fs,
+            point_size=pspec.get("point_size", point_size),
+            key_gap=pspec.get("key_gap", key_gap),
         )
 
     for pi in range(n, nrows * ncols):
