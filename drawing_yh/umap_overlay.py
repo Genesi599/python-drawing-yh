@@ -129,6 +129,9 @@ def draw_da_umap_panel(
     tight_q: float = 1.0,
     tight_pad: float = 0.06,
     key_gap: float = 1.5,
+    square: bool = False,
+    highlight_pops: list[str] | None = None,
+    highlight_color: str = "#111111",
 ) -> None:
     """Draw one DA-UMAP panel (scatter + centroid numbers) and its right-side key.
 
@@ -155,6 +158,13 @@ def draw_da_umap_panel(
     key_lines
         Explicit key content: list of ``(text, colour, bold)`` tuples.
         Build with :func:`build_key_lines` or supply manually.
+    square
+        Force a square data region (equal x/y spans, aspect 1:1).
+    highlight_pops
+        Population names to encircle with a dashed outline (95th-percentile
+        convex hull of their cells).
+    highlight_color
+        Edge colour of the dashed highlight outline.
         If *None*, ``ax_key`` is hidden (no key rendered).
     fs
         Font size in points (default 8).
@@ -188,6 +198,40 @@ def draw_da_umap_panel(
                linewidths=0, alpha=0.9, rasterized=True, zorder=2)
 
     _tight_lims(ax, x, y, q=tight_q, pad=tight_pad)
+    if square:
+        # 正方形数据区: 取 x/y 跨度较大者, 居中扩边, 并锁 1:1 纵横比
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        span = max(x1 - x0, y1 - y0)
+        xmid, ymid = (x0 + x1) / 2, (y0 + y1) / 2
+        ax.set_xlim(xmid - span / 2, xmid + span / 2)
+        ax.set_ylim(ymid - span / 2, ymid + span / 2)
+        ax.set_aspect("equal", adjustable="box")
+
+    if highlight_pops:
+        for pop in highlight_pops:
+            m = cl == pop
+            if not m.any():
+                continue
+            hx, hy = x[m], y[m]
+            # 95 分位收缩 + 凸包(与 gapfilled 轮廓同思路, 零散点不进框)
+            from scipy.spatial import ConvexHull
+            try:
+                q = 0.95
+                keep = ((hx >= np.quantile(hx, (1 - q) / 2)) & (hx <= np.quantile(hx, 1 - (1 - q) / 2))
+                        & (hy >= np.quantile(hy, (1 - q) / 2)) & (hy <= np.quantile(hy, 1 - (1 - q) / 2)))
+                pts = np.column_stack([hx[keep], hy[keep]])
+                hull = ConvexHull(pts)
+                verts = pts[hull.vertices]
+                # 轻微外扩, 避免贴点
+                cxh, cyh = verts[:, 0].mean(), verts[:, 1].mean()
+                verts = verts + (verts - [cxh, cyh]) * 0.04
+                poly = __import__("matplotlib.patches", fromlist=["Polygon"]).Polygon(
+                    verts, closed=True, fill=False, edgecolor=highlight_color,
+                    linewidth=1.4, linestyle=(0, (4, 3)), zorder=6)
+                ax.add_patch(poly)
+            except Exception:
+                continue
 
     pops = (
         [p for p in pop_order if (cl == p).any()]
@@ -412,6 +456,9 @@ def umap_value_panels(
             fs=fs,
             point_size=pspec.get("point_size", point_size),
             key_gap=pspec.get("key_gap", key_gap),
+            square=pspec.get("square", False),
+            highlight_pops=pspec.get("highlight_pops"),
+            highlight_color=pspec.get("highlight_color", "#111111"),
         )
 
     for pi in range(n, nrows * ncols):
