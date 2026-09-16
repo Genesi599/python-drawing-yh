@@ -47,6 +47,8 @@ def save_fig(
     save_data=None,
     save_code: bool = False,
     save_description=None,
+    audit: bool = True,
+    audit_kwargs: Optional[dict] = None,
     **savefig_kwargs,
 ) -> list:
     """
@@ -94,6 +96,13 @@ def save_fig(
         suffixes = ['.png']
 
     written = []
+    # ── 版式门禁(2026-09-16 起默认开启, 规则见 AI-Agent-Hub/hooks drawing_standards_check LAYOUT_GATE_RULE)──
+    # 没通过就不写文件、直接抛错 —— 让"字号掉档/文字重叠/越界"在生成时暴露, 而不是等用户反复强调。
+    if audit:
+        from .layout_audit import audit_layout
+        kw_audit = dict(audit_kwargs or {})
+        kw_audit.setdefault("label", Path(path).stem)
+        audit_layout(fig, **kw_audit)   # 硬失败(overlap/outside/<8pt/marker_ratio)抛 LayoutAuditError
     for s in suffixes:
         if not s:
             continue

@@ -192,10 +192,11 @@ def audit_layout(
     if min_fontsize:
         for kind, t in texts:
             txt = t.get_text().strip()
-            # 只豁免"符号类标记"(显著性星号/†‡§、≤2 字符的格内缩写);
-            # 带引线的注释白框属于正文, 同样吃 8 pt 硬规则(2026-09-16 收紧:
-            # 之前一律豁免 .text 导致 5.8 pt 注释标签溜过门禁)
-            if len(txt) <= 2 or all(ch in "*†‡§#0123456789" for ch in txt):
+            # 只豁免**符号类标注**(ax.text 里的星号/†‡§/纯数字角标);
+            # 刻度·轴标签·标题·图例一律吃 8 pt 硬规则 —— 曾因"≤2 字符"豁免
+            # 让 1 字符刻度(Y/O/P)与 5.8 pt 注释白框都溜过门禁(2026-09-16 两次收紧)
+            if kind.endswith(".text") and (len(txt) <= 2
+                                           or all(ch in "*†‡§#0123456789" for ch in txt)):
                 continue
             fs = t.get_fontsize()
             if isinstance(fs, (int, float)) and fs < min_fontsize - 1e-9:
