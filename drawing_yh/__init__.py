@@ -215,3 +215,5 @@ __all__ = [
     "flat_cell_attribution_path", "flat_cell_preview_path",
     "flat_cell_template_path", "cell_schematic",
 ]
+from .layout_audit import audit_layout, LayoutAuditError     # noqa: E402
+from . import layout_audit                                   # noqa: E402,F401

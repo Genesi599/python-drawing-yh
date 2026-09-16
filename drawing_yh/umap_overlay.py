@@ -132,6 +132,7 @@ def draw_da_umap_panel(
     square: bool = False,
     highlight_pops: list[str] | None = None,
     highlight_color: str = "#111111",
+    centroid_offsets: dict[str, tuple[float, float]] | None = None,
 ) -> None:
     """Draw one DA-UMAP panel (scatter + centroid numbers) and its right-side key.
 
@@ -243,6 +244,10 @@ def draw_da_umap_panel(
         if not m.any():
             continue
         cx, cy = _robust_centroid(x[m], y[m])
+        # 确定性偏移: 密集小群(如髓系 22-24/28-29)的编号会互相压, 用显式 (dx,dy) 数据单位避开
+        if centroid_offsets:
+            dx, dy = centroid_offsets.get(pop, (0.0, 0.0))
+            cx, cy = cx + dx, cy + dy
         t = ax.text(cx, cy, str(i), ha="center", va="center",
                     fontsize=fs, fontweight="bold", color="black", zorder=5)
         t.set_path_effects([pe.withStroke(linewidth=2.2, foreground="white")])
@@ -362,6 +367,7 @@ def umap_value_panels(
     panel_frac: float = 0.62,
     key_gap: float = 1.5,
     point_size: float = 4.5,
+    centroid_offsets: dict[str, tuple[float, float]] | None = None,
 ):
     """Create a multi-panel (or single-panel) DA UMAP figure.
 
@@ -457,6 +463,7 @@ def umap_value_panels(
             point_size=pspec.get("point_size", point_size),
             key_gap=pspec.get("key_gap", key_gap),
             square=pspec.get("square", False),
+            centroid_offsets=pspec.get("centroid_offsets", centroid_offsets),
             highlight_pops=pspec.get("highlight_pops"),
             highlight_color=pspec.get("highlight_color", "#111111"),
         )
@@ -481,7 +488,7 @@ def umap_value_panels(
                  ha="left", va="bottom", fontsize=fs + 1, fontweight="bold")
     if figure_subtitle:
         fig.text(GX0, GY1 - 0.005, figure_subtitle,
-                 ha="left", va="top", fontsize=fs - 1, color="#555555")
+                 ha="left", va="top", fontsize=fs, color="#333333")   # 字号锁 8pt + 次要文字也用深色(硬规则 §5/§7)
 
     return fig, cax
 

@@ -378,7 +378,7 @@ def _draw_atlas_key(ax, order, label_ids, color_of, disp, sublabels, count_of, n
         sub = (sublabels.get(lab) if isinstance(sublabels, Mapping) else None) if sublabels else None
         if sub:
             ax.text(x0 + 0.035, y - 0.45 / rows, str(sub), transform=ax.transAxes,
-                    ha="left", va="top", fontsize=fs - 1.2, color="#666666")
+                    ha="left", va="top", fontsize=fs, color="#333333")   # 字号锁 8pt + 深色(硬规则 §5/§7)
 
 
 def cluster_atlas(
@@ -390,6 +390,7 @@ def cluster_atlas(
     point_size=0.75, bg_color="#BDBDBD", bg_size=0.06, bg_alpha=0.18,
     alpha=0.78, square=True, axis_labels=("UMAP 1", "UMAP 2"),
     font=DEFAULT_FONT_SIZE, fig_size=None, ax=None, compact=False, pad_frac=0.015,
+    centroid_fontsize=None,
 ):
     """分类细胞图谱 UMAP 一键模版 (额叶 final complete-atlas 画法)。
 
@@ -414,6 +415,7 @@ def cluster_atlas(
         常规模式是 4%); ③图例行距按图高自适应(小图不拉稀)。点云本身形状造成的空角
         (UMAP 固有, 凸包常只占外接矩形 ~80%)不在此列, 任何模板都消不掉。
     pad_frac : compact 模式下的点云边距(占数据跨度比例, 默认 0.015)。
+    centroid_fontsize : 团心编号字号; ``None`` → 9(原值)。小尺寸紧凑图可降到 7–8。
     返回 ``(fig, ax, label_ids)``, ``label_ids`` = ``{label: 编号}``。
     """
     coords = np.asarray(coords, dtype=float)
@@ -487,7 +489,8 @@ def cluster_atlas(
                 continue
             dx, dy = label_offsets.get(lab, (0.0, 0.0))
             txt = str(label_ids[lab]) if centroid == "number" else disp(lab)
-            ax.text(cx + dx, cy + dy, txt, ha="center", va="center", fontsize=font,
+            ax.text(cx + dx, cy + dy, txt, ha="center", va="center",
+                    fontsize=(centroid_fontsize or 9),
                     fontweight="bold", zorder=100,
                     path_effects=[pe.withStroke(linewidth=2.0, foreground="white")])
     if compact:
