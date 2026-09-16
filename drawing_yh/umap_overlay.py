@@ -200,14 +200,15 @@ def draw_da_umap_panel(
 
     _tight_lims(ax, x, y, q=tight_q, pad=tight_pad)
     if square:
-        # 正方形数据区: 取 x/y 跨度较大者, 居中扩边, 并锁 1:1 纵横比
+        # 正方形数据区: 先读"数据派生的原始范围"(必须在 set_aspect 之前读 —— 设完 aspect 再读
+        # 拿到的是已被裁的范围, 会丢掉较长维度的跨度, 导致该维度数据被裁掉、标签落到坐标区外).
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
         span = max(x1 - x0, y1 - y0)
         xmid, ymid = (x0 + x1) / 2, (y0 + y1) / 2
+        ax.set_aspect("equal", adjustable="box")   # 窗口本身 1:1, 只缩框不裁数据
         ax.set_xlim(xmid - span / 2, xmid + span / 2)
         ax.set_ylim(ymid - span / 2, ymid + span / 2)
-        ax.set_aspect("equal", adjustable="box")
 
     if highlight_pops:
         for pop in highlight_pops:

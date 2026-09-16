@@ -180,6 +180,19 @@ def audit_layout(
         if over > OUTSIDE_TOL:
             outside.append((round(float(over), 1), f"{n}:{t.get_text()}"))
 
+    # 图内标注越出所属坐标区(2026-09-16 加): 质心编号被偏移推到自家面板外(如落在 colorbar 下方),
+    # outside 检查只看整幅画布抓不到, 但读者会看到"孤立数字"。
+    stray = []
+    for ai, ax in enumerate(fig.get_axes()):
+        ab = ax.get_window_extent(rend)
+        for t in getattr(ax, "texts", []):
+            if not t.get_text().strip():
+                continue
+            b = _text_bbox(t, rend)
+            cx, cy = (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2
+            if not (ab.x0 - 2.0 <= cx <= ab.x1 + 2.0 and ab.y0 - 2.0 <= cy <= ab.y1 + 2.0):
+                stray.append((ai, t.get_text()[:24]))
+
     pitch = _pitch_stats(fig, rend)
     # 硬失败: 密度低到有碰撞风险; 软告警: 偏松(>目标上限)或略紧
     hard_pitch = {k: v for k, v in pitch.items() if v["pitch_median"] < pitch_hard_min}
@@ -213,6 +226,8 @@ def audit_layout(
         "overlap_detail": overlaps[:12],
         "outside": len(outside),
         "outside_detail": outside[:12],
+        "stray_text": len(stray),
+        "stray_detail": stray[:12],
         "pitch_ratio": pitch,
         "pitch_fail_axes": hard_pitch,
         "pitch_warn_axes": warn_pitch,
@@ -227,6 +242,8 @@ def audit_layout(
         fails.append(f"overlap={len(overlaps)} (须 0): {overlaps[:4]}")
     if outside:
         fails.append(f"outside={len(outside)} (须 0): {outside[:4]}")
+    if stray:
+        fails.append(f"标签越出坐标区={len(stray)} (须 0): {stray[:4]}")
     if hard_pitch:
         fails.append(f"pitch_ratio < {pitch_hard_min}(碰撞风险): {hard_pitch}")
     if small:
@@ -243,7 +260,7 @@ def audit_layout(
 
     if verbose:
         print(f"[audit_layout] {report['label']}: overlap={report['overlap']} "
-              f"outside={report['outside']} marker_ratio={marker_ratio} "
+              f"outside={report['outside']} stray={report['stray_text']} marker_ratio={marker_ratio} "
               f"pitch=" + ", ".join(f"{k}:{v['pitch_median']:.2f}" for k, v in pitch.items())
               + ("  OK" if report["passed"] else "  FAIL"))
         for w in warns:
