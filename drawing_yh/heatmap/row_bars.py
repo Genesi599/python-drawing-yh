@@ -218,23 +218,27 @@ def heatmap_with_row_bars(
         for x in np.cumsum(list(block_sizes))[:-1]:
             ax_heat.axvline(x - 0.5, color="k", lw=0.5, alpha=0.5)
 
-    # 迷你色条(2026-09-20 杨航): 横窄条贴右下角底缘, 无 label(caption 里说明), 刻度 min/0/max。
-    # 位置按英寸换算; 右下角通常是 -logp 刻度区, 无 term(文字在条区上方), 无冲突。
+    # 迷你色条(2026-09-20 杨航三轮): 横窄条右下角, 完整刻度 4 个 + 标题, 与热图留隙不重合。
     fw, fh = fig.get_size_inches()
-    # 锚在热图区下方右侧(与热图同列, 不进 term 区; 底缘留出 x 轴空间)
     fig.canvas.draw()
     _hb = ax_heat.get_window_extent(fig.canvas.get_renderer())
-    left_in = _hb.x1 / fig.dpi - 0.9
+    left_in = _hb.x1 / fig.dpi - 0.9   # 热图右缘下(迷你版; 右下角会撞轴刻度, 实测)
     if left_in < _hb.x0 / fig.dpi:
         left_in = _hb.x0 / fig.dpi
-    cbax = fig.add_axes([left_in / fw, 0.075, min(0.9, _hb.width / fig.dpi) / fw, 0.05 / fh],
-                        label="mini_cbar", in_layout=False)   # 不参与 constrained layout
+    # 底部定位: 热图下缘以下留 0.10 in 间隙(实测 bbox 不相交), 贴图底缘
+    bot_in = max(0.02, _hb.y0 / fig.dpi - 0.10 - 0.05)
+    cbax = fig.add_axes([left_in / fw, bot_in / fh, min(0.9, _hb.width / fig.dpi) / fw, 0.05 / fh],
+                        label="mini_cbar", in_layout=False)
     cbar = fig.colorbar(im, cax=cbax, orientation="horizontal")
     vmin_, vmax_ = im.get_clim()
-    ticks_ = [vmin_, 0.0, vmax_] if vmin_ < 0 < vmax_ else [vmin_, vmax_]
+    ticks_ = [vmin_, vmin_ / 2, 0.0, vmax_ / 2, vmax_] if vmin_ < 0 < vmax_ else [vmin_, (vmin_ + vmax_) / 2, vmax_]
     cbar.set_ticks(ticks_)
     cbar.ax.tick_params(labelsize=font, pad=1, top=True, labeltop=True,
-                        bottom=False, labelbottom=False)   # 刻度在条上方, 不垂出底缘
+                        bottom=False, labelbottom=False)   # 刻度在条上方
+    # 标题不省且不出界(2026-09-20 杨航): 放条右端外侧, 水平一行
+    cbx = cbax.get_position()
+    fig.text(cbx.x1 + 0.008, cbx.y0 + 0.025 / fh, cbar_label,
+             fontsize=font, ha="left", va="center")
     cbar.outline.set_linewidth(0.5)
 
     if row_color_strip and colors is not None:
@@ -264,15 +268,16 @@ def heatmap_with_row_bars(
             for j, (term, val) in enumerate(row):
                 y = gi + offs[j] if j < len(offs) else gi
                 col = colors[gi] if colors is not None else default_color
-                ax_bars.barh(y, val, height=0.36, color=col, alpha=0.9, edgecolor="none")
+                v_norm = val / xmax if xmax > 0 else 0.0   # 图内归一化(2026-09-20 杨航)
+                ax_bars.barh(y, v_norm, height=0.36, color=col, alpha=0.9, edgecolor="none")
                 wrapped = wrap_text(term, max_chars=wrap_chars)   # max_chars>=56 时自然单行不换行不截断
                 # 2026-09-20: 文字改放条末端右侧数据坐标(不出 axes, 过 stray 门禁);
                 # xlim 预留 55% 右侧给 term 文字(原 annotate 越 axes 被 audit 报 stray)
                 ax_bars.text(
-                    xmax * 1.06, y, wrapped, ha="left", va="center",   # 统一起点=左对齐(2026-09-20 杨航)
+                    1.06, y, wrapped,   # 紧贴归一化后柱区(2026-09-20) ha="left", va="center",   # 统一起点=左对齐(2026-09-20 杨航)
                     fontsize=font, color="black", clip_on=False, linespacing=1, zorder=10,
                 )
-        bar_x1 = xmax * 1.05  # 条形实际数据范围右界(2026-09-20 杨航: 轴只在柱范围)
+        bar_x1 = 1.05  # 归一化后最长柱=1.0(2026-09-20 杨航: 柱长按图内 max 归一化)
         ax_bars.set_xlabel(bar_xlabel, fontsize=font)
         ax_bars.grid(axis="x", linestyle=":", alpha=0.3)
         ax_bars.tick_params(axis="y", left=False, labelleft=False)
