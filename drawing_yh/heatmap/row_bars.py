@@ -218,10 +218,24 @@ def heatmap_with_row_bars(
         for x in np.cumsum(list(block_sizes))[:-1]:
             ax_heat.axvline(x - 0.5, color="k", lw=0.5, alpha=0.5)
 
-    cbar = fig.colorbar(im, ax=ax_heat, orientation="horizontal",
-                        fraction=0.045, pad=0.06, shrink=0.6)
-    cbar.set_label(cbar_label, fontsize=font)
-    cbar.ax.tick_params(labelsize=font)
+    # 迷你色条(2026-09-20 杨航): 横窄条贴右下角底缘, 无 label(caption 里说明), 刻度 min/0/max。
+    # 位置按英寸换算; 右下角通常是 -logp 刻度区, 无 term(文字在条区上方), 无冲突。
+    fw, fh = fig.get_size_inches()
+    # 锚在热图区下方右侧(与热图同列, 不进 term 区; 底缘留出 x 轴空间)
+    fig.canvas.draw()
+    _hb = ax_heat.get_window_extent(fig.canvas.get_renderer())
+    left_in = _hb.x1 / fig.dpi - 0.9
+    if left_in < _hb.x0 / fig.dpi:
+        left_in = _hb.x0 / fig.dpi
+    cbax = fig.add_axes([left_in / fw, 0.075, min(0.9, _hb.width / fig.dpi) / fw, 0.05 / fh],
+                        label="mini_cbar", in_layout=False)   # 不参与 constrained layout
+    cbar = fig.colorbar(im, cax=cbax, orientation="horizontal")
+    vmin_, vmax_ = im.get_clim()
+    ticks_ = [vmin_, 0.0, vmax_] if vmin_ < 0 < vmax_ else [vmin_, vmax_]
+    cbar.set_ticks(ticks_)
+    cbar.ax.tick_params(labelsize=font, pad=1, top=True, labeltop=True,
+                        bottom=False, labelbottom=False)   # 刻度在条上方, 不垂出底缘
+    cbar.outline.set_linewidth(0.5)
 
     if row_color_strip and colors is not None:
         trans = transforms.blended_transform_factory(ax_heat.transAxes, ax_heat.transData)
@@ -268,7 +282,7 @@ def heatmap_with_row_bars(
         ax_bars.set_ylim(ax_heat.get_ylim())
         # 单行 term 完整显示: 迭代量 renderer 实测文字 bbox, 扩 xlim 直至最长 term 右缘入界
         # (固定系数/数据换算在不同 xmax 下都不稳, 2026-09-20 三轮实测后改实测迭代)。
-        for _ in range(6):
+        for _ in range(12):
             fig.canvas.draw()
             rend = fig.canvas.get_renderer()
             ab = ax_bars.get_window_extent(rend)
