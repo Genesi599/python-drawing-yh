@@ -1,0 +1,4 @@
+Asset: centrosome_simplified.svg / centrosome_simplified.png
+Original: Project-created vector illustration
+License: CC0-1.0
+Description: Paired orthogonal centrioles without microtubule radiation, created for the BMIF localization schematic.

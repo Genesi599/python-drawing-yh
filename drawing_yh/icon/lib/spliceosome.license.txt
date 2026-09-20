@@ -1,0 +1,5 @@
+Asset: spliceosome.svg / spliceosome.png
+Original figure: Yang H, Beutler B, Zhang D. Emerging roles of spliceosome in cancer and immunity. Protein & Cell. 2022;13:559-579. Figure 3.
+Source: https://doi.org/10.1007/s13238-021-00856-5
+License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Adaptation: post-catalytic C-complex geometry redrawn as a compact flat SVG; labels and process arrows removed, colors harmonized with the BMIF localization schematic.

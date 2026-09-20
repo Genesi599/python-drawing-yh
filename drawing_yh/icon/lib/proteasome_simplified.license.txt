@@ -1,0 +1,5 @@
+Asset: proteasome_simplified.svg / proteasome_simplified.png
+Original: Proteasome, Science Figures (figure 9749)
+Source: https://sciencefigures.org/figure/9749/proteasome/
+License: Open Design License 1.0
+Adaptation: Retained the original colored structural regions; removed most interior contour paths and added consistent dark-blue boundaries for small-format use in the BMIF schematic.

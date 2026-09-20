@@ -330,6 +330,40 @@ ICONS = {
         ("ellipse", dict(cx=216, cy=160, rx=8, ry=6), 1.0),
     ],
 
+    "artery": [
+        # Cross-section vessel wall: thick tunica ring with a hollow lumen.
+        ("ellipse", dict(cx=128, cy=128, rx=90, ry=78), 1.0),
+        ("ellipse", dict(cx=128, cy=128, rx=58, ry=46), 1.0, "white"),
+        # Inner-wall folds keep it distinct from a generic circle.
+        ("path", dict(d=(
+            "M 72 126 "
+            "C 94 112 112 108 128 116 "
+            "C 150 128 166 126 184 112 "
+            "L 184 142 "
+            "C 162 154 144 156 126 146 "
+            "C 106 136 90 140 72 154 Z"
+        )), 0.55),
+        ("ellipse", dict(cx=128, cy=128, rx=36, ry=25), 1.0, "white"),
+    ],
+
+    "skin": [
+        # Layered skin block: epidermis / dermis / subcutis.
+        ("rect", dict(x=36, y=50, w=184, h=28, rx=12), 1.0),
+        ("rect", dict(x=36, y=88, w=184, h=68, rx=14), 0.62),
+        ("rect", dict(x=36, y=166, w=184, h=46, rx=16), 0.34),
+        # Follicle and hair shaft make the tissue identity readable.
+        ("ellipse", dict(cx=126, cy=130, rx=18, ry=30), 0.90),
+        ("path", dict(d=(
+            "M 126 112 "
+            "C 118 82 118 54 128 24 "
+            "C 138 54 138 82 130 112 Z"
+        )), 1.0),
+        # Subcutaneous adipocyte hint.
+        ("ellipse", dict(cx=82, cy=190, rx=22, ry=14), 1.0, "white"),
+        ("ellipse", dict(cx=132, cy=190, rx=22, ry=14), 1.0, "white"),
+        ("ellipse", dict(cx=180, cy=190, rx=20, ry=14), 1.0, "white"),
+    ],
+
     # Testis: ovoid body drawn at 0.45 so the 1.0 epididymis + vas deferens pop
     "testis": [
         # Main ovoid body (testis proper) — lighter so epididymis shows

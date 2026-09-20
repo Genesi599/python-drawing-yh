@@ -50,6 +50,9 @@ def render_mean_dumbbell(
     tick_colors: list | None = None,
     tick_segments: list | None = None,
     width: float = DOUBLE_COL_IN,
+    per_item_h: float = 0.24,
+    base_h: float = 1.55,
+    min_h: float = 3.0,
     fmt: str | None = None,
     label_pad_frac: float = 0.025,
     xlim_frac: float = 1.30,
@@ -66,9 +69,9 @@ def render_mean_dumbbell(
     fig_w, fig_h = compute_figsize(
         n_items=len(df),
         width=width,
-        per_item_h=0.24,
-        base_h=1.55,
-        min_h=3.0,
+        per_item_h=per_item_h,
+        base_h=base_h,
+        min_h=min_h,
         max_h=8.2,
     )
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))

@@ -1,0 +1,5 @@
+Asset: collagen.svg / collagen.png
+Original: collagen-3.svg by Servier Medical Art
+Source: https://github.com/duerrsimon/bioicons/blob/main/static/icons/cc-by-3.0/Tissues/Servier/collagen-3.svg
+License: CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/)
+Adaptation: recolored to the drawing_yh BMIF figure palette; geometry unchanged.

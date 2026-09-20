@@ -1,0 +1,5 @@
+Asset: vacuole.svg / vacuole.png
+Original: vacuole-oval, Servier Medical Art
+Source: https://github.com/duerrsimon/bioicons/blob/main/static/icons/cc-by-3.0/Cell_membrane/Servier/vacuole-oval.svg
+License: CC BY 3.0
+Adaptation: retained the original outer-membrane and lumen geometry; removed the lipid-ring and decorative elements; recolored the membrane and lumen for a translucent, compact animal-cell vacuole icon compatible with the BMIF localization schematic.

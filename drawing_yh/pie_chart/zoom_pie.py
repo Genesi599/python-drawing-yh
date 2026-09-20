@@ -35,6 +35,15 @@ def generate_shades(base_color: str, n: int, l_range=(0.55, 0.82)) -> list:
     return shades
 
 
+def darken_color(base_color: str, lightness: float = 0.34) -> str:
+    """Return a darker shade of a hex color for title text."""
+    h = base_color.lstrip('#')
+    r, g, b = (int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+    hue, _l, s = colorsys.rgb_to_hls(r, g, b)
+    r2, g2, b2 = colorsys.hls_to_rgb(hue, lightness, min(s * 1.1, 1.0))
+    return '#{:02X}{:02X}{:02X}'.format(int(r2 * 255), int(g2 * 255), int(b2 * 255))
+
+
 def _merge_small(values, labels, colors, threshold_pct, keep_index=None,
                  other_color='#BBBBBB', always_other=()):
     """合并小扇区到 'Others';`always_other` 里的标签(如 'Unknown')无论大小都并入 Others。"""
@@ -68,7 +77,9 @@ def _draw_pie_on_ax(ax, values, labels, colors,
                     startangle, font_size, title,
                     min_pct_for_label=3.0,
                     suppress_label_indices=None,
-                    counterclock=True):
+                    counterclock=True,
+                    title_color='black',
+                    title_weight='normal'):
     values   = np.array(values, dtype=float)
     total    = values.sum()
     pcts     = values / total * 100
@@ -122,8 +133,8 @@ def _draw_pie_on_ax(ax, values, labels, colors,
     if title:
         # 标签外移(label_distance>1)时顶部标签会顶到标题，按外移量上抬标题
         title_pad = 8.0 + max(0.0, label_distance - 1.0) * 90.0
-        ax.set_title(title, fontsize=font_size, fontweight='normal',
-                     fontfamily='Arial', pad=title_pad)
+        ax.set_title(title, fontsize=font_size, fontweight=title_weight,
+                     fontfamily='Arial', color=title_color, pad=title_pad)
     ax.set_aspect('equal')
     return wedges, texts, mid_angles
 
@@ -531,6 +542,8 @@ def plot_multi_zoom_pie(
     figsize: tuple          = (13.5, 9.5),
     out_path: str           = None,
     show_leader_lines: bool = True,
+    satellite_pull: float   = 0.0,       # 向中央拉近卫星饼图的 figure-fraction 距离
+    title_y: float          = 0.985,     # 主标题的 figure y 位置；调低可压缩顶部留白
     detail_counterclock: bool = False,   # 卫星细分饼扇区方向:False=顺时针(从大到小自顶部向右)
     merge_to_other: tuple   = ('Unknown',),   # 这些标签无论大小都并入 Others,不单独成块
 ):
@@ -567,6 +580,19 @@ def plot_multi_zoom_pie(
         'UL': [0.005, 0.515, 0.255, 0.40], 'UR': [0.740, 0.515, 0.255, 0.40],
         'LL': [0.005, 0.055, 0.255, 0.40], 'LR': [0.740, 0.055, 0.255, 0.40],
     }
+    if satellite_pull:
+        center = np.array([0.5, 0.5])
+        pulled = {}
+        for key, rect in corner_rects.items():
+            rc = np.array([rect[0] + rect[2] / 2, rect[1] + rect[3] / 2])
+            direction = np.sign(center - rc)
+            pulled[key] = [
+                rect[0] + direction[0] * satellite_pull,
+                rect[1] + direction[1] * satellite_pull * 0.45,
+                rect[2],
+                rect[3],
+            ]
+        corner_rects = pulled
     fig.canvas.draw()
     C_c_px = np.array(ax_c.transData.transform([0, 0]))
 
@@ -617,7 +643,9 @@ def plot_multi_zoom_pie(
             ax_s, m_v, m_l, m_c, show_pct=show_pct, show_count=show_count,
             pct_distance=0.68, label_distance=label_distance, startangle=90,
             font_size=font_size, title=detail_titles.get(loc, loc), min_pct_for_label=0,
-            counterclock=detail_counterclock)
+            counterclock=detail_counterclock,
+            title_color=darken_color(base),
+            title_weight='bold')
         fig.canvas.draw()
         _fix_label_overlaps(fig, ax_s, s_texts, margin=7.0)
         if show_leader_lines:
@@ -626,7 +654,7 @@ def plot_multi_zoom_pie(
         _draw_connector(fig, ax_c, wedge_of[loc], ax_s, base, connect_alpha)
 
     if title:
-        fig.suptitle(title, fontsize=font_size + 3, fontweight='bold', y=0.985)
+        fig.suptitle(title, fontsize=font_size + 3, fontweight='bold', y=title_y)
 
     if out_path:
         out_path = Path(out_path)

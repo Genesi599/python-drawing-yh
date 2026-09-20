@@ -1,0 +1,6 @@
+Asset: lysosome.svg / lysosome.png
+Original: Lysosomes, BIOART-000306, NIAID Visual & Medical Arts
+Creator: Ryan Kissinger
+Source: https://bioart.niaid.nih.gov/bioart/306
+License: Public domain
+Adaptation: retained the original membrane and cargo geometry, removed masks, gradients, shadows, and excess cargo shapes, harmonized colors with the BMIF localization schematic, and used translucent fills for overlay on the cytoplasm background.

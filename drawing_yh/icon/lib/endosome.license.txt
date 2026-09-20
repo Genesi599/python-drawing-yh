@@ -1,0 +1,5 @@
+Asset: endosome.svg / endosome.png
+Original: Zika Virus Endosome (NIH BioArt 605), courtesy of NIAID / Ryan Kissinger
+Source: https://commons.wikimedia.org/wiki/File:Zika_Virus_Endosome_(NIH_BioArt_605).svg
+License: Public domain
+Adaptation: retained the endosomal membrane geometry, removed the viral structure, repeated the same membrane geometry as intraluminal vesicles, and harmonized colors with the BMIF localization schematic.

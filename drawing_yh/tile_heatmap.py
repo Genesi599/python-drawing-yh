@@ -73,6 +73,7 @@ def tile_heatmap(
     w_margin_in: float = _W_MARGIN_IN,
     cbar_h: float = _CBAR_H,
     figsize: tuple[float, float] | None = None,
+    show_cbar: bool = True,
 ) -> tuple:
     """Render a TF-style square-tile heatmap.
 
@@ -197,10 +198,11 @@ def tile_heatmap(
         spine.set_visible(False)
     ax.tick_params(length=0, labelsize=DEFAULT_FONT_SIZE)
 
-    cbar = fig.colorbar(mesh, ax=ax, fraction=0.025, pad=0.02)
-    if cbar_label:
-        cbar.set_label(cbar_label, fontsize=DEFAULT_FONT_SIZE)
-    cbar.ax.tick_params(labelsize=DEFAULT_FONT_SIZE)
+    if show_cbar:
+        cbar = fig.colorbar(mesh, ax=ax, fraction=0.025, pad=0.02)
+        if cbar_label:
+            cbar.set_label(cbar_label, fontsize=DEFAULT_FONT_SIZE)
+        cbar.ax.tick_params(labelsize=DEFAULT_FONT_SIZE)
 
     fig.tight_layout()
     return fig, ax

@@ -63,20 +63,25 @@ def _alpha_from_padj(padj: float | None, max_score: float) -> float:
     return float(0.35 + 0.60 * score / max(max_score, 1e-12))
 
 
-def _draw_vertical_arrow(ax, x: float, y0: float, delta: float, color: str, alpha: float) -> None:
+def _draw_vertical_arrow(ax, x: float, y0: float, delta: float, color: str, alpha: float,
+                         *, mutation_scale: float = 7, linewidth: float = 0.8,
+                         path_effects=None, zorder: int = 5) -> None:
     if delta == 0:
         return
     arrow = FancyArrowPatch(
         (x, y0),
         (x, y0 + delta),
         arrowstyle="-|>",
-        mutation_scale=7,
-        linewidth=0.8,
+        mutation_scale=mutation_scale,
+        linewidth=linewidth,
         color=color,
         alpha=alpha,
         shrinkA=0,
         shrinkB=0,
+        zorder=zorder,
     )
+    if path_effects is not None:
+        arrow.set_path_effects(path_effects)
     ax.add_patch(arrow)
 
 

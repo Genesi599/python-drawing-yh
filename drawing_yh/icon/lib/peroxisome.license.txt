@@ -1,0 +1,6 @@
+Asset: peroxisome.svg / peroxisome.png
+Original concept: Peroxisome.svg, Wikimedia Commons
+Source: https://commons.wikimedia.org/wiki/File:Peroxisome.svg
+Original contributors: Agateller (original), Qef (vector)
+License: Public domain
+Adaptation: retained the single-membrane and crystalloid-core concept; created an editable, low-saturation flat vector with a granular enzyme matrix and compact structural core for the BMIF localization schematic.

@@ -1,0 +1,5 @@
+Asset: proteasome.svg / proteasome.png
+Original: Proteasome, NIH BioArt 667 - 758768
+Source: https://commons.wikimedia.org/wiki/File:Proteasome_(NIH_BioArt_667_-_758768).svg
+License: Public domain
+Adaptation: Original official multicolor SVG retained; rotated horizontally for cytoplasmic placement in the BMIF schematic.
