@@ -281,15 +281,18 @@ def heatmap_with_row_bars(
             x0, x1 = ax_bars.get_xlim()
             need_frac = (right_px - ab.x1) / max(ab.width, 1.0)
             ax_bars.set_xlim(x0, x1 + need_frac * (x1 - x0) * 1.15)
-        # 轴线/刻度只覆盖条形范围, 不延伸进 term 文字区(2026-09-20 杨航):
-        # 隐藏原生 bottom spine, 用 axes-fraction 线段只画到 bar_x1; 刻度同步收边。
+        # 轴线/刻度只覆盖条形范围(2026-09-20 杨航两轮修正):
+        # 根因: MaxNLocator 在 xlim 扩张前设, 扩张后刻度按全 xlim(含 term 文字区)重新生成 ->
+        # 刻度被 term 宽度稀释、与柱子对不上。修: xlim 定稿后按 0..bar_x1 数据范围显式 set_xticks
+        # (禁 locator 重算), 刻度线+标签只落在柱区内; 轴线用 axes-fraction 线段画到 bar_x1。
         ax_bars.spines["bottom"].set_visible(False)
+        ticks = mticker.MaxNLocator(4).tick_values(0.0, bar_x1)
+        ticks = [t for t in ticks if 0 <= t <= bar_x1]
+        ax_bars.xaxis.set_major_locator(mticker.FixedLocator(ticks))
+        ax_bars.set_xticks(ticks)
         x0f = (bar_x1 - ax_bars.get_xlim()[0]) / (ax_bars.get_xlim()[1] - ax_bars.get_xlim()[0])
         ax_bars.add_line(mlines.Line2D([0, x0f], [0, 0], transform=ax_bars.transAxes,
                                        color=ax_bars.spines["left"].get_edgecolor(), linewidth=0.8, clip_on=False))
-        for t in ax_bars.get_xticklabels():
-            if t.get_position()[0] > bar_x1:
-                t.set_visible(False)
         for sp in ("top", "right"):
             ax_bars.spines[sp].set_visible(False)
 
