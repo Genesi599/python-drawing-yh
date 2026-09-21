@@ -106,6 +106,7 @@ def heatmap_with_row_bars(
     vmax: float | None = None,
     max_bars_per_row: int = 2,
     bar_xlabel: str = r"$-\log_{10}$(p-value)",
+    bar_width_target: float | None = None,
     cbar_label: str = "Expression Z-score",
     left_right_width_ratio: tuple[float, float] = (2.5, 1.0),
     row_color_strip: bool = True,
@@ -304,8 +305,46 @@ def heatmap_with_row_bars(
         # 根因: MaxNLocator 在 xlim 扩张前设, 扩张后刻度按全 xlim(含 term 文字区)重新生成 ->
         # 刻度被 term 宽度稀释、与柱子对不上。修: xlim 定稿后按 0..bar_x1 数据范围显式 set_xticks
         # (禁 locator 重算), 刻度线+标签只落在柱区内; 轴线用 axes-fraction 线段画到 bar_x1。
+        # 柱区物理宽上限(2026-09-20 杨航: 柱区 ∝ 行数): 若 0..bar_x1 物理宽超上限,
+        # 扩 xlim 右缘(纯空白)把柱区压到上限。term 在数据坐标随之相对左移, 不变形不截断。
+        if bar_width_target is not None:
+            fig.canvas.draw()
+            _ab = ax_bars.get_window_extent(fig.canvas.get_renderer())
+            _span = ax_bars.get_xlim()[1] - ax_bars.get_xlim()[0]
+            _bar_in = _ab.width / fig.dpi * (bar_x1 / _span)
+            if _bar_in > bar_width_target:
+                _new_span = (_ab.width / fig.dpi) * bar_x1 / bar_width_target
+                ax_bars.set_xlim(ax_bars.get_xlim()[0], ax_bars.get_xlim()[0] + _new_span)
+        # 右区 axes 物理收窄(2026-09-20 杨航视觉实锤: 只扩 xlim 不动 axes 占位无效):
+        # xlim 定稿后量右区"内容宽"(柱区+term 实际像素), 重设 gridspec 使右区 axes
+        # 宽=内容宽+pad; 同时按比例缩总 figsize(裁掉右侧空白)。左区/热图不受影响。
+        fig.canvas.draw()
+        _r2 = fig.canvas.get_renderer()
+        _ab2 = ax_bars.get_window_extent(_r2)
+        _cur_right_in = _ab2.width / fig.dpi
+        _txts2 = [t for t in ax_bars.texts if t.get_text().strip()]
+        _content_right_px = max([t.get_window_extent(_r2).x1 for t in _txts2],
+                                default=_ab2.x1) if _txts2 else _ab2.x1
+        _bar_zone_frac = bar_x1 / (ax_bars.get_xlim()[1] - ax_bars.get_xlim()[0])
+        _bar_zone_px0 = _ab2.x0 + _bar_zone_frac * _ab2.width
+        _need_in = (_content_right_px - _bar_zone_px0) / fig.dpi   # term 列实宽
+        _want_right_in = (bar_width_target if bar_width_target is not None
+                          else _bar_zone_frac * _cur_right_in) + _need_in + 0.08
+        if _want_right_in < _cur_right_in * 0.9:
+            _gs = ax_bars.get_subplotspec().get_gridspec()
+            _ratios = list(_gs.get_width_ratios())
+            _shrink = _want_right_in / _cur_right_in
+            _gs.set_width_ratios([_ratios[0], _ratios[1] * _shrink])
+            _fw, _fh = fig.get_size_inches()
+            fig.set_size_inches(_fw - (_cur_right_in - _want_right_in), _fh)
+            fig.canvas.draw()
         ax_bars.spines["bottom"].set_visible(False)
-        ticks = mticker.MaxNLocator(4).tick_values(0.0, bar_x1)
+        # 刻度数随柱区物理宽自适应(2026-09-20 杨航: 柱区∝行数变窄, 刻度减到不叠)
+        fig.canvas.draw()
+        _xl0, _xl1 = ax_bars.get_xlim()
+        _bw_in = ax_bars.get_window_extent(fig.canvas.get_renderer()).width / fig.dpi * (bar_x1 / max(_xl1 - _xl0, 1e-9))
+        n_ticks = 4 if _bw_in > 3.5 else (3 if _bw_in > 2.2 else 2)
+        ticks = mticker.MaxNLocator(n_ticks).tick_values(0.0, bar_x1)
         ticks = [t for t in ticks if 0 <= t <= bar_x1]
         ax_bars.xaxis.set_major_locator(mticker.FixedLocator(ticks))
         ax_bars.set_xticks(ticks)
