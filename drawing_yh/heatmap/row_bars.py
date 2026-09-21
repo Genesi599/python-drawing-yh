@@ -343,6 +343,8 @@ def heatmap_with_row_bars(
         n_ticks = 4 if _bw_in > 3.5 else (3 if _bw_in > 2.2 else 2)
         ticks = mticker.MaxNLocator(n_ticks).tick_values(0.0, bar_x1)
         ticks = [t for t in ticks if 0 <= t <= bar_x1]
+        # 2026-09-21 杨航: 柱长图内归一化, 端点 1.0 无信息量 -> 去掉封顶刻度
+        ticks = [t for t in ticks if t < bar_x1 - 1e-9] or [0.0]
         ax_bars.xaxis.set_major_locator(mticker.FixedLocator(ticks))
         ax_bars.set_xticks(ticks)
         # 2026-09-21 杨航: 横轴标签放柱区正下方(xlim 定稿后定位, 挤掉默认整轴居中位置)
