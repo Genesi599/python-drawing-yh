@@ -219,27 +219,24 @@ def heatmap_with_row_bars(
         for x in np.cumsum(list(block_sizes))[:-1]:
             ax_heat.axvline(x - 0.5, color="k", lw=0.5, alpha=0.5)
 
-    # 迷你色条(2026-09-20 杨航三轮): 横窄条右下角, 完整刻度 4 个 + 标题, 与热图留隙不重合。
+    # 迷你色条 v5(2026-09-21 杨航: 小+标签不省+不重合): 横条放热图正下方,
+    # 刻度在条下方(底缘留 0.11in), 标签在条上方左起 —— 上下分层互不撞, 全在热图列内。
     fw, fh = fig.get_size_inches()
     fig.canvas.draw()
     _hb = ax_heat.get_window_extent(fig.canvas.get_renderer())
-    left_in = _hb.x1 / fig.dpi - 0.9   # 热图右缘下(迷你版; 右下角会撞轴刻度, 实测)
-    if left_in < _hb.x0 / fig.dpi:
-        left_in = _hb.x0 / fig.dpi
-    # 底部定位: 热图下缘以下留 0.10 in 间隙(实测 bbox 不相交), 贴图底缘
-    bot_in = max(0.02, _hb.y0 / fig.dpi - 0.10 - 0.05)
-    cbax = fig.add_axes([left_in / fw, bot_in / fh, min(0.9, _hb.width / fig.dpi) / fw, 0.05 / fh],
+    _cx0 = max(_hb.x0 / fig.dpi, 0.06)
+    _cw = min(0.85 * _hb.width / fig.dpi, 0.9)
+    _cy0 = max(0.17, _hb.y0 / fig.dpi - 0.42)
+    cbax = fig.add_axes([_cx0 / fw, _cy0 / fh, _cw / fw, 0.05 / fh],
                         label="mini_cbar", in_layout=False)
     cbar = fig.colorbar(im, cax=cbax, orientation="horizontal")
     vmin_, vmax_ = im.get_clim()
-    ticks_ = [vmin_, vmin_ / 2, 0.0, vmax_ / 2, vmax_] if vmin_ < 0 < vmax_ else [vmin_, (vmin_ + vmax_) / 2, vmax_]
+    ticks_ = [vmin_, 0.0, vmax_] if vmin_ < 0 < vmax_ else [vmin_, vmax_]
     cbar.set_ticks(ticks_)
-    cbar.ax.tick_params(labelsize=font, pad=1, top=True, labeltop=True,
-                        bottom=False, labelbottom=False)   # 刻度在条上方
-    # 标题不省且不出界(2026-09-20 杨航): 放条右端外侧, 水平一行
-    cbx = cbax.get_position()
-    fig.text(cbx.x1 + 0.008, cbx.y0 + 0.025 / fh, cbar_label,
-             fontsize=font, ha="left", va="center")
+    cbar.ax.tick_params(labelsize=font, pad=1, top=False, labeltop=False,
+                        bottom=True, labelbottom=True)   # 刻度在条下方
+    fig.text((_cx0 + _cw) / fw, _cy0 / fh + 0.075 / fh, cbar_label,
+             fontsize=font, ha="right", va="bottom")   # 标签在条上方右对齐(向左排, 不伸入右区)
     cbar.outline.set_linewidth(0.5)
 
     if row_color_strip and colors is not None:
