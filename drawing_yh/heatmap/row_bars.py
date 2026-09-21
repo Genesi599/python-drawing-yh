@@ -226,7 +226,7 @@ def heatmap_with_row_bars(
     _hb = ax_heat.get_window_extent(fig.canvas.get_renderer())
     _cx0 = max(_hb.x0 / fig.dpi, 0.06)
     _cw = min(0.85 * _hb.width / fig.dpi, 0.9)
-    _cy0 = max(0.17, _hb.y0 / fig.dpi - 0.42)
+    _cy0 = max(0.18, _hb.y0 / fig.dpi - 0.15)   # 2026-09-21: 贴热图(gap 0.15) 但下限 0.18(刻度+文字 ~0.17in, 0.12 会垂出)
     cbax = fig.add_axes([_cx0 / fw, _cy0 / fh, _cw / fw, 0.05 / fh],
                         label="mini_cbar", in_layout=False)
     cbar = fig.colorbar(im, cax=cbax, orientation="horizontal")
@@ -345,9 +345,13 @@ def heatmap_with_row_bars(
         ticks = [t for t in ticks if 0 <= t <= bar_x1]
         ax_bars.xaxis.set_major_locator(mticker.FixedLocator(ticks))
         ax_bars.set_xticks(ticks)
+        # 2026-09-21 杨航: 横轴标签放柱区正下方(xlim 定稿后定位, 挤掉默认整轴居中位置)
         x0f = (bar_x1 - ax_bars.get_xlim()[0]) / (ax_bars.get_xlim()[1] - ax_bars.get_xlim()[0])
         ax_bars.add_line(mlines.Line2D([0, x0f], [0, 0], transform=ax_bars.transAxes,
                                        color=ax_bars.spines["left"].get_edgecolor(), linewidth=0.8, clip_on=False))
+        # y 用绝对距离(0.24 in, 刻度+间隙)换算 axes 分数: 矮图 axes 高 1.2in 时 -0.16 分数仅 0.19in 会压刻度
+        _axh_in = ax_bars.get_window_extent(fig.canvas.get_renderer()).height / fig.dpi
+        ax_bars.xaxis.set_label_coords(x0f / 2, -0.24 / _axh_in)   # 柱区水平中心、刻度下方 0.24in
         for sp in ("top", "right"):
             ax_bars.spines[sp].set_visible(False)
 
