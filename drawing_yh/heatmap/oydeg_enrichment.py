@@ -192,7 +192,7 @@ def _build_enrichment_layout(
     gene_formatter: Callable[[str], str],
     gene_wrap: int,
 ):
-    head_h, sub_h, term_h, gene_h, term_gap, gap = 1.05, 0.78, 0.88, 0.70, 0.28, 0.60
+    head_h, sub_h, term_h, gene_h, term_gap, gap = 1.05, 0.78, 1.20, 0.70, 0.50, 0.60
     layout, slot = [], 0.0
     for block in right_blocks:
         header_y = slot
@@ -263,7 +263,6 @@ def _build_enrichment_columns(right_blocks, ncols, **kw):
 def _lay_terms_from(terms_raw, start_y, *, max_genes_per_term, gene_formatter,
                     gene_wrap, term_wrap):
     """从 start_y 往下排一组 term(可换行的 term 标签 + 基因行),返回 (items, end_y)。"""
-    term_h, gene_h, term_gap, lbl_line_h = 0.88, 0.70, 0.28, 0.66
     slot = start_y
     items = []
     for t in (_term_dict(x) for x in terms_raw):
@@ -341,7 +340,7 @@ def _render_updown(ax_up, ax_down, layout, total_slots, max_nlp, *, fs, no_terms
                 ax.barh(it["term_y"], nlp, height=0.60, color=side["dcolor"],
                         alpha=0.28, edgecolor="none")
                 for li, line in enumerate(it["lbl_lines"]):
-                    ax.text(xt, it["term_y"] + li * 0.66, line, va="center", ha="left",
+                    ax.text(xt, it["term_y"] + li * lbl_line_h, line, va="center", ha="left",
                             fontsize=fs["term"], color="black", fontweight="bold", clip_on=False)
                 for gy, line in it["glines"]:
                     ax.text(xt, gy, line, va="center", ha="left", fontsize=fs["gene"],
@@ -419,6 +418,8 @@ def plot_oydeg_heatmap_enrichment(
     enrich_updown_cols: bool = False,
     updown_gap: float = 0.012,
     updown_term_wrap: int = 30,
+    xtick_rotation: float = 45,
+    block_label_wrap: int = 14,
 ):
     """Draw an OY-DEG heatmap with labeled genes and enrichment blocks.
 
@@ -489,7 +490,15 @@ def plot_oydeg_heatmap_enrichment(
         figsize = (fig_w, fig_h)
     fig = plt.figure(figsize=figsize)
 
-    ax_heat = fig.add_axes([0.06, 0.055, 0.13, 0.90])
+    # 左边距随最长块标签行宽自适应(标签在热图左侧 ha="right" 且带 leader 偏移 ~0.27*ax_w)
+    _max_blk_chars = max((len(_wrap_label(b.get("label", ""), block_label_wrap)
+                              .split("\n")[0]) for b in heat_blocks), default=6)
+    _text_frac = _max_blk_chars * (fs["block"] * 0.62 / 72) / figsize[0]
+    left_m = 0.06
+    for _ in range(3):   # label 偏移∝ax_w, 迭代收敛
+        _ax_w = min(0.13, 0.19 - left_m)
+        left_m = max(0.06, 0.269 * _ax_w + _text_frac + 0.015)
+    ax_heat = fig.add_axes([left_m, 0.055, 0.19 - left_m, 0.90])
     ax_labels = fig.add_axes([0.19, 0.055, 0.18, 0.90])
     dot_x0 = 0.25
     name_x = dot_x0 + ncol * dot_dx + 0.02
@@ -513,13 +522,26 @@ def plot_oydeg_heatmap_enrichment(
             for i in range(enrich_ncols)
         ]
     ax_enrich = ax_enrich_list[0]
-    cax = fig.add_axes([0.205, 0.022, 0.11, 0.010])
+    # 色条竖排(标签在右侧): 短高 0.08in、宽 0.028 画布分数, 底部抬高避开 xtick
+    # 底部边距自适应: 90° 竖排 xtick 最长文字会向下伸出, 固定 y 布局会被压出画布
+    _max_xt_chars = max((len(_display(c, display_labels)) for c in cols), default=4)
+    _bot_frac = ((fs["xtick"] * 0.62 / 72) * (_max_xt_chars if xtick_rotation in (90,) else 1)
+                 / figsize[1]) + 0.045
+    _bot_frac = max(0.055, min(_bot_frac, 0.16))
+    _h = 1.0 - _bot_frac - 0.045
+    if _bot_frac > 0.055:
+        for _ax in [ax_heat, ax_labels, *ax_enrich_list]:
+            _p = _ax.get_position()
+            _ax.set_position([_p.x0, _bot_frac, _p.width, _h])
+    cax = fig.add_axes([0.205, min(0.075, _bot_frac * 0.5 + 0.02), 0.028, 0.055])
 
     ax_heat.imshow(mat_disp, aspect="auto", cmap=cmap_obj, norm=norm,
                    extent=[0, ncol, n_disp, 0], interpolation="nearest")
     ax_heat.set_xticks([i + 0.5 for i in range(ncol)])
-    ax_heat.set_xticklabels([_display(c, display_labels) for c in cols], rotation=45,
-                            ha="right", fontsize=fs["xtick"])
+    ax_heat.set_xticklabels([_display(c, display_labels) for c in cols],
+                            rotation=xtick_rotation,
+                            ha="right" if xtick_rotation in (0, 45) else "center",
+                            fontsize=fs["xtick"])
     for tick, col in zip(ax_heat.get_xticklabels(), cols):
         tick.set_color(darken(column_colors.get(col, "#000000"), 0.62))
     ax_heat.set_yticks([])
@@ -538,7 +560,7 @@ def plot_oydeg_heatmap_enrichment(
         spine.set_visible(False)
 
     centers = [(block["s_disp"] + block["e_disp"]) / 2 for block in heat_blocks]
-    labels = [_wrap_label(block.get("label", "")) for block in heat_blocks]
+    labels = [_wrap_label(block.get("label", ""), block_label_wrap) for block in heat_blocks]
     line_row = max((fs["block"] * 1.5 / 72) / (0.90 * figsize[1]) * n_disp, 1e-6)
     adjusted = list(centers)
     for i in range(1, len(adjusted)):
@@ -557,8 +579,11 @@ def plot_oydeg_heatmap_enrichment(
             ax_heat.plot([0, stub_x, diag_x], [center, center, y], color=bc, lw=0.6,
                          alpha=0.85, clip_on=False, zorder=4, solid_capstyle="round",
                          solid_joinstyle="round")
-        ax_heat.text(label_x, y, label, va="center", ha="right", fontsize=fs["block"],
-                     fontweight="bold", color=bc, clip_on=False, linespacing=0.9)
+        # 挂 fig.text: 块标签物理位置在 ax_heat 坐标区外(左侧), 挂 ax.texts 会被 stray 检查误报
+        _fx = left_m + label_x / ncol * (0.19 - left_m)
+        _fy = 0.055 + (1 - y / n_disp) * 0.90
+        fig.text(_fx, _fy, label, va="center", ha="right", fontsize=fs["block"],
+                 fontweight="bold", color=bc, linespacing=0.9)
     ax_heat.set_xlim(0, ncol)
     ax_heat.set_ylim(n_disp, 0)
     if heatmap_title:
@@ -566,13 +591,18 @@ def plot_oydeg_heatmap_enrichment(
 
     sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap_obj)
     sm.set_array([])
-    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both")
+    # 标签放色条右侧: 底部空间随图高变化, 短图时 xlabel 会垂出画布(门禁 outside)
+    cax_h = 0.010 * figsize[1] / 8.0          # 保持 ~0.08in 物理高
+    cb = fig.colorbar(sm, cax=cax, orientation="vertical", aspect=8)
     cb.set_label(colorbar_label, fontsize=fs["cbar"])
     cb.ax.tick_params(labelsize=fs["ctick"])
 
     ax_labels.set_xlim(0, 1)
     ax_labels.set_ylim(n_disp, 0)
     ax_labels.axis("off")
+    # axis("off") 后残留默认数字刻度仍会被 layout_audit 收集(幻影重叠), 清掉
+    ax_labels.set_xticks([])
+    ax_labels.set_yticks([])
     nl = max(len(label_genes), 1)
     header_marker_size, grid_marker_size, tri_marker_size, leader_lw = 26, 16, 34, 0.9
     for j, col in enumerate(cols):
