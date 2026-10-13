@@ -34,6 +34,12 @@ BAR_HEIGHT = 0.5
 ROW_HEIGHT_IN = 0.28
 FIG_WIDTH_IN = 6.89
 
+# 2026-10-13 杨航令(组图单页压缩): 行距/上下 pad 可从调用方覆盖 —— 默认值不变
+def _dims(n_rows, row_h_in=None, pad_in=None):
+    row_h_in = ROW_HEIGHT_IN if row_h_in is None else row_h_in
+    pad_in = 0.6 if pad_in is None else pad_in
+    return row_h_in, pad_in
+
 
 
 
@@ -82,7 +88,8 @@ def enrich_up_down(analysis_type,
                    up_fontcolor='black', down_fontcolor='black',
                    n_term_up=8, n_term_down=8,
                    alpha=0.75,
-                   up_title='', down_title=''):
+                   up_title='', down_title='',
+                   row_h_in=None, pad_in=None):
     def _prep(file, n_term):
         df = pd.read_csv(file, sep='\t') if str(file).endswith('.txt') else pd.read_csv(file)
         df = df.copy()
@@ -92,8 +99,9 @@ def enrich_up_down(analysis_type,
     df_up = _prep(up_file, n_term_up)
     df_down = _prep(down_file, n_term_down)
 
-    h_up = len(df_up) * ROW_HEIGHT_IN + 0.6
-    h_down = len(df_down) * ROW_HEIGHT_IN + 0.6
+    row_h_in, pad_in = _dims(len(df_up) + len(df_down), row_h_in, pad_in)
+    h_up = len(df_up) * row_h_in + pad_in
+    h_down = len(df_down) * row_h_in + pad_in
     fig = plt.figure(figsize=(FIG_WIDTH_IN, h_up + h_down))
     gs = fig.add_gridspec(2, 1, height_ratios=[len(df_up), len(df_down)], hspace=0.4)
     ax_up = fig.add_subplot(gs[0])
