@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import re
 import subprocess
@@ -71,7 +72,9 @@ def ensure_svg(src: Path, cache: Path, ink: Path) -> Path:
             tag.write_text(src_md5, encoding="utf-8")
         return dst
     w, h = _png_size(src)
-    href = src.resolve().as_uri()
+    # PNG panel 一律 base64 内嵌(2026-10-12): file:// 外链在浏览器从 http:// 打开
+    # 组图页时被跨源拦截 → 整体效果页裂图(A panel 实发)。内嵌后合并 SVG 自包含。
+    href = "data:image/png;base64," + base64.b64encode(src.read_bytes()).decode("ascii")
     root = ET.Element("svg", {
         "width": f"{w}px", "height": f"{h}px", "viewBox": f"0 0 {w} {h}"})
     ET.SubElement(root, "image", {"x": "0", "y": "0", "width": str(w), "height": str(h),
@@ -286,7 +289,10 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
             if p.get("label"):
                 # 2026-09-13 用户: 字母序号按期刊标准(Nature 8pt bold; 96dpi px → 12px=9pt,
                 # 8pt 上浮半档保印刷清晰); 原 28px(21pt) 明显偏大
-                ET.SubElement(svg, "text", {"x": f"{it['x_px']:.1f}",
+                # 2026-10-13 杨航令: 标签尽量对齐 — 支持 label_x_mm 覆盖默认 x(面板左缘),
+                # 图不必跟着标签走(标签只要落在图左上角区域)
+                lx = float(p.get("label_x_mm", it["x_px"] / MM)) * MM
+                ET.SubElement(svg, "text", {"x": f"{lx:.1f}",
                                             "y": f"{it['y_px'] - label_gap:.1f}",
                                             "font-family": "Arial", "font-weight": "bold",
                                             "font-size": "12"}).text = str(p["label"])
