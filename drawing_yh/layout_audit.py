@@ -83,6 +83,8 @@ def _collect_texts(fig) -> list[tuple[str, Any]]:
     """
     items: list[tuple[str, Any]] = []
     for i, ax in enumerate(fig.get_axes()):
+        if not getattr(ax, "axison", True):
+            continue  # axis("off") 的图例/装饰轴: 刻度不渲染, 不进审计(2026-10-17 误报修正)
         xlo, xhi = ax.get_xlim()
         ylo, yhi = ax.get_ylim()
         for t in _in_viewport(ax.get_xticklabels(), xlo, xhi, "x"):
