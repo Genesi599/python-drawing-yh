@@ -291,9 +291,12 @@ def build_page(cfg_page: dict, yaml_dir: Path, ink: Path, out_dir: Path, name: s
                 # 8pt 上浮半档保印刷清晰); 原 28px(21pt) 明显偏大
                 # 2026-10-13 杨航令: 标签尽量对齐 — 支持 label_x_mm 覆盖默认 x(面板左缘),
                 # 图不必跟着标签走(标签只要落在图左上角区域)
+                # 2026-10-16 杨航令: 同一行面板的字母要平行 — 支持 label_y_mm 覆盖默认 y(面板顶),
+                # 短面板居中摆放时字母仍可与其同行面板齐平(图不必移动)
                 lx = float(p.get("label_x_mm", it["x_px"] / MM)) * MM
+                ly = float(p.get("label_y_mm", it["y_px"] / MM)) * MM
                 ET.SubElement(svg, "text", {"x": f"{lx:.1f}",
-                                            "y": f"{it['y_px'] - label_gap:.1f}",
+                                            "y": f"{ly - label_gap:.1f}",
                                             "font-family": "Arial", "font-weight": "bold",
                                             "font-size": "12"}).text = str(p["label"])
             if p.get("caption"):

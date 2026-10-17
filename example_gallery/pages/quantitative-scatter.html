@@ -302,5 +302,31 @@ document.addEventListener('keydown', function (e) {
   }
 });
 </script>
+<script id="auto-refresh">
+(function () {
+  var key = 'ar:' + location.pathname, base = null, busy = false;
+  function probe() {
+    if (busy) return;
+    busy = true;
+    fetch(location.pathname + '?ar=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        var lm = r.headers.get('Last-Modified') || '';
+        if (!lm) { busy = false; return; }
+        if (base === null) { base = lm; busy = false; return; }
+        if (lm !== base) {
+          try { sessionStorage.setItem(key + ':y', String(window.scrollY)); } catch (e) {}
+          location.reload();
+        } else { busy = false; }
+      })
+      .catch(function () { busy = false; });
+  }
+  try {
+    var y = sessionStorage.getItem(key + ':y');
+    if (y !== null) { window.scrollTo(0, parseInt(y, 10) || 0); sessionStorage.removeItem(key + ':y'); }
+  } catch (e) {}
+  setInterval(probe, 5000);
+  probe();
+})();
+</script>
 </body>
 </html>
